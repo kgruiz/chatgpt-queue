@@ -24,6 +24,12 @@
       <button id="cq-next">Send next</button>
       <button id="cq-clear">Clear</button>
     </div>
+    <div class="cq-new">
+      <textarea id="cq-new-text" class="cq-new-text" placeholder="Type a prompt to queue"></textarea>
+      <div class="cq-new-actions">
+        <button id="cq-new-add">Queue text</button>
+      </div>
+    </div>
     <div id="cq-list" class="cq-queue"></div>`;
   document.documentElement.appendChild(ui);
 
@@ -35,6 +41,8 @@
   const btnStop = $('#cq-stop');
   const btnNext = $('#cq-next');
   const btnClear = $('#cq-clear');
+  const newInput = $('#cq-new-text');
+  const btnNewAdd = $('#cq-new-add');
   const list = $('#cq-list');
 
   let saveTimer;
@@ -110,6 +118,7 @@
     btnStop.disabled = !STATE.running;
     btnNext.disabled = STATE.busy || STATE.queue.length === 0;
     btnClear.disabled = STATE.queue.length === 0;
+    if (btnNewAdd) btnNewAdd.disabled = STATE.busy || !newInput.value.trim();
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
   }
@@ -261,6 +270,42 @@
       list.scrollTop = list.scrollHeight;
     });
   });
+
+  function queueNewInput() {
+    if (!newInput) return;
+    const text = newInput.value;
+    if (!text.trim()) return;
+    STATE.queue.push(text.replace(/\r\n/g, '\n'));
+    newInput.value = '';
+    autoSize(newInput);
+    save();
+    refreshAll();
+    requestAnimationFrame(() => {
+      list.scrollTop = list.scrollHeight;
+    });
+    newInput.focus();
+  }
+
+  if (newInput) {
+    autoSize(newInput);
+    newInput.addEventListener('input', () => {
+      autoSize(newInput);
+      refreshControls();
+    });
+    newInput.addEventListener('keydown', (event) => {
+      const meta = navigator.platform.includes('Mac') ? event.metaKey : event.ctrlKey;
+      if (meta && event.shiftKey && event.key === 'Enter') {
+        event.preventDefault();
+        queueNewInput();
+      }
+    });
+  }
+
+  if (btnNewAdd) {
+    btnNewAdd.addEventListener('click', () => {
+      queueNewInput();
+    });
+  }
 
   btnStart.addEventListener('click', () => {
     STATE.running = true;

@@ -95,6 +95,42 @@
   padding-right: 4px;
 }
 
+#cq-ui .cq-new {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(17, 24, 39, 0.6);
+}
+
+#cq-ui .cq-new-text {
+  width: 100%;
+  min-height: 52px;
+  max-height: 180px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: #f9fafb;
+  font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#cq-ui .cq-new-text:focus {
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
+  outline: none;
+}
+
+#cq-ui .cq-new-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 #cq-ui .cq-empty {
   padding: 12px;
   border: 1px dashed rgba(148, 163, 184, 0.4);
