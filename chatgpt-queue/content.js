@@ -1,5 +1,5 @@
 (() => {
-  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true };
+  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true, phase: 'idle' };
   const SEL = {
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
@@ -157,7 +157,13 @@
 
   function refreshControls() {
     elCount.textContent = String(STATE.queue.length);
-    elState.textContent = STATE.busy ? 'Sending...' : STATE.running ? 'Running' : 'Idle';
+    let status = 'Idle';
+    if (STATE.busy) {
+      status = STATE.phase === 'waiting' ? 'Waiting...' : 'Sending...';
+    } else if (STATE.running) {
+      status = 'Running';
+    }
+    elState.textContent = status;
     btnStart.disabled = STATE.running;
     btnStop.disabled = !STATE.running;
     btnNext.disabled = STATE.busy || STATE.queue.length === 0;
@@ -297,11 +303,13 @@
 
     const prompt = STATE.queue.shift();
     STATE.busy = true;
+    STATE.phase = 'sending';
     save();
     refreshAll();
 
     if (!(await setPrompt(prompt))) {
       STATE.busy = false;
+      STATE.phase = 'idle';
       STATE.queue.unshift(prompt);
       refreshAll();
       save();
@@ -309,9 +317,12 @@
     }
 
     clickSend();
+    STATE.phase = 'waiting';
+    refreshControls();
     await waitUntilIdle();
 
     STATE.busy = false;
+    STATE.phase = 'idle';
     refreshControls();
     save();
     if (STATE.running) maybeKick();
@@ -395,6 +406,7 @@
 
   btnStart.addEventListener('click', () => {
     STATE.running = true;
+    if (!STATE.busy) STATE.phase = 'idle';
     save();
     refreshControls();
     maybeKick();
@@ -402,6 +414,8 @@
 
   btnStop.addEventListener('click', () => {
     STATE.running = false;
+    STATE.busy = false;
+    STATE.phase = 'idle';
     save();
     refreshControls();
   });
@@ -448,6 +462,12 @@
     if (msg?.type === 'queue-from-shortcut') btnAdd.click();
     if (msg?.type === 'toggle-queue') {
       STATE.running = !STATE.running;
+      if (!STATE.running) {
+        STATE.busy = false;
+        STATE.phase = 'idle';
+      } else if (!STATE.busy) {
+        STATE.phase = 'idle';
+      }
       save();
       refreshControls();
       if (STATE.running) maybeKick();
