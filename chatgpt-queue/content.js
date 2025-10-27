@@ -9,39 +9,14 @@
 
   function injectBridge() {
     if (document.getElementById('cq-bridge')) return;
+    const url = chrome.runtime?.getURL?.('bridge.js');
+    if (!url) return;
     const s = document.createElement('script');
     s.id = 'cq-bridge';
-    s.textContent = `
-    (() => {
-      window.addEventListener('message', (e) => {
-        if (e.source !== window) return;
-        const msg = e.data;
-        if (!msg || msg.type !== 'CQ_SET_PROMPT') return;
-
-        const ed = document.querySelector('#prompt-textarea.ProseMirror[contenteditable="true"]');
-        try {
-          const view =
-            ed && ((ed.pmViewDesc && ed.pmViewDesc.editorView) ||
-                   (ed._pmViewDesc && ed._pmViewDesc.editorView));
-          const text = String(msg.text ?? '');
-
-          if (view && view.state) {
-            const tr = view.state.tr.insertText(text, 0, view.state.doc.content.size);
-            view.dispatch(tr);
-            view.focus();
-          } else if (ed) {
-            // fallback if editorView is hidden
-            ed.textContent = text;
-            ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.focus();
-          }
-        } finally {
-          window.postMessage({ type: 'CQ_SET_PROMPT_DONE' }, '*');
-        }
-      }, false);
-    })();`;
+    s.src = url;
+    s.type = 'text/javascript';
+    s.addEventListener('error', () => s.remove());
     (document.head || document.documentElement).appendChild(s);
-    s.remove();
   }
 
   injectBridge();

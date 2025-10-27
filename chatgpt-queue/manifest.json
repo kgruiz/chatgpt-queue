@@ -17,6 +17,13 @@
     "css": ["styles.css"],
     "run_at": "document_idle"
   }],
+  "web_accessible_resources": [{
+    "resources": ["bridge.js"],
+    "matches": [
+      "https://chat.openai.com/*",
+      "https://chatgpt.com/*"
+    ]
+  }],
   "background": { "service_worker": "bg.js" },
   "action": { "default_title": "chatgpt-queue" },
   "commands": {
