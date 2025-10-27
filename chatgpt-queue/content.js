@@ -134,6 +134,16 @@
     return ed.pmViewDesc?.editorView || ed._pmViewDesc?.editorView || null;
   }
 
+  function isVisible(element) {
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      if (element.hasAttribute('hidden') || element.getAttribute('aria-hidden') === 'true') return false;
+    }
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
   function setPrompt(text) {
     return new Promise((resolve) => {
       const onMsg = (e) => {
@@ -275,17 +285,34 @@
     if (!root) return false;
 
     return new Promise((resolve) => {
+      let observer;
+      let timer;
       const done = () => {
-        observer.disconnect();
-        clearTimeout(timer);
+        observer?.disconnect();
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
         setTimeout(() => resolve(true), STATE.cooldownMs);
       };
-      const observer = new MutationObserver(() => {
-        if (!q(SEL.stop, root) && q(SEL.send, root)) done();
+      const checkIdle = () => {
+        const stopBtn = q(SEL.stop, root);
+        const sendBtn = q(SEL.send, root);
+        const stopVisible = stopBtn ? isVisible(stopBtn) && !stopBtn.disabled : false;
+        const sendReady = sendBtn ? isVisible(sendBtn) && !sendBtn.disabled : false;
+        if (!stopVisible && sendReady) {
+          done();
+          return true;
+        }
+        return false;
+      };
+      observer = new MutationObserver(() => {
+        checkIdle();
       });
       observer.observe(root, { subtree: true, childList: true, attributes: true });
-      const timer = setTimeout(() => {
-        observer.disconnect();
+      if (checkIdle()) return;
+      timer = setTimeout(() => {
+        observer?.disconnect();
         resolve(false);
       }, timeoutMs);
     });
