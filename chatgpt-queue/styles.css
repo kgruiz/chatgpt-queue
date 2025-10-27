@@ -1,0 +1,27 @@
+#cq-ui {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2147483647;
+  font: 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: rgba(20,20,23,.92);
+  color: #e5e7eb;
+  border: 1px solid rgba(99,102,241,.35);
+  border-radius: 10px;
+  padding: 10px;
+  backdrop-filter: saturate(1.2) blur(6px);
+  box-shadow: 0 6px 24px rgba(0,0,0,.35);
+}
+#cq-ui .cq-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+#cq-ui strong { font-weight: 600; }
+#cq-ui #cq-count { margin-left: auto; background: #111827; padding: 2px 8px; border-radius: 999px; }
+#cq-ui button {
+  border: 1px solid rgba(148,163,184,.3);
+  background: #0b0f19;
+  color: #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#cq-ui button:disabled { opacity: .45; cursor: default; }
+#cq-ui button:hover:not(:disabled) { background: #111827; }

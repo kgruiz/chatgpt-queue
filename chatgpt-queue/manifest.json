@@ -1,0 +1,32 @@
+{
+  "name": "chatgpt-queue",
+  "description": "Queue prompts and auto-send after each reply finishes.",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*"
+  ],
+  "content_scripts": [{
+    "matches": [
+      "https://chat.openai.com/*",
+      "https://chatgpt.com/*"
+    ],
+    "js": ["content.js"],
+    "css": ["styles.css"],
+    "run_at": "document_idle"
+  }],
+  "background": { "service_worker": "bg.js" },
+  "action": { "default_title": "chatgpt-queue" },
+  "commands": {
+    "queue-from-shortcut": {
+      "suggested_key": { "default": "Ctrl+Shift+Enter", "mac": "Command+Shift+Enter" },
+      "description": "Queue current input"
+    },
+    "toggle-queue": {
+      "suggested_key": { "default": "Ctrl+Shift+.", "mac": "Command+Shift+." },
+      "description": "Start/Stop queue"
+    }
+  }
+}
