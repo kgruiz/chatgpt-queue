@@ -1,5 +1,5 @@
 (() => {
-  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900 };
+  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true };
   const SEL = {
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
@@ -8,12 +8,18 @@
   };
 
   // UI -----------------------------------------------------------------------
+  document.getElementById('cq-ui')?.remove();
+  document.getElementById('cq-dock')?.remove();
+
   const ui = document.createElement('div');
   ui.id = 'cq-ui';
   ui.innerHTML = `
     <div class="cq-head">
       <div class="cq-title"><strong>Queue</strong><span id="cq-count">0</span></div>
-      <span id="cq-state" class="cq-state">Idle</span>
+      <div class="cq-head-side">
+        <span id="cq-state" class="cq-state">Idle</span>
+        <button id="cq-collapse" class="cq-icon" type="button" aria-label="Collapse queue panel">Hide</button>
+      </div>
     </div>
     <div class="cq-row">
       <button id="cq-add">Add from input</button>
@@ -36,6 +42,7 @@
   const $ = (selector) => ui.querySelector(selector);
   const elCount = $('#cq-count');
   const elState = $('#cq-state');
+  const btnCollapse = $('#cq-collapse');
   const btnAdd = $('#cq-add');
   const btnStart = $('#cq-start');
   const btnStop = $('#cq-stop');
@@ -45,10 +52,24 @@
   const btnNewAdd = $('#cq-new-add');
   const list = $('#cq-list');
 
+  const dock = document.createElement('button');
+  dock.id = 'cq-dock';
+  dock.type = 'button';
+  dock.textContent = 'Queue';
+  dock.setAttribute('aria-label', 'Open chatgpt queue panel');
+  document.documentElement.appendChild(dock);
+
   let saveTimer;
 
   // Persist ------------------------------------------------------------------
-  const save = () => chrome.storage?.local.set({ cq: { running: STATE.running, queue: STATE.queue } });
+  const persistable = () => ({
+    running: STATE.running,
+    queue: STATE.queue.slice(),
+    collapsed: STATE.collapsed,
+    showDock: STATE.showDock
+  });
+
+  const save = () => chrome.storage?.local.set({ cq: persistable() });
   const scheduleSave = () => {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -64,8 +85,11 @@
         STATE.queue = Array.isArray(cq.queue)
           ? cq.queue.map((item) => (typeof item === 'string' ? item : String(item ?? '')))
           : [];
+        STATE.collapsed = cq.collapsed === true;
+        STATE.showDock = cq.showDock !== false;
       }
       refreshAll();
+      refreshVisibility();
       if (STATE.running) maybeKick();
       resolve();
     });
@@ -118,9 +142,40 @@
     btnStop.disabled = !STATE.running;
     btnNext.disabled = STATE.busy || STATE.queue.length === 0;
     btnClear.disabled = STATE.queue.length === 0;
-    if (btnNewAdd) btnNewAdd.disabled = STATE.busy || !newInput.value.trim();
+    if (btnNewAdd) {
+      const value = newInput ? newInput.value.trim() : '';
+      btnNewAdd.disabled = STATE.busy || !value;
+    }
+    if (btnCollapse) {
+      const label = STATE.collapsed ? 'Show' : 'Hide';
+      btnCollapse.textContent = label;
+      btnCollapse.setAttribute('aria-label', `${label} queue panel`);
+    }
+    dock.classList.toggle('is-running', STATE.running);
+    dock.classList.toggle('is-busy', STATE.busy);
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
+  }
+
+  function refreshVisibility() {
+    const collapsed = STATE.collapsed;
+    ui.style.display = collapsed ? 'none' : 'flex';
+    ui.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    dock.hidden = !(STATE.showDock && collapsed);
+  }
+
+  function setCollapsed(collapsed, persist = true) {
+    STATE.collapsed = collapsed;
+    refreshVisibility();
+    refreshControls();
+    if (!collapsed) newInput?.focus({ preventScroll: true });
+    if (persist) save();
+  }
+
+  function setShowDock(show, persist = true) {
+    STATE.showDock = show;
+    refreshVisibility();
+    if (persist) save();
   }
 
   function autoSize(textarea) {
@@ -257,6 +312,17 @@
   }
 
   // Buttons ------------------------------------------------------------------
+  if (btnCollapse) {
+    btnCollapse.addEventListener('click', () => {
+      setCollapsed(true);
+    });
+  }
+
+  dock.addEventListener('click', () => {
+    if (!STATE.showDock) setShowDock(true);
+    setCollapsed(false);
+  });
+
   btnAdd.addEventListener('click', () => {
     const ed = findEditor();
     const text = ed?.innerText?.trim();
@@ -366,6 +432,22 @@
       refreshControls();
       if (STATE.running) maybeKick();
     }
+    if (msg?.type === 'toggle-ui') {
+      if (!STATE.collapsed) {
+        setCollapsed(true, false);
+        setShowDock(true, false);
+      } else if (STATE.showDock) {
+        setShowDock(false, false);
+      } else {
+        setShowDock(true, false);
+      }
+      save();
+    }
+    if (msg?.type === 'show-ui') {
+      setShowDock(true, false);
+      setCollapsed(false, false);
+      save();
+    }
   });
 
   // Handle SPA changes and rerenders -----------------------------------------
@@ -381,5 +463,6 @@
     }
   }, 800);
 
+  refreshVisibility();
   load();
 })();

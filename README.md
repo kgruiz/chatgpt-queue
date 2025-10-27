@@ -13,6 +13,7 @@ Queue prompts for ChatGPT and send them automatically once each reply finishes. 
 - One-click capture of the current composer input, plus a Cmd/Ctrl+Shift+Enter shortcut.
 - Automatic prompt dispatch with built-in cooldown once ChatGPT finishes responding.
 - Manual controls for pausing, sending the next item, or clearing the queue.
+- Collapsible panel that tucks into a minimal dock button, with an extension-icon toggle if you want the UI hidden entirely.
 - Lightweight implementation using a Manifest V3 background service worker and content script.
 
 ## Installation
@@ -32,6 +33,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 4. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown.
 5. Use **Stop** to pause, **Send next** for a single dispatch, and **Clear** to empty the queue.
 6. Manage queued items directly in the panel—edit text inline, move items with **Up**/**Down**, or remove them entirely.
+7. Collapse the panel with **Hide** to reveal a compact dock button; click the dock to reopen the queue when you need it again.
 
 ### Keyboard Shortcuts
 
@@ -52,6 +54,12 @@ Shortcuts can be customized from the browser’s extension shortcuts settings.
 - Use the **Up** and **Down** controls to reorder items without leaving the page.
 - Choose **Delete** on a card to drop it from the run; the panel updates immediately so you can keep an eye on what is next.
 - The first card is highlighted, making it easy to see the next prompt the extension plans to send.
+
+### Visibility Controls
+
+- Hit **Hide** in the panel header to collapse the interface and leave only the dock button in the corner.
+- Click the dock button to reopen the full queue panel at any time.
+- Use the browser's extension icon (or extensions dropdown) to toggle the dock button entirely when you want the UI off the page.
 
 ## Persistence and Data
 

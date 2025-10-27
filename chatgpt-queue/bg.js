@@ -3,3 +3,8 @@ chrome.commands.onCommand.addListener(async (cmd) => {
   if (!tab || !/^https:\/\/(chatgpt\.com|chat\.openai\.com)/.test(tab.url || "")) return;
   chrome.tabs.sendMessage(tab.id, { type: cmd });
 });
+
+chrome.action?.onClicked.addListener(async (tab) => {
+  if (!tab?.id || !/^https:\/\/(chatgpt\.com|chat\.openai\.com)/.test(tab.url || "")) return;
+  chrome.tabs.sendMessage(tab.id, { type: 'toggle-ui' });
+});
