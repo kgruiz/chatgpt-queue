@@ -17,8 +17,8 @@ Queue prompts for ChatGPT and send them automatically once each reply finishes. 
 ## Installation
 
 1. Clone or download this repository.
-2. Open Chrome, Edge, Brave, or another Chromium-based browser.
-3. Navigate to `chrome://extensions` and enable **Developer mode**.
+2. Open Chrome, Edge, Brave, Arc, or another Chromium-based browser.
+3. Navigate to the extension management page for your browser (e.g. `chrome://extensions`, `arc://extensions`), enable **Developer mode**, and note that many browsers will redirect from the Chrome URL automatically.
 4. Choose **Load unpacked** and select the `chatgpt-queue/` directory inside this project.
 
 _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose **Load Temporary Add-on**, and pick `manifest.json`. If your Firefox build lacks MV3 service workers, adjust the manifest background section to use `"scripts": ["bg.js"]` before loading.
