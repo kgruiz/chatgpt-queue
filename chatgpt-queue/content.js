@@ -3,6 +3,7 @@
   const SEL = {
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
+    voice: 'button[data-testid="composer-speech-button"], button[aria-label="Start voice mode"]',
     stop: 'button[data-testid="stop-button"][aria-label="Stop streaming"]',
     composer: 'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]'
   };
@@ -281,17 +282,36 @@
     if (!root) return false;
 
     return new Promise((resolve) => {
+      let finished = false;
+      let observer;
+      let timer;
       const done = () => {
-        observer.disconnect();
-        clearTimeout(timer);
+        if (finished) return;
+        finished = true;
+        observer?.disconnect();
+        if (timer !== undefined) clearTimeout(timer);
         setTimeout(() => resolve(true), STATE.cooldownMs);
       };
-      const observer = new MutationObserver(() => {
-        if (!q(SEL.stop, root) && q(SEL.send, root)) done();
+      const isIdle = () => {
+        const stopBtn = q(SEL.stop, root);
+        if (stopBtn && !stopBtn.disabled && stopBtn.offsetParent !== null) return false;
+        const sendBtn = q(SEL.send, root);
+        if (sendBtn && !sendBtn.disabled && sendBtn.offsetParent !== null) return true;
+        const voiceBtn = q(SEL.voice, root);
+        if (voiceBtn && !voiceBtn.disabled && voiceBtn.offsetParent !== null) return true;
+        return false;
+      };
+      observer = new MutationObserver(() => {
+        if (isIdle()) done();
       });
       observer.observe(root, { subtree: true, childList: true, attributes: true });
-      const timer = setTimeout(() => {
-        observer.disconnect();
+      if (isIdle()) {
+        done();
+        return;
+      }
+      timer = setTimeout(() => {
+        if (finished) return;
+        observer?.disconnect();
         resolve(false);
       }, timeoutMs);
     });
