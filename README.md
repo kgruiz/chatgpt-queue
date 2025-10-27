@@ -34,8 +34,10 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
-| Queue current input | Cmd+Shift+Enter | Ctrl+Shift+Enter |
-| Toggle queue | Cmd+Shift+. | Ctrl+Shift+. |
+| Queue current input (in composer) | Cmd+Shift+Enter | Ctrl+Shift+Enter |
+| Toggle queue (in composer) | Cmd+Shift+. | Ctrl+Shift+. |
+| Extension shortcut default | Cmd+Shift+Y | Ctrl+Shift+Y |
+| Extension toggle default | Cmd+Shift+G | Ctrl+Shift+G |
 
 Shortcuts can be customized from the browser’s extension shortcuts settings.
 

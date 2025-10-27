@@ -21,11 +21,11 @@
   "action": { "default_title": "chatgpt-queue" },
   "commands": {
     "queue-from-shortcut": {
-      "suggested_key": { "default": "Ctrl+Shift+Enter", "mac": "Command+Shift+Enter" },
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
       "description": "Queue current input"
     },
     "toggle-queue": {
-      "suggested_key": { "default": "Ctrl+Shift+.", "mac": "Command+Shift+." },
+      "suggested_key": { "default": "Ctrl+Shift+G", "mac": "Command+Shift+G" },
       "description": "Start/Stop queue"
     }
   }
