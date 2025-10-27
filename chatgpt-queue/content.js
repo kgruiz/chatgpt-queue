@@ -4,7 +4,7 @@
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
     stop: 'button[data-testid="stop-button"][aria-label="Stop streaming"]',
-    composer: 'form[data-type="unified-composer"]'
+    composer: 'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]'
   };
 
   // UI -----------------------------------------------------------------------
@@ -97,34 +97,67 @@
 
   // DOM helpers ---------------------------------------------------------------
   const q = (selector, root = document) => root.querySelector(selector);
-  const composer = () => q(SEL.composer);
+  const composer = () => {
+    const preset = q(SEL.composer);
+    if (preset) return preset;
+    const sendButton = q(SEL.send);
+    if (sendButton) {
+      const scoped = sendButton.closest('form, [data-testid], [data-type], [class]');
+      if (scoped) return scoped;
+    }
+    const ed = findEditor();
+    return ed?.closest('form, [data-testid], [data-type], [class]') || null;
+  };
   const isGenerating = () => !!q(SEL.stop, composer());
 
   function findEditor() {
     return q(SEL.editor);
   }
 
+  function editorView() {
+    const ed = findEditor();
+    if (!ed) return null;
+    return ed.pmViewDesc?.editorView || ed._pmViewDesc?.editorView || null;
+  }
+
   function setPrompt(text) {
+    const normalized = (text ?? '').replace(/\r\n/g, '\n');
+    const view = editorView();
+    if (view?.state) {
+      try {
+        const { state } = view;
+        let tr = state.tr.insertText(normalized, 0, state.doc.content.size);
+        tr = tr.setMeta('cq-replace', true);
+        view.dispatch(tr);
+        const SelectionClass = view.state.selection.constructor;
+        if (typeof SelectionClass.near === 'function') {
+          const endPos = view.state.doc.content.size;
+          const sel = SelectionClass.near(view.state.doc.resolve(endPos));
+          view.dispatch(view.state.tr.setSelection(sel));
+        }
+        view.focus();
+        return true;
+      } catch (err) {
+        console.warn('[cq] setPrompt via view failed, falling back', err);
+      }
+    }
+
     const ed = findEditor();
     if (!ed) return false;
 
     ed.focus();
 
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
     const range = document.createRange();
     range.selectNodeContents(ed);
-    range.collapse(false);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    selection?.addRange(range);
 
-    const ok = ed.dispatchEvent(new InputEvent('beforeinput', {
-      inputType: 'insertText',
-      data: text,
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    }));
-    if (!ok) document.execCommand('insertText', false, text);
+    document.execCommand?.('selectAll', false, null);
+    const inserted = document.execCommand?.('insertText', false, normalized);
+    if (!inserted) {
+      ed.textContent = normalized;
+    }
 
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
@@ -436,10 +469,13 @@
       if (!STATE.collapsed) {
         setCollapsed(true, false);
         setShowDock(true, false);
-      } else if (STATE.showDock) {
-        setShowDock(false, false);
       } else {
-        setShowDock(true, false);
+        if (STATE.showDock) {
+          setShowDock(false, false);
+        } else {
+          setShowDock(true, false);
+          setCollapsed(false, false);
+        }
       }
       save();
     }
