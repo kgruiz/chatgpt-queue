@@ -9,6 +9,7 @@ Queue prompts for ChatGPT and send them automatically once each reply finishes. 
 ## Features
 
 - Floating queue widget that stays visible while you browse the conversation.
+- Full queue dashboard that lists upcoming prompts with inline editing, reordering, and delete controls.
 - One-click capture of the current composer input, plus a Cmd/Ctrl+Shift+Enter shortcut.
 - Automatic prompt dispatch with built-in cooldown once ChatGPT finishes responding.
 - Manual controls for pausing, sending the next item, or clearing the queue.
@@ -29,6 +30,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 2. Type a prompt in the composer. Use **Cmd+Shift+Enter** (macOS) or **Ctrl+Shift+Enter** (Windows/Linux) to move the text into the queue. You can also click **Add from input**.
 3. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown.
 4. Use **Stop** to pause, **Send next** for a single dispatch, and **Clear** to empty the queue.
+5. Manage queued items directly in the panel—edit text inline, move items with **Up**/**Down**, or remove them entirely.
 
 ### Keyboard Shortcuts
 
@@ -40,6 +42,13 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 | Extension toggle default | Cmd+Shift+G | Ctrl+Shift+G |
 
 Shortcuts can be customized from the browser’s extension shortcuts settings.
+
+### Queue Management
+
+- Every queued prompt appears in an editable card; changes save automatically to `chrome.storage.local`.
+- Use the **Up** and **Down** controls to reorder items without leaving the page.
+- Choose **Delete** on a card to drop it from the run; the panel updates immediately so you can keep an eye on what is next.
+- The first card is highlighted, making it easy to see the next prompt the extension plans to send.
 
 ## Persistence and Data
 
