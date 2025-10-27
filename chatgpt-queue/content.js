@@ -7,6 +7,45 @@
     composer: 'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]'
   };
 
+  function injectBridge() {
+    if (document.getElementById('cq-bridge')) return;
+    const s = document.createElement('script');
+    s.id = 'cq-bridge';
+    s.textContent = `
+    (() => {
+      window.addEventListener('message', (e) => {
+        if (e.source !== window) return;
+        const msg = e.data;
+        if (!msg || msg.type !== 'CQ_SET_PROMPT') return;
+
+        const ed = document.querySelector('#prompt-textarea.ProseMirror[contenteditable="true"]');
+        try {
+          const view =
+            ed && ((ed.pmViewDesc && ed.pmViewDesc.editorView) ||
+                   (ed._pmViewDesc && ed._pmViewDesc.editorView));
+          const text = String(msg.text ?? '');
+
+          if (view && view.state) {
+            const tr = view.state.tr.insertText(text, 0, view.state.doc.content.size);
+            view.dispatch(tr);
+            view.focus();
+          } else if (ed) {
+            // fallback if editorView is hidden
+            ed.textContent = text;
+            ed.dispatchEvent(new Event('input', { bubbles: true }));
+            ed.focus();
+          }
+        } finally {
+          window.postMessage({ type: 'CQ_SET_PROMPT_DONE' }, '*');
+        }
+      }, false);
+    })();`;
+    (document.head || document.documentElement).appendChild(s);
+    s.remove();
+  }
+
+  injectBridge();
+
   // UI -----------------------------------------------------------------------
   document.getElementById('cq-ui')?.remove();
   document.getElementById('cq-dock')?.remove();
@@ -121,46 +160,19 @@
   }
 
   function setPrompt(text) {
-    const normalized = (text ?? '').replace(/\r\n/g, '\n');
-    const view = editorView();
-    if (view?.state) {
-      try {
-        const { state } = view;
-        let tr = state.tr.insertText(normalized, 0, state.doc.content.size);
-        tr = tr.setMeta('cq-replace', true);
-        view.dispatch(tr);
-        const SelectionClass = view.state.selection.constructor;
-        if (typeof SelectionClass.near === 'function') {
-          const endPos = view.state.doc.content.size;
-          const sel = SelectionClass.near(view.state.doc.resolve(endPos));
-          view.dispatch(view.state.tr.setSelection(sel));
+    return new Promise((resolve) => {
+      const onMsg = (e) => {
+        if (e.source === window && e.data && e.data.type === 'CQ_SET_PROMPT_DONE') {
+          window.removeEventListener('message', onMsg);
+          resolve(true);
         }
-        view.focus();
-        return true;
-      } catch (err) {
-        console.warn('[cq] setPrompt via view failed, falling back', err);
-      }
-    }
+      };
+      window.addEventListener('message', onMsg);
+      window.postMessage({ type: 'CQ_SET_PROMPT', text }, '*');
 
-    const ed = findEditor();
-    if (!ed) return false;
-
-    ed.focus();
-
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    const range = document.createRange();
-    range.selectNodeContents(ed);
-    selection?.addRange(range);
-
-    document.execCommand?.('selectAll', false, null);
-    const inserted = document.execCommand?.('insertText', false, normalized);
-    if (!inserted) {
-      ed.textContent = normalized;
-    }
-
-    ed.dispatchEvent(new Event('input', { bubbles: true }));
-    return true;
+      // safety timeout
+      setTimeout(() => { window.removeEventListener('message', onMsg); resolve(false); }, 1500);
+    });
   }
 
   function clickSend() {
@@ -313,7 +325,7 @@
     save();
     refreshAll();
 
-    if (!setPrompt(prompt)) {
+    if (!(await setPrompt(prompt))) {
       STATE.busy = false;
       STATE.queue.unshift(prompt);
       refreshAll();
