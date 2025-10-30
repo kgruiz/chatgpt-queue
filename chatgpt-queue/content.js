@@ -74,7 +74,12 @@
   dock.setAttribute('aria-label', 'Open chatgpt queue panel');
   document.documentElement.appendChild(dock);
 
+  ui.style.display = 'none';
+  ui.setAttribute('aria-hidden', 'true');
+  dock.hidden = true;
+
   let saveTimer;
+  let hydrated = false; // gate UI visibility until persisted state is loaded
 
   // Persist ------------------------------------------------------------------
   const persistable = () => ({
@@ -94,7 +99,7 @@
   };
 
   const load = () => new Promise((resolve) => {
-    chrome.storage?.local.get(['cq'], ({ cq }) => {
+    const applyState = (cq) => {
       if (cq) {
         STATE.running = !!cq.running;
         STATE.queue = Array.isArray(cq.queue)
@@ -104,10 +109,17 @@
         STATE.showDock = cq.showDock !== false;
       }
       refreshAll();
+      hydrated = true;
       refreshVisibility();
       if (STATE.running) maybeKick();
       resolve();
-    });
+    };
+
+    if (chrome.storage?.local?.get) {
+      chrome.storage.local.get(['cq'], ({ cq }) => applyState(cq));
+    } else {
+      applyState(null);
+    }
   });
 
   // DOM helpers ---------------------------------------------------------------
@@ -185,6 +197,12 @@
   }
 
   function refreshVisibility() {
+    if (!hydrated) {
+      ui.style.display = 'none';
+      ui.setAttribute('aria-hidden', 'true');
+      dock.hidden = true;
+      return;
+    }
     const collapsed = STATE.collapsed;
     ui.style.display = collapsed ? 'none' : 'flex';
     ui.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
