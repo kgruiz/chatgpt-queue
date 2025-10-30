@@ -29,29 +29,29 @@
   const ui = document.createElement('div');
   ui.id = 'cq-ui';
   ui.innerHTML = `
-    <div class="cq-head">
-      <div class="cq-title"><strong>Queue</strong><span id="cq-count">0</span></div>
+    <div class="cq-header">
+      <div class="cq-title">Queue <span id=\"cq-count\" aria-live=\"polite\">0</span></div>
       <div class="cq-head-side">
-        <span id="cq-state" class="cq-state">Idle</span>
-        <button id="cq-collapse" class="cq-icon" type="button" aria-label="Collapse queue panel">Hide</button>
+        <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
+        <button id="cq-collapse" class="icon-btn" type="button" aria-label="Collapse queue panel">Hide</button>
       </div>
     </div>
     <div class="cq-row">
-      <button id="cq-add">Add from input</button>
-      <button id="cq-start">Start</button>
-      <button id="cq-stop" disabled>Stop</button>
+      <button id="cq-add" class="btn" type="button">Add from input</button>
+      <button id="cq-start" class="btn btn--primary" type="button">Start</button>
+      <button id="cq-stop" class="btn btn--danger" type="button" disabled>Stop</button>
     </div>
     <div class="cq-row">
-      <button id="cq-next">Send next</button>
-      <button id="cq-clear">Clear</button>
+      <button id="cq-next" class="btn" type="button">Send next</button>
+      <button id="cq-clear" class="btn" type="button">Clear</button>
     </div>
-    <div class="cq-new">
-      <textarea id="cq-new-text" class="cq-new-text" placeholder="Type a prompt to queue"></textarea>
-      <div class="cq-new-actions">
-        <button id="cq-new-add">Queue text</button>
+    <div class="composer">
+      <div class="composer__box">
+        <textarea id="cq-new-text" class="composer__input" placeholder="Type a prompt to queue" spellcheck="true"></textarea>
+        <button id="cq-new-add" class="composer__btn" type="button" aria-label="Queue text">➕</button>
       </div>
     </div>
-    <div id="cq-list" class="cq-queue"></div>`;
+    <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
   document.documentElement.appendChild(ui);
 
   const $ = (selector) => ui.querySelector(selector);

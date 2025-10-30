@@ -1,262 +1,269 @@
+/*
+  ChatGPT-like, fully-scoped design system for the queue panel.
+  Everything lives under #cq-ui and #cq-dock to avoid leaking styles.
+*/
+
+/* ===== Design tokens (scoped) ===== */
+#cq-ui,
+#cq-dock {
+  --bg-primary: #0b0f14;
+  --bg-elevated: #11161d;
+  --bg-hover: #18202a;
+  --text-primary: #e7edf3;
+  --text-secondary: #a7b1bd;
+  --text-tertiary: #7a8491;
+  --border: #233041;
+  --accent: #5b8cff;
+  --accent-weak: #27407a;
+  --danger: #ff6b6b;
+  --success: #46c187;
+  --warning: #f7c566;
+
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-2: 0 6px 20px rgba(0,0,0,.35);
+  --ring: 0 0 0 3px color-mix(in oklab, var(--accent) 40%, transparent);
+
+  --header-h: 40px;
+}
+
+/* ===== Panel ===== */
 #cq-ui {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  right: 16px;
+  bottom: 16px;
   z-index: 2147483647;
-  width: 320px;
-  max-height: calc(100vh - 24px);
+  width: 360px;
+  max-height: calc(100vh - 32px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font: 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  background: rgba(20, 20, 23, 0.92);
-  color: #e5e7eb;
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  border-radius: 12px;
+  gap: 10px;
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: color-mix(in oklab, var(--bg-primary) 92%, transparent);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   padding: 12px;
-  backdrop-filter: saturate(1.2) blur(6px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: saturate(1.1) blur(8px);
+  box-shadow: var(--shadow-2);
 }
 
-#cq-ui strong {
-  font-weight: 600;
-}
-
-#cq-ui .cq-head {
+#cq-ui .cq-header {
+  height: var(--header-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 4px;
+  background: transparent;
 }
 
 #cq-ui .cq-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-weight: 600;
 }
 
-#cq-ui .cq-head-side {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+#cq-ui .cq-head-side { display: flex; align-items: center; gap: 8px; }
 
 #cq-ui #cq-count {
-  margin-left: auto;
-  background: #111827;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 #cq-ui .cq-state {
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  font-size: 12px;
   text-transform: uppercase;
-  color: #9ca3af;
+  letter-spacing: 0.04em;
 }
 
-#cq-ui .cq-icon {
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.75);
-  color: #e5e7eb;
-  padding: 3px 8px;
-  border-radius: 6px;
+#cq-ui.is-running .cq-state { color: color-mix(in oklab, var(--accent) 65%, #b9c7ff); }
+#cq-ui.is-busy .cq-state { color: var(--warning); }
+
+/* ===== Buttons (scoped) ===== */
+#cq-ui .btn {
+  --bg: var(--bg-elevated);
+  --fg: var(--text-primary);
+  --bd: var(--border);
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  background: var(--bg);
+  color: var(--fg);
   cursor: pointer;
-  font: inherit;
 }
+#cq-ui .btn:hover { background: var(--bg-hover); }
+#cq-ui .btn:focus-visible { box-shadow: var(--ring); outline: none; }
+#cq-ui .btn[disabled] { opacity: .5; cursor: default; }
+#cq-ui .btn--primary { --bg: var(--accent); --bd: color-mix(in oklab, var(--accent) 70%, black); }
+#cq-ui .btn--primary:hover { filter: brightness(1.06); }
+#cq-ui .btn--danger { --bg: color-mix(in oklab, var(--danger) 16%, transparent); --bd: color-mix(in oklab, var(--danger) 40%, transparent); color: var(--danger); }
 
-#cq-ui .cq-icon:hover:not(:disabled) {
-  background: #111827;
+/* Small icon-like button */
+#cq-ui .icon-btn {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
 }
+#cq-ui .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-#cq-ui .cq-icon:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
+/* ===== Toolbar rows ===== */
+#cq-ui .cq-row { display: flex; gap: 8px; align-items: center; }
+#cq-ui .cq-row + .cq-row { margin-top: -4px; }
 
-#cq-ui.is-running .cq-state {
-  color: #a5b4fc;
-}
-
-#cq-ui.is-busy .cq-state {
-  color: #fbbf24;
-}
-
-#cq-ui .cq-row {
-  display: flex;
+/* ===== Composer (scoped) ===== */
+#cq-ui .composer { position: relative; }
+#cq-ui .composer__box {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'leading primary trailing' ' . footer . ';
   gap: 8px;
-  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: var(--shadow-1);
 }
-
-#cq-ui button {
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: #0b0f19;
-  color: #e5e7eb;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
+#cq-ui .composer__input {
+  grid-area: primary;
+  max-height: max(35svh, 5rem);
+  overflow: auto;
+  outline: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
   font: inherit;
+  resize: none;
 }
-
-#cq-ui button.cq-mini {
-  padding: 2px 6px;
-  font-size: 11px;
+#cq-ui .composer__btn {
+  height: 32px; width: 32px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
 }
+#cq-ui .composer__btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+#cq-ui .composer__btn:focus-visible { box-shadow: var(--ring); outline: none; }
 
-#cq-ui button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-#cq-ui button:hover:not(:disabled) {
-  background: #111827;
-}
-
+/* ===== Queue list ===== */
 #cq-ui .cq-queue {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding-right: 4px;
-}
-
-#cq-ui .cq-new {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 8px;
-  padding: 8px;
-  background: rgba(17, 24, 39, 0.6);
-}
-
-#cq-ui .cq-new-text {
-  width: 100%;
-  min-height: 52px;
-  max-height: 180px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 6px;
-  padding: 6px 8px;
-  color: #f9fafb;
-  font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-#cq-ui .cq-new-text:focus {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
-  outline: none;
-}
-
-#cq-ui .cq-new-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-#cq-dock {
-  position: fixed;
-  right: 12px;
-  bottom: 12px;
-  z-index: 2147483646;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(17, 24, 39, 0.92);
-  color: #e5e7eb;
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font: 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-#cq-dock:hover {
-  background: #111827;
-}
-
-#cq-dock.is-running {
-  border-color: rgba(99, 102, 241, 0.6);
-  color: #e0e7ff;
-}
-
-#cq-dock.is-busy {
-  border-color: rgba(251, 191, 36, 0.6);
-  color: #fde68a;
 }
 
 #cq-ui .cq-empty {
   padding: 12px;
-  border: 1px dashed rgba(148, 163, 184, 0.4);
-  border-radius: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-tertiary);
 }
 
 #cq-ui .cq-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 8px;
-  padding: 8px;
-  background: rgba(11, 15, 25, 0.9);
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: var(--shadow-1);
 }
-
 #cq-ui .cq-item.cq-item-next {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
+  border-color: color-mix(in oklab, var(--accent) 65%, black);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
 }
 
-#cq-ui .cq-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #cbd5f5;
-}
+#cq-ui .cq-item-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
 
 #cq-ui .cq-item-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(99, 102, 241, 0.22);
-  color: #e0e7ff;
-  font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px;
+  padding: 0 8px; border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: color-mix(in oklab, var(--accent) 90%, white);
+  font-weight: 600; border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
-#cq-ui .cq-item-actions {
-  display: flex;
-  gap: 6px;
-}
+#cq-ui .cq-item-actions { display: flex; gap: 6px; }
+#cq-ui .cq-item-actions .cq-mini { height: 26px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; }
+#cq-ui .cq-item-actions .cq-mini:hover { background: var(--bg-hover); color: var(--text-primary); }
+#cq-ui .cq-item-actions .cq-mini[disabled] { opacity: .5; cursor: default; }
 
 #cq-ui .cq-item-text {
   width: 100%;
-  min-height: 60px;
-  background: rgba(17, 24, 39, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 6px;
-  padding: 6px 8px;
-  color: #f9fafb;
-  font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  min-height: 64px;
+  max-height: 240px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   resize: vertical;
   box-sizing: border-box;
 }
+#cq-ui .cq-item-text:focus { outline: none; box-shadow: var(--ring); border-color: color-mix(in oklab, var(--accent) 60%, black); }
 
-#cq-ui .cq-item-text:focus {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
-  outline: none;
-}
-
-#cq-ui .cq-queue::-webkit-scrollbar {
-  width: 6px;
-}
-
-#cq-ui .cq-queue::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+/* ===== Dock button ===== */
+#cq-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 8px 12px;
   border-radius: 999px;
+  cursor: pointer;
+  font: 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  box-shadow: var(--shadow-2);
+}
+#cq-dock:hover { background: var(--bg-hover); }
+#cq-dock:focus-visible { outline: none; box-shadow: var(--ring); }
+#cq-dock.is-running { border-color: color-mix(in oklab, var(--accent) 60%, black); color: color-mix(in oklab, var(--accent) 90%, white); }
+#cq-dock.is-busy { border-color: color-mix(in oklab, var(--warning) 50%, black); color: var(--warning); }
+
+/* ===== A11y and utilities ===== */
+#cq-ui .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ===== Scrollbars (webkit) ===== */
+#cq-ui *::-webkit-scrollbar { width: 10px; height: 10px; }
+#cq-ui *::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--text-tertiary) 30%, transparent);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#cq-ui *::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--text-tertiary) 50%, transparent); }
+
+/* ===== Responsive tweaks ===== */
+@media (max-width: 640px) {
+  #cq-ui { width: min(92vw, 360px); right: 12px; bottom: 12px; padding: 10px; }
+  #cq-ui .composer__box { padding: 6px; }
+  #cq-ui .btn, #cq-ui .composer__btn { height: 30px; }
 }
