@@ -1,5 +1,5 @@
 (() => {
-  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true, phase: 'idle' };
+  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true, phase: 'idle', models: [] };
   const SEL = {
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
@@ -23,13 +23,15 @@
   };
 
   const normalizeEntry = (entry) => {
-    if (typeof entry === 'string') return { text: entry, attachments: [] };
-    if (!entry || typeof entry !== 'object') return { text: String(entry ?? ''), attachments: [] };
+    if (typeof entry === 'string') return { text: entry, attachments: [], model: null, modelLabel: null };
+    if (!entry || typeof entry !== 'object') return { text: String(entry ?? ''), attachments: [], model: null, modelLabel: null };
     const text = typeof entry.text === 'string' ? entry.text : String(entry.text ?? '');
     const attachments = Array.isArray(entry.attachments)
       ? entry.attachments.map((item) => normalizeAttachment(item)).filter(Boolean)
       : [];
-    return { text, attachments };
+    const model = typeof entry.model === 'string' && entry.model ? entry.model : null;
+    const modelLabel = typeof entry.modelLabel === 'string' && entry.modelLabel ? entry.modelLabel : null;
+    return { text, attachments, model, modelLabel };
   };
 
   const cloneAttachment = (attachment) => ({
@@ -41,7 +43,9 @@
 
   const cloneEntry = (entry) => ({
     text: entry.text,
-    attachments: Array.isArray(entry.attachments) ? entry.attachments.map((att) => cloneAttachment(att)) : []
+    attachments: Array.isArray(entry.attachments) ? entry.attachments.map((att) => cloneAttachment(att)) : [],
+    model: entry.model || null,
+    modelLabel: entry.modelLabel || null
   });
 
   const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -154,6 +158,258 @@
     setTimeout(() => finish(false), timeoutMs);
   });
 
+  const escapeCss = (value) => {
+    const str = String(value ?? '');
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(str);
+    return str.replace(/[^a-zA-Z0-9_\-]/g, (ch) => `\\${ch}`);
+  };
+
+  const normalizeModelId = (value) => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  let currentModelId = null;
+  let currentModelLabel = '';
+  let modelsPromise = null;
+  let composerModelId = null;
+  let composerModelLabel = '';
+
+  const getModelNodeLabel = (node) => {
+    if (!node) return '';
+    const text = node.textContent || '';
+    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+    return lines[0] || text.trim();
+  };
+
+  const findModelMenuRoot = () => {
+    const selectors = [
+      '[data-radix-menu-content]',
+      '[data-radix-dropdown-menu-content]',
+      '[role="menu"]',
+      '[role="listbox"]'
+    ];
+    for (const root of document.querySelectorAll(selectors.join(','))) {
+      if (!(root instanceof HTMLElement)) continue;
+      if (root.querySelector('[data-testid^="model-switcher-"]')) return root;
+    }
+    return null;
+  };
+
+  const waitForModelMenu = (timeoutMs = 1500) => new Promise((resolve) => {
+    const start = performance.now();
+    const tick = () => {
+      const root = findModelMenuRoot();
+      if (root) {
+        resolve(root);
+        return;
+      }
+      if (performance.now() - start >= timeoutMs) {
+        resolve(null);
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+
+  const useModelMenu = async (operation) => {
+    const button = document.querySelector('button[data-testid="model-switcher-dropdown-button"]');
+    if (!button) return null;
+    const wasOpen = button.getAttribute('aria-expanded') === 'true' || button.dataset.state === 'open';
+    if (!wasOpen) button.click();
+    const menu = await waitForModelMenu();
+    if (!menu) {
+      if (!wasOpen) button.click();
+      return null;
+    }
+    let result;
+    try {
+      result = await operation(menu, button);
+    } finally {
+      if (!wasOpen) {
+        const stillOpen = button.getAttribute('aria-expanded') === 'true' || button.dataset.state === 'open';
+        if (stillOpen) button.click();
+      }
+    }
+    return result;
+  };
+
+  const getModelById = (id) => {
+    if (!id) return null;
+    const normalized = normalizeModelId(id);
+    return STATE.models.find((model) => normalizeModelId(model.id) === normalized) || null;
+  };
+
+  const labelForModel = (id, fallback = '') => {
+    if (!id) return fallback || '';
+    const info = getModelById(id);
+    if (info?.label) return info.label;
+    if (normalizeModelId(currentModelId) === normalizeModelId(id) && currentModelLabel) return currentModelLabel;
+    return fallback || id;
+  };
+
+  const setCurrentModel = (id, label = '') => {
+    const previous = currentModelId;
+    currentModelId = id || null;
+    currentModelLabel = label || labelForModel(id, currentModelLabel || '');
+    const prevNormalized = normalizeModelId(previous);
+    const currentNormalized = normalizeModelId(currentModelId);
+    if (!composerModelId || normalizeModelId(composerModelId) === prevNormalized) {
+      composerModelId = currentModelId;
+      composerModelLabel = currentModelLabel;
+    } else if (currentNormalized && normalizeModelId(composerModelId) === currentNormalized) {
+      composerModelLabel = currentModelLabel;
+    }
+  };
+
+  const markModelSelected = (id, label = '') => {
+    if (!id) return;
+    const normalized = normalizeModelId(id);
+    let found = false;
+    STATE.models = STATE.models.map((model) => {
+      const match = normalizeModelId(model.id) === normalized;
+      if (match) {
+        found = true;
+        return {
+          ...model,
+          selected: true,
+          label: label || model.label || model.id
+        };
+      }
+      if (model.selected) {
+        return { ...model, selected: false };
+      }
+      return model;
+    });
+    if (!found) {
+      STATE.models.push({ id, label: label || id, selected: true });
+    }
+    setCurrentModel(id, labelForModel(id, label));
+  };
+
+  const applyDefaultModelToQueueIfMissing = () => {
+    if (!currentModelId) return false;
+    let updated = false;
+    STATE.queue.forEach((entry) => {
+      if (!entry.model) {
+        entry.model = currentModelId;
+        entry.modelLabel = currentModelLabel;
+        updated = true;
+      }
+    });
+    if (updated) save();
+    return updated;
+  };
+
+  const parseModelItems = (menu) => {
+    const items = [];
+    const seen = new Set();
+    menu.querySelectorAll('[data-testid^="model-switcher-"]').forEach((node) => {
+      const item = node.closest('[data-testid^="model-switcher-"]');
+      if (!item || seen.has(item)) return;
+      seen.add(item);
+      const testId = item.getAttribute('data-testid') || '';
+      if (!testId.startsWith('model-switcher-')) return;
+      const id = testId.replace(/^model-switcher-/, '');
+      if (!id || id.endsWith('-submenu')) return;
+      const disabled = item.getAttribute('aria-disabled') === 'true' || item.matches('[data-disabled="true"]');
+      if (disabled) return;
+      const label = getModelNodeLabel(item) || id;
+      const selected = item.getAttribute('data-state') === 'checked' || item.getAttribute('aria-checked') === 'true';
+      items.push({ id, label, selected });
+    });
+    return items;
+  };
+
+  const mergeModelOptions = (options) => {
+    const map = new Map();
+    options.forEach((option) => {
+      const key = normalizeModelId(option.id);
+      const existing = map.get(key);
+      if (!existing || option.selected) {
+        map.set(key, { ...option, id: option.id });
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const fetchModelOptions = async () => {
+    const result = await useModelMenu(async (menu) => parseModelItems(menu));
+    if (!Array.isArray(result)) return [];
+    return mergeModelOptions(result);
+  };
+
+  const ensureModelOptions = async (options = {}) => {
+    if (!options.force && STATE.models.length) {
+      renderComposerModelSelect();
+      return STATE.models;
+    }
+    if (modelsPromise) return modelsPromise;
+    modelsPromise = (async () => {
+      const models = await fetchModelOptions();
+      modelsPromise = null;
+      if (!models.length) return STATE.models;
+      const previousSignature = JSON.stringify(STATE.models.map((model) => ({ id: model.id, label: model.label })));
+      STATE.models = models;
+      const selected = models.find((model) => model.selected);
+      if (selected) {
+        markModelSelected(selected.id, selected.label);
+      } else if (models.length && !currentModelId) {
+        markModelSelected(models[0].id, models[0].label);
+      }
+      const queueUpdated = applyDefaultModelToQueueIfMissing();
+      renderComposerModelSelect();
+      const newSignature = JSON.stringify(models.map((model) => ({ id: model.id, label: model.label })));
+      if (queueUpdated || newSignature !== previousSignature) {
+        refreshAll();
+      }
+      return STATE.models;
+    })().catch((error) => {
+      modelsPromise = null;
+      console.warn('[cq] Failed to load model list', error);
+      return STATE.models;
+    });
+    return modelsPromise;
+  };
+
+  const findModelMenuItem = (menu, modelId) => {
+    if (!menu || !modelId) return null;
+    const direct = menu.querySelector(`[data-testid="model-switcher-${escapeCss(modelId)}"]`);
+    if (direct) return direct.closest('[data-testid^="model-switcher-"]') || direct;
+    const normalized = normalizeModelId(modelId);
+    const candidates = Array.from(menu.querySelectorAll('[data-testid^="model-switcher-"]'));
+    for (const candidate of candidates) {
+      const tid = candidate.getAttribute('data-testid') || '';
+      const id = tid.replace(/^model-switcher-/, '');
+      if (normalizeModelId(id) === normalized) return candidate;
+    }
+    const info = getModelById(modelId);
+    if (info?.label) {
+      const labelNormalized = normalizeModelId(info.label);
+      for (const candidate of candidates) {
+        const label = getModelNodeLabel(candidate);
+        if (normalizeModelId(label) === labelNormalized) return candidate;
+      }
+    }
+    return null;
+  };
+
+  const ensureModel = async (modelId) => {
+    if (!modelId) return true;
+    await ensureModelOptions();
+    const targetNormalized = normalizeModelId(modelId);
+    if (targetNormalized && normalizeModelId(currentModelId) === targetNormalized) return true;
+    const result = await useModelMenu(async (menu) => {
+      const item = findModelMenuItem(menu, modelId);
+      if (!item) return false;
+      const label = getModelNodeLabel(item) || modelId;
+      item.click();
+      await sleep(120);
+      markModelSelected(modelId, label);
+      return true;
+    });
+    if (result) renderComposerModelSelect();
+    return !!result;
+  };
+
   function injectBridge() {
     if (document.getElementById('cq-bridge')) return;
     const url = chrome.runtime?.getURL?.('bridge.js');
@@ -197,7 +453,13 @@
         <textarea id="cq-new-text" class="composer__input" placeholder="Type a prompt to queue" spellcheck="true"></textarea>
         <button id="cq-new-add" class="composer__btn" type="button" aria-label="Queue text">➕</button>
       </div>
-      <div id="cq-new-media" class="cq-media-list" aria-live="polite"></div>
+      <div class="composer__meta">
+        <label class="cq-field" for="cq-new-model">
+          <span class="cq-field__label">Model</span>
+          <select id="cq-new-model" class="cq-select" aria-label="Select model for new queue item"></select>
+        </label>
+        <div id="cq-new-media" class="cq-media-list cq-media-list--empty" aria-live="polite"></div>
+      </div>
     </div>
     <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
   document.documentElement.appendChild(ui);
@@ -213,8 +475,10 @@
   const btnClear = $('#cq-clear');
   const newInput = $('#cq-new-text');
   const btnNewAdd = $('#cq-new-add');
+  const newModelSelect = $('#cq-new-model');
   const newMedia = $('#cq-new-media');
   const list = $('#cq-list');
+  renderComposerModelSelect();
   renderComposerAttachments();
 
   const dock = document.createElement('button');
@@ -448,6 +712,58 @@
     });
   }
 
+  function populateModelSelect(select, selectedId, selectedLabel) {
+    if (!select) return;
+    const models = STATE.models;
+    const normalizedSelected = normalizeModelId(selectedId);
+    select.textContent = '';
+    if (!models.length) {
+      const option = document.createElement('option');
+      option.value = selectedId || '';
+      option.textContent = selectedLabel || selectedId || 'Loading models…';
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    models.forEach((model) => {
+      const option = document.createElement('option');
+      option.value = model.id;
+      option.textContent = model.label || model.id;
+      if (model.selected) option.dataset.selected = 'true';
+      select.appendChild(option);
+    });
+    if (normalizedSelected) {
+      const match = models.find((model) => normalizeModelId(model.id) === normalizedSelected);
+      if (match) {
+        select.value = match.id;
+      } else if (selectedId) {
+        const fallback = document.createElement('option');
+        fallback.value = selectedId;
+        fallback.textContent = selectedLabel || labelForModel(selectedId, selectedLabel || selectedId);
+        fallback.dataset.cqMissing = 'true';
+        select.appendChild(fallback);
+        select.value = selectedId;
+      }
+    }
+    if (!select.value) {
+      const preferred = models.find((model) => model.selected) || models[0];
+      select.value = preferred?.id || '';
+    }
+  }
+
+  function renderComposerModelSelect() {
+    if (!newModelSelect) return;
+    populateModelSelect(newModelSelect, composerModelId, composerModelLabel);
+    if (newModelSelect.selectedOptions.length > 0) {
+      composerModelId = newModelSelect.value || null;
+      composerModelLabel = newModelSelect.selectedOptions[0].textContent || composerModelLabel;
+    } else {
+      composerModelId = null;
+      composerModelLabel = '';
+    }
+  }
+
   function renderComposerAttachments() {
     if (!newMedia) return;
     newMedia.textContent = '';
@@ -613,6 +929,36 @@
       header.appendChild(actions);
       item.appendChild(header);
 
+      const metaRow = document.createElement('div');
+      metaRow.className = 'cq-item-meta';
+
+      const modelField = document.createElement('label');
+      modelField.className = 'cq-field';
+      modelField.setAttribute('for', `cq-item-model-${index}`);
+
+      const modelLabel = document.createElement('span');
+      modelLabel.className = 'cq-field__label';
+      modelLabel.textContent = 'Model';
+      modelField.appendChild(modelLabel);
+
+      const modelSelect = document.createElement('select');
+      modelSelect.className = 'cq-select';
+      modelSelect.id = `cq-item-model-${index}`;
+      modelSelect.dataset.index = String(index);
+      populateModelSelect(modelSelect, entry.model, entry.modelLabel);
+      modelSelect.addEventListener('focus', () => { ensureModelOptions(); });
+      modelSelect.addEventListener('click', () => { ensureModelOptions(); });
+      modelSelect.addEventListener('change', () => {
+        const value = modelSelect.value || '';
+        const label = modelSelect.selectedOptions[0]?.textContent || '';
+        STATE.queue[index].model = value || null;
+        STATE.queue[index].modelLabel = value ? label : null;
+        save();
+      });
+      modelField.appendChild(modelSelect);
+      metaRow.appendChild(modelField);
+      item.appendChild(metaRow);
+
       if (entry.attachments.length) {
         const mediaWrap = document.createElement('div');
         mediaWrap.className = 'cq-media-list';
@@ -706,12 +1052,25 @@
     if (!entry) return false;
     const promptText = typeof entry.text === 'string' ? entry.text : '';
     const attachments = Array.isArray(entry.attachments) ? entry.attachments.slice() : [];
+    const desiredModel = entry.model || null;
 
     const [removed] = STATE.queue.splice(index, 1);
     STATE.busy = true;
     STATE.phase = 'sending';
     save();
     refreshAll();
+
+    if (desiredModel) {
+      const modelApplied = await ensureModel(desiredModel);
+      if (!modelApplied) {
+        STATE.busy = false;
+        STATE.phase = 'idle';
+        STATE.queue.splice(index, 0, removed);
+        refreshAll();
+        save();
+        return false;
+      }
+    }
 
     const textSet = await setPrompt(promptText);
     if (!textSet) {
@@ -789,7 +1148,9 @@
     const ed = findEditor();
     const text = ed?.innerText?.trim();
     if (!text) return;
-    STATE.queue.push({ text, attachments: [] });
+    const modelId = currentModelId || composerModelId || null;
+    const modelLabel = modelId ? labelForModel(modelId, currentModelLabel || composerModelLabel) : null;
+    STATE.queue.push({ text, attachments: [], model: modelId, modelLabel });
     ed.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     save();
@@ -804,9 +1165,20 @@
     const text = newInput.value;
     const normalized = (text || '').replace(/\r\n/g, '\n');
     if (!normalized.trim() && composerAttachments.length === 0) return;
+    const composerSelectedOption = newModelSelect?.selectedOptions?.[0];
+    let selectedModelId = newModelSelect?.value || composerModelId || null;
+    if (!selectedModelId) {
+      const preferred = STATE.models.find((model) => model.selected) || STATE.models[0];
+      selectedModelId = preferred?.id || currentModelId || null;
+    }
+    const selectedModelLabel = selectedModelId
+      ? (composerSelectedOption?.textContent || composerModelLabel || currentModelLabel || labelForModel(selectedModelId))
+      : null;
     const entry = {
       text: normalized,
-      attachments: composerAttachments.map((attachment) => cloneAttachment(attachment))
+      attachments: composerAttachments.map((attachment) => cloneAttachment(attachment)),
+      model: selectedModelId,
+      modelLabel: selectedModelLabel
     };
     STATE.queue.push(entry);
     newInput.value = '';
@@ -836,6 +1208,15 @@
         event.preventDefault();
         queueNewInput();
       }
+    });
+  }
+
+  if (newModelSelect) {
+    newModelSelect.addEventListener('focus', () => { ensureModelOptions(); });
+    newModelSelect.addEventListener('click', () => { ensureModelOptions(); });
+    newModelSelect.addEventListener('change', () => {
+      composerModelId = newModelSelect.value || null;
+      composerModelLabel = newModelSelect.selectedOptions[0]?.textContent || '';
     });
   }
 
@@ -1049,5 +1430,5 @@
   }, 800);
 
   refreshVisibility();
-  load();
+  load().then(() => ensureModelOptions()).catch(() => {});
 })();

@@ -438,6 +438,70 @@
   box-shadow: var(--ring);
 }
 
+#cq-ui .composer__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+
+#cq-ui .composer__meta .cq-media-list {
+  margin-top: 0;
+}
+
+#cq-ui .cq-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+#cq-ui .cq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 0;
+}
+
+#cq-ui .cq-field__label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+#cq-ui .cq-select {
+  height: 32px;
+  min-width: 150px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+#cq-ui .cq-select:hover {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#cq-ui .cq-select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 70%, white 30%);
+  box-shadow: var(--ring);
+}
+
+#cq-ui .cq-select[disabled] {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}
+
 #cq-ui .cq-item-actions .cq-mini--accent {
   border-color: rgba(16, 163, 127, 0.55);
   background: linear-gradient(135deg, rgba(16, 163, 127, 0.18), rgba(16, 163, 127, 0.3));
