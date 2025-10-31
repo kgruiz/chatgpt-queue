@@ -111,26 +111,17 @@
 }
 
 #cq-ui .cq-controls {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(34px, auto);
   gap: 10px;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-#cq-ui .cq-controls__primary,
-#cq-ui .cq-controls__run {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#cq-ui .cq-controls__primary {
-  justify-content: flex-start;
-}
-
-#cq-ui .cq-controls__run {
-  justify-content: flex-end;
+#cq-ui .cq-controls .btn {
+  width: 100%;
+  min-width: 0;
 }
 
 #cq-ui.is-running .cq-state {
@@ -214,6 +205,10 @@
   --fg-hover: var(--text-primary);
   padding: 0 10px;
   font-weight: 500;
+}
+
+#cq-ui .btn--full {
+  grid-column: 1 / -1;
 }
 
 /* ===== Composer (scoped) ===== */
@@ -478,5 +473,13 @@
   #cq-ui .btn,
   #cq-ui .composer__btn {
     height: 32px;
+  }
+
+  #cq-ui .cq-controls {
+    grid-template-columns: 1fr;
+  }
+
+  #cq-ui .btn--full {
+    grid-column: auto;
   }
 }

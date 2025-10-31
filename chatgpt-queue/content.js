@@ -39,16 +39,12 @@
         <button id="cq-collapse" class="btn btn--quiet" type="button" aria-label="Collapse queue panel">Hide</button>
       </div>
     </div>
-    <div class="cq-controls">
-      <div class="cq-controls__primary">
-        <button id="cq-add" class="btn" type="button">Add from input</button>
-        <button id="cq-next" class="btn" type="button">Send next</button>
-        <button id="cq-clear" class="btn" type="button">Clear</button>
-      </div>
-      <div class="cq-controls__run">
-        <button id="cq-start" class="btn btn--primary" type="button">Start</button>
-        <button id="cq-stop" class="btn btn--danger" type="button" disabled>Stop</button>
-      </div>
+    <div class="cq-controls" role="group" aria-label="Queue controls">
+      <button id="cq-add" class="btn btn--full" type="button">Add from input</button>
+      <button id="cq-next" class="btn" type="button">Send next</button>
+      <button id="cq-clear" class="btn" type="button">Clear</button>
+      <button id="cq-start" class="btn btn--primary" type="button">Start</button>
+      <button id="cq-stop" class="btn btn--danger" type="button" disabled>Stop</button>
     </div>
     <div class="composer">
       <div class="composer__box">
