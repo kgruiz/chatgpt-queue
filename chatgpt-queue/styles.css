@@ -53,24 +53,12 @@
   padding: 14px 14px 16px;
   font: 13px/1.45 var(--font-sans);
   letter-spacing: -0.01em;
-  background: var(--bg-panel);
+  background: linear-gradient(145deg, rgba(52, 53, 65, 0.97), rgba(32, 33, 35, 0.97));
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2);
   backdrop-filter: saturate(1.2) blur(12px);
-  overflow: hidden;
-}
-
-#cq-ui::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(135% 170% at 50% -45%, rgba(104, 106, 128, 0.32) 0%, rgba(81, 82, 104, 0.18) 38%, rgba(32, 33, 35, 0) 70%),
-    linear-gradient(180deg, rgba(66, 68, 90, 0.42) 0%, rgba(42, 43, 59, 0.18) 48%, rgba(23, 24, 30, 0) 100%);
-  pointer-events: none;
-  z-index: -1;
 }
 
 #cq-ui .cq-header {
@@ -398,7 +386,7 @@
   bottom: 16px;
   z-index: 2147483646;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-panel);
+  background: linear-gradient(135deg, rgba(52, 53, 65, 0.96), rgba(32, 33, 35, 0.96));
   color: var(--text-primary);
   padding: 10px 16px;
   border-radius: var(--radius-pill);
@@ -408,23 +396,10 @@
   box-shadow: var(--shadow-2);
   backdrop-filter: saturate(1.1) blur(10px);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-#cq-dock::before {
-  content: "";
-  position: absolute;
-  inset: -20% -30%;
-  background:
-    radial-gradient(120% 150% at 50% -40%, rgba(104, 106, 128, 0.28) 0%, rgba(81, 82, 104, 0.14) 42%, rgba(32, 33, 35, 0) 75%),
-    linear-gradient(180deg, rgba(66, 68, 90, 0.35) 0%, rgba(42, 43, 59, 0.16) 52%, rgba(23, 24, 30, 0) 100%);
-  pointer-events: none;
-  z-index: -1;
 }
 
 #cq-dock:hover {
-  background: var(--bg-panel);
+  background: linear-gradient(135deg, rgba(52, 53, 65, 0.99), rgba(32, 33, 35, 0.99));
   border-color: rgba(255, 255, 255, 0.14);
 }
 
