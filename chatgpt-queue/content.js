@@ -8,6 +8,152 @@
     composer: 'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]'
   };
 
+  const makeId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const normalizeAttachment = (attachment) => {
+    if (!attachment || typeof attachment !== 'object') return null;
+    const id = typeof attachment.id === 'string' && attachment.id ? attachment.id : makeId();
+    const name = typeof attachment.name === 'string' && attachment.name ? attachment.name : `image-${id}.png`;
+    const mime = typeof attachment.mime === 'string' && attachment.mime ? attachment.mime : 'image/png';
+    const dataUrl = typeof attachment.dataUrl === 'string' ? attachment.dataUrl : null;
+    if (!dataUrl) return null;
+    return { id, name, mime, dataUrl };
+  };
+
+  const normalizeEntry = (entry) => {
+    if (typeof entry === 'string') return { text: entry, attachments: [] };
+    if (!entry || typeof entry !== 'object') return { text: String(entry ?? ''), attachments: [] };
+    const text = typeof entry.text === 'string' ? entry.text : String(entry.text ?? '');
+    const attachments = Array.isArray(entry.attachments)
+      ? entry.attachments.map((item) => normalizeAttachment(item)).filter(Boolean)
+      : [];
+    return { text, attachments };
+  };
+
+  const cloneAttachment = (attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    mime: attachment.mime,
+    dataUrl: attachment.dataUrl
+  });
+
+  const cloneEntry = (entry) => ({
+    text: entry.text,
+    attachments: Array.isArray(entry.attachments) ? entry.attachments.map((att) => cloneAttachment(att)) : []
+  });
+
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+
+  const createAttachmentFromFile = async (file) => {
+    const dataUrl = await readFileAsDataUrl(file);
+    return normalizeAttachment({
+      id: makeId(),
+      name: file.name || `image-${makeId()}.${(file.type.split('/')[1] || 'png').split(';')[0]}`,
+      mime: file.type || 'image/png',
+      dataUrl
+    });
+  };
+
+  const collectImagesFromDataTransfer = async (dataTransfer) => {
+    if (!dataTransfer) return [];
+    const items = Array.from(dataTransfer.items || []);
+    const files = items
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    if (files.length === 0 && dataTransfer.files?.length) {
+      Array.from(dataTransfer.files).forEach((file) => {
+        if (file.type.startsWith('image/')) files.push(file);
+      });
+    }
+    if (files.length === 0) return [];
+    const attachments = [];
+    for (const file of files) {
+      try {
+        const attachment = await createAttachmentFromFile(file);
+        if (attachment) attachments.push(attachment);
+      } catch (_) {
+        // ignore file read errors
+      }
+    }
+    return attachments;
+  };
+
+  const hasImagesInDataTransfer = (dataTransfer) => {
+    if (!dataTransfer) return false;
+    const items = Array.from(dataTransfer.items || []);
+    if (items.some((item) => item.kind === 'file' && item.type.startsWith('image/'))) return true;
+    const files = Array.from(dataTransfer.files || []);
+    return files.some((file) => file.type.startsWith('image/'));
+  };
+
+  const attachmentToFile = async (attachment) => {
+    try {
+      const normalized = normalizeAttachment(attachment);
+      if (!normalized) return null;
+      const response = await fetch(normalized.dataUrl);
+      const blob = await response.blob();
+      const mime = normalized.mime || blob.type || 'image/png';
+      const extension = mime.split('/')[1] || 'png';
+      const safeName = normalized.name || `image-${makeId()}.${extension}`;
+      return new File([blob], safeName, { type: mime });
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const ATTACHMENT_SELECTORS = [
+    '[data-testid="attachment-item"]',
+    '[data-testid="chat-composer-attachment-item"]',
+    '[data-testid="uploaded-file"]',
+    '[data-testid="file-preview"]',
+    '[data-testid="composer-upload-item"]',
+    '[data-testid="attachment-preview"]'
+  ];
+
+  const countComposerAttachments = (root) => {
+    if (!root) return 0;
+    for (const selector of ATTACHMENT_SELECTORS) {
+      const nodes = root.querySelectorAll(selector);
+      if (nodes.length) return nodes.length;
+    }
+    const fallback = root.querySelectorAll('img[src^="blob:"]');
+    return fallback.length;
+  };
+
+  const waitForAttachmentsReady = (root, baseCount, expectedIncrease, timeoutMs = 4000) => new Promise((resolve) => {
+    if (!expectedIncrease) {
+      resolve(true);
+      return;
+    }
+    const target = baseCount + expectedIncrease;
+    let settled = false;
+    let observer;
+    let poll;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      observer?.disconnect();
+      if (poll) clearInterval(poll);
+      resolve(result);
+    };
+    observer = new MutationObserver(() => {
+      if (countComposerAttachments(root) >= target) finish(true);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    poll = setInterval(() => {
+      if (countComposerAttachments(root) >= target) finish(true);
+    }, 150);
+    setTimeout(() => finish(false), timeoutMs);
+  });
+
   function injectBridge() {
     if (document.getElementById('cq-bridge')) return;
     const url = chrome.runtime?.getURL?.('bridge.js');
@@ -51,6 +197,7 @@
         <textarea id="cq-new-text" class="composer__input" placeholder="Type a prompt to queue" spellcheck="true"></textarea>
         <button id="cq-new-add" class="composer__btn" type="button" aria-label="Queue text">➕</button>
       </div>
+      <div id="cq-new-media" class="cq-media-list" aria-live="polite"></div>
     </div>
     <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
   document.documentElement.appendChild(ui);
@@ -66,7 +213,9 @@
   const btnClear = $('#cq-clear');
   const newInput = $('#cq-new-text');
   const btnNewAdd = $('#cq-new-add');
+  const newMedia = $('#cq-new-media');
   const list = $('#cq-list');
+  renderComposerAttachments();
 
   const dock = document.createElement('button');
   dock.id = 'cq-dock';
@@ -81,6 +230,7 @@
 
   let saveTimer;
   let hydrated = false; // gate UI visibility until persisted state is loaded
+  let composerAttachments = [];
   let dragIndex = null;
   let dragOverItem = null;
   let dragOverPosition = null;
@@ -88,7 +238,7 @@
   // Persist ------------------------------------------------------------------
   const persistable = () => ({
     running: STATE.running,
-    queue: STATE.queue.slice(),
+    queue: STATE.queue.map((entry) => cloneEntry(entry)),
     collapsed: STATE.collapsed,
     showDock: STATE.showDock
   });
@@ -107,7 +257,7 @@
       if (cq) {
         STATE.running = !!cq.running;
         STATE.queue = Array.isArray(cq.queue)
-          ? cq.queue.map((item) => (typeof item === 'string' ? item : String(item ?? '')))
+          ? cq.queue.map((item) => normalizeEntry(item))
           : [];
         STATE.collapsed = cq.collapsed === true;
         STATE.showDock = cq.showDock !== false;
@@ -172,6 +322,42 @@
     if (button) button.click();
   }
 
+  async function applyAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return true;
+    if (typeof DataTransfer === 'undefined') return false;
+    const root = composer();
+    if (!root) return false;
+    const inputSelector = 'input[type="file"][accept*="image"], input[type="file"][accept*="png"], input[type="file"][accept*="jpg"], input[type="file"][accept*="jpeg"], input[type="file"][accept*="webp"], input[type="file"]';
+    let input = root.querySelector(inputSelector);
+    if (!input) {
+      const trigger = root.querySelector('button[data-testid="file-upload-button"], button[aria-label="Upload files"], button[aria-label="Add file"], button[aria-label="Add files"], button[data-testid="upload-button"]');
+      if (trigger) {
+        trigger.click();
+        await sleep(60);
+        input = root.querySelector(inputSelector);
+      }
+    }
+    if (!input) return false;
+
+    const baseCount = countComposerAttachments(root);
+    const dataTransfer = new DataTransfer();
+    for (const attachment of attachments) {
+      const file = await attachmentToFile(attachment);
+      if (file) dataTransfer.items.add(file);
+    }
+    if (dataTransfer.items.length === 0) return true;
+
+    try {
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitForAttachmentsReady(root, baseCount, dataTransfer.items.length);
+      await sleep(120);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   function refreshControls(generatingOverride) {
     const generating = typeof generatingOverride === 'boolean' ? generatingOverride : isGenerating();
     const canManualSend = !STATE.running && !STATE.busy && !generating;
@@ -189,7 +375,8 @@
     btnClear.disabled = STATE.queue.length === 0;
     if (btnNewAdd) {
       const value = newInput ? newInput.value.trim() : '';
-      btnNewAdd.disabled = STATE.busy || !value;
+      const hasMedia = composerAttachments.length > 0;
+      btnNewAdd.disabled = STATE.busy || (!value && !hasMedia);
     }
     if (btnCollapse) {
       const label = STATE.collapsed ? 'Show' : 'Hide';
@@ -238,6 +425,19 @@
     textarea.style.height = `${height}px`;
   }
 
+  function insertTextAtCursor(textarea, text) {
+    if (!textarea || typeof text !== 'string' || text.length === 0) return;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+    const nextValue = `${before}${text}${after}`;
+    const cursor = before.length + text.length;
+    textarea.value = nextValue;
+    textarea.selectionStart = cursor;
+    textarea.selectionEnd = cursor;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   let controlRefreshPending = false;
   function scheduleControlRefresh() {
     if (controlRefreshPending) return;
@@ -246,6 +446,121 @@
       controlRefreshPending = false;
       refreshControls();
     });
+  }
+
+  function renderComposerAttachments() {
+    if (!newMedia) return;
+    newMedia.textContent = '';
+    if (!composerAttachments.length) {
+      newMedia.classList.add('cq-media-list--empty');
+      return;
+    }
+    newMedia.classList.remove('cq-media-list--empty');
+    composerAttachments.forEach((attachment) => {
+      const node = createAttachmentNode(attachment, { context: 'composer' });
+      newMedia.appendChild(node);
+    });
+  }
+
+  function addComposerAttachments(attachments) {
+    if (!Array.isArray(attachments) || attachments.length === 0) return;
+    const seen = new Set(composerAttachments.map((att) => att.id));
+    attachments.forEach((attachment) => {
+      if (!seen.has(attachment.id)) {
+        composerAttachments.push(cloneAttachment(attachment));
+        seen.add(attachment.id);
+      }
+    });
+    renderComposerAttachments();
+    refreshControls();
+  }
+
+  function removeComposerAttachment(id) {
+    const next = composerAttachments.filter((attachment) => attachment.id !== id);
+    if (next.length !== composerAttachments.length) {
+      composerAttachments = next;
+      renderComposerAttachments();
+      refreshControls();
+    }
+  }
+
+  function addAttachmentsToEntry(index, attachments) {
+    if (!Array.isArray(attachments) || attachments.length === 0) return;
+    const entry = STATE.queue[index];
+    if (!entry) return;
+    if (!Array.isArray(entry.attachments)) entry.attachments = [];
+    const seen = new Set(entry.attachments.map((att) => att.id));
+    attachments.forEach((attachment) => {
+      if (!seen.has(attachment.id)) {
+        entry.attachments.push(cloneAttachment(attachment));
+        seen.add(attachment.id);
+      }
+    });
+    save();
+    refreshAll();
+  }
+
+  function removeEntryAttachment(index, id) {
+    const entry = STATE.queue[index];
+    if (!entry || !Array.isArray(entry.attachments)) return;
+    const next = entry.attachments.filter((attachment) => attachment.id !== id);
+    if (next.length !== entry.attachments.length) {
+      entry.attachments = next;
+      save();
+      refreshAll();
+    }
+  }
+
+  function createAttachmentNode(attachment, { context, entryIndex } = {}) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cq-media';
+    wrapper.dataset.attachmentId = attachment.id;
+    if (typeof entryIndex === 'number') wrapper.dataset.entryIndex = String(entryIndex);
+
+    const thumb = document.createElement('img');
+    thumb.className = 'cq-media__thumb';
+    thumb.src = attachment.dataUrl;
+    thumb.alt = attachment.name || 'Image attachment';
+    thumb.loading = 'lazy';
+    wrapper.appendChild(thumb);
+
+    const meta = document.createElement('div');
+    meta.className = 'cq-media__meta';
+    meta.textContent = attachment.name || 'Image';
+    meta.title = attachment.name || '';
+    wrapper.appendChild(meta);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'cq-media__remove';
+    remove.dataset.attachmentRemove = attachment.id;
+    if (typeof entryIndex === 'number') {
+      remove.dataset.entryIndex = String(entryIndex);
+    } else {
+      remove.dataset.entryIndex = context || 'composer';
+    }
+    remove.textContent = 'Remove';
+    wrapper.appendChild(remove);
+
+    return wrapper;
+  }
+
+  function handleAttachmentPaste(event, { type, index, textarea }) {
+    const dataTransfer = event.clipboardData;
+    if (!hasImagesInDataTransfer(dataTransfer)) return;
+    event.preventDefault();
+    const plain = dataTransfer?.getData?.('text/plain') || '';
+    if (plain && textarea) {
+      insertTextAtCursor(textarea, plain);
+    }
+    collectImagesFromDataTransfer(dataTransfer).then((attachments) => {
+      if (!attachments.length) return;
+      if (type === 'composer') {
+        addComposerAttachments(attachments);
+      } else if (type === 'entry' && typeof index === 'number') {
+        addAttachmentsToEntry(index, attachments);
+      }
+    }).catch(() => {});
   }
 
   function makeAction(label, action, index, disabled = false, extraClass = '') {
@@ -296,21 +611,36 @@
         makeAction('Delete', 'delete', index)
       );
       header.appendChild(actions);
+      item.appendChild(header);
+
+      if (entry.attachments.length) {
+        const mediaWrap = document.createElement('div');
+        mediaWrap.className = 'cq-media-list';
+        mediaWrap.dataset.entryIndex = String(index);
+        entry.attachments.forEach((attachment) => {
+          const mediaNode = createAttachmentNode(attachment, { entryIndex: index });
+          mediaWrap.appendChild(mediaNode);
+        });
+        item.appendChild(mediaWrap);
+      }
 
       const textarea = document.createElement('textarea');
       textarea.className = 'cq-item-text';
-      textarea.value = entry;
+      textarea.value = entry.text;
       textarea.spellcheck = true;
       textarea.draggable = false;
       autoSize(textarea);
       textarea.addEventListener('input', () => {
-        STATE.queue[index] = textarea.value;
+        STATE.queue[index].text = textarea.value;
         autoSize(textarea);
         scheduleSave();
       });
       textarea.addEventListener('blur', () => save());
+      textarea.addEventListener('paste', (event) => {
+        handleAttachmentPaste(event, { type: 'entry', index, textarea });
+      });
 
-      item.append(header, textarea);
+      item.appendChild(textarea);
       list.appendChild(item);
     });
   }
@@ -372,20 +702,32 @@
     const root = composer();
     if (!root) return false;
 
-    const prompt = STATE.queue[index];
-    if (typeof prompt !== 'string') return false;
+    const entry = STATE.queue[index];
+    if (!entry) return false;
+    const promptText = typeof entry.text === 'string' ? entry.text : '';
+    const attachments = Array.isArray(entry.attachments) ? entry.attachments.slice() : [];
 
-    STATE.queue.splice(index, 1);
+    const [removed] = STATE.queue.splice(index, 1);
     STATE.busy = true;
     STATE.phase = 'sending';
     save();
     refreshAll();
 
-    const textSet = await setPrompt(prompt);
+    const textSet = await setPrompt(promptText);
     if (!textSet) {
       STATE.busy = false;
       STATE.phase = 'idle';
-      STATE.queue.splice(index, 0, prompt);
+      STATE.queue.splice(index, 0, removed);
+      refreshAll();
+      save();
+      return false;
+    }
+
+    const attachmentsApplied = await applyAttachments(attachments);
+    if (!attachmentsApplied) {
+      STATE.busy = false;
+      STATE.phase = 'idle';
+      STATE.queue.splice(index, 0, removed);
       refreshAll();
       save();
       return false;
@@ -447,7 +789,7 @@
     const ed = findEditor();
     const text = ed?.innerText?.trim();
     if (!text) return;
-    STATE.queue.push(text);
+    STATE.queue.push({ text, attachments: [] });
     ed.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     save();
@@ -460,10 +802,17 @@
   function queueNewInput() {
     if (!newInput) return;
     const text = newInput.value;
-    if (!text.trim()) return;
-    STATE.queue.push(text.replace(/\r\n/g, '\n'));
+    const normalized = (text || '').replace(/\r\n/g, '\n');
+    if (!normalized.trim() && composerAttachments.length === 0) return;
+    const entry = {
+      text: normalized,
+      attachments: composerAttachments.map((attachment) => cloneAttachment(attachment))
+    };
+    STATE.queue.push(entry);
     newInput.value = '';
     autoSize(newInput);
+    composerAttachments = [];
+    renderComposerAttachments();
     save();
     refreshAll();
     requestAnimationFrame(() => {
@@ -478,6 +827,9 @@
       autoSize(newInput);
       refreshControls();
     });
+    newInput.addEventListener('paste', (event) => {
+      handleAttachmentPaste(event, { type: 'composer', textarea: newInput });
+    });
     newInput.addEventListener('keydown', (event) => {
       const meta = navigator.platform.includes('Mac') ? event.metaKey : event.ctrlKey;
       if (meta && event.shiftKey && event.key === 'Enter') {
@@ -490,6 +842,16 @@
   if (btnNewAdd) {
     btnNewAdd.addEventListener('click', () => {
       queueNewInput();
+    });
+  }
+
+  if (newMedia) {
+    newMedia.addEventListener('click', (event) => {
+      const target = event.target instanceof HTMLElement ? event.target.closest('button[data-attachment-remove]') : null;
+      if (!target) return;
+      const id = target.dataset.attachmentRemove;
+      if (!id) return;
+      removeComposerAttachment(id);
     });
   }
 
@@ -520,6 +882,18 @@
   list.addEventListener('click', (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
+    const attachmentBtn = target.closest('button[data-attachment-remove]');
+    if (attachmentBtn) {
+      const id = attachmentBtn.dataset.attachmentRemove;
+      const entryAttr = attachmentBtn.dataset.entryIndex;
+      if (id && entryAttr) {
+        const index = Number(entryAttr);
+        if (Number.isInteger(index)) {
+          removeEntryAttachment(index, id);
+        }
+      }
+      return;
+    }
     const button = target.closest('button[data-action]');
     if (!button) return;
     const index = Number(button.dataset.index);
