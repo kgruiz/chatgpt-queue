@@ -513,7 +513,25 @@
     showDock: STATE.showDock
   });
 
-  const save = () => chrome.storage?.local.set({ cq: persistable() });
+  const isContextInvalidatedError = (error) => {
+    const message = typeof error === 'string' ? error : error?.message;
+    return typeof message === 'string' && message.includes('Extension context invalidated');
+  };
+
+  const save = () => {
+    if (!chrome.storage?.local?.set) return;
+    try {
+      chrome.storage.local.set({ cq: persistable() }, () => {
+        const error = chrome.runtime?.lastError;
+        if (error && !isContextInvalidatedError(error)) {
+          console.error('cq: failed to persist state', error);
+        }
+      });
+    } catch (error) {
+      if (isContextInvalidatedError(error)) return;
+      console.error('cq: failed to persist state', error);
+    }
+  };
   const scheduleSave = () => {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -540,14 +558,40 @@
     };
 
     if (chrome.storage?.local?.get) {
-      chrome.storage.local.get(['cq'], ({ cq }) => applyState(cq));
+      try {
+        chrome.storage.local.get(['cq'], ({ cq }) => {
+          const error = chrome.runtime?.lastError;
+          if (error) {
+            if (!isContextInvalidatedError(error)) {
+              console.error('cq: failed to load persisted state', error);
+            }
+            applyState(null);
+            return;
+          }
+          applyState(cq);
+        });
+      } catch (error) {
+        if (isContextInvalidatedError(error)) {
+          applyState(null);
+        } else {
+          console.error('cq: failed to load persisted state', error);
+          applyState(null);
+        }
+      }
     } else {
       applyState(null);
     }
   });
 
   // DOM helpers ---------------------------------------------------------------
-  const q = (selector, root = document) => root.querySelector(selector);
+  const q = (selector, root = document) => {
+    if (!root || typeof root.querySelector !== 'function') return null;
+    try {
+      return root.querySelector(selector);
+    } catch (_) {
+      return null;
+    }
+  };
   const composer = () => {
     const preset = q(SEL.composer);
     if (preset) return preset;
