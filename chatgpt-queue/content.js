@@ -171,6 +171,7 @@
   let modelsPromise = null;
   let composerModelId = null;
   let composerModelLabel = '';
+  let composerAttachments = [];
 
   const getModelNodeLabel = (node) => {
     if (!node) return '';
@@ -494,7 +495,6 @@
 
   let saveTimer;
   let hydrated = false; // gate UI visibility until persisted state is loaded
-  let composerAttachments = [];
   let dragIndex = null;
   let dragOverItem = null;
   let dragOverPosition = null;
