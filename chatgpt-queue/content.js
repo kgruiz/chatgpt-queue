@@ -81,6 +81,9 @@
 
   let saveTimer;
   let hydrated = false; // gate UI visibility until persisted state is loaded
+  let dragIndex = null;
+  let dragOverItem = null;
+  let dragOverPosition = null;
 
   // Persist ------------------------------------------------------------------
   const persistable = () => ({
@@ -169,7 +172,9 @@
     if (button) button.click();
   }
 
-  function refreshControls() {
+  function refreshControls(generatingOverride) {
+    const generating = typeof generatingOverride === 'boolean' ? generatingOverride : isGenerating();
+    const canManualSend = !STATE.running && !STATE.busy && !generating;
     elCount.textContent = String(STATE.queue.length);
     let status = 'Idle';
     if (STATE.busy) {
@@ -180,7 +185,7 @@
     elState.textContent = status;
     btnStart.disabled = STATE.running;
     btnStop.disabled = !STATE.running;
-    btnNext.disabled = STATE.busy || STATE.queue.length === 0;
+    btnNext.disabled = STATE.busy || STATE.queue.length === 0 || generating;
     btnClear.disabled = STATE.queue.length === 0;
     if (btnNewAdd) {
       const value = newInput ? newInput.value.trim() : '';
@@ -195,6 +200,9 @@
     dock.classList.toggle('is-busy', STATE.busy);
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
+    list.querySelectorAll('button[data-action="send"]').forEach((button) => {
+      button.disabled = !canManualSend;
+    });
   }
 
   function refreshVisibility() {
@@ -230,7 +238,17 @@
     textarea.style.height = `${height}px`;
   }
 
-  function makeAction(label, action, index, disabled = false) {
+  let controlRefreshPending = false;
+  function scheduleControlRefresh() {
+    if (controlRefreshPending) return;
+    controlRefreshPending = true;
+    requestAnimationFrame(() => {
+      controlRefreshPending = false;
+      refreshControls();
+    });
+  }
+
+  function makeAction(label, action, index, disabled = false, extraClass = '') {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'cq-mini';
@@ -238,10 +256,13 @@
     button.dataset.index = String(index);
     button.textContent = label;
     if (disabled) button.disabled = true;
+    if (extraClass) button.classList.add(extraClass);
     return button;
   }
 
-  function renderQueue() {
+  function renderQueue(generatingOverride) {
+    const generating = typeof generatingOverride === 'boolean' ? generatingOverride : isGenerating();
+    const canManualSend = !STATE.running && !STATE.busy && !generating;
     list.textContent = '';
     if (STATE.queue.length === 0) {
       const empty = document.createElement('div');
@@ -256,6 +277,7 @@
       item.className = 'cq-item';
       item.dataset.index = String(index);
       if (index === 0) item.classList.add('cq-item-next');
+      item.draggable = true;
 
       const header = document.createElement('div');
       header.className = 'cq-item-header';
@@ -268,6 +290,7 @@
       const actions = document.createElement('div');
       actions.className = 'cq-item-actions';
       actions.append(
+        makeAction('Send', 'send', index, !canManualSend, 'cq-mini--accent'),
         makeAction('Up', 'up', index, index === 0),
         makeAction('Down', 'down', index, index === STATE.queue.length - 1),
         makeAction('Delete', 'delete', index)
@@ -278,6 +301,7 @@
       textarea.className = 'cq-item-text';
       textarea.value = entry;
       textarea.spellcheck = true;
+      textarea.draggable = false;
       autoSize(textarea);
       textarea.addEventListener('input', () => {
         STATE.queue[index] = textarea.value;
@@ -292,8 +316,9 @@
   }
 
   function refreshAll() {
-    refreshControls();
-    renderQueue();
+    const generating = isGenerating();
+    refreshControls(generating);
+    renderQueue(generating);
   }
 
   async function waitUntilIdle(timeoutMs = 120000) {
@@ -336,28 +361,39 @@
     });
   }
 
-  async function sendNext() {
-    if (STATE.busy || STATE.queue.length === 0) return;
-    if (!composer()) return;
+  async function sendFromQueue(index) {
+    if (STATE.busy) return false;
+    if (STATE.queue.length === 0) return false;
+    if (STATE.running && index !== 0) return false;
+    if (isGenerating()) {
+      refreshControls(true);
+      return false;
+    }
+    const root = composer();
+    if (!root) return false;
 
-    const prompt = STATE.queue.shift();
+    const prompt = STATE.queue[index];
+    if (typeof prompt !== 'string') return false;
+
+    STATE.queue.splice(index, 1);
     STATE.busy = true;
     STATE.phase = 'sending';
     save();
     refreshAll();
 
-    if (!(await setPrompt(prompt))) {
+    const textSet = await setPrompt(prompt);
+    if (!textSet) {
       STATE.busy = false;
       STATE.phase = 'idle';
-      STATE.queue.unshift(prompt);
+      STATE.queue.splice(index, 0, prompt);
       refreshAll();
       save();
-      return;
+      return false;
     }
 
     clickSend();
     STATE.phase = 'waiting';
-    refreshControls();
+    refreshControls(true);
     await waitUntilIdle();
 
     STATE.busy = false;
@@ -365,6 +401,12 @@
     refreshControls();
     save();
     if (STATE.running) maybeKick();
+    return true;
+  }
+
+  async function sendNext() {
+    if (STATE.queue.length === 0) return;
+    await sendFromQueue(0);
   }
 
   function maybeKick() {
@@ -379,6 +421,14 @@
     STATE.queue.splice(to, 0, entry);
     save();
     refreshAll();
+  }
+
+  function clearDragIndicator() {
+    if (dragOverItem) {
+      dragOverItem.classList.remove('cq-drop-before', 'cq-drop-after');
+    }
+    dragOverItem = null;
+    dragOverPosition = null;
   }
 
   // Buttons ------------------------------------------------------------------
@@ -484,7 +534,83 @@
       moveItem(index, index - 1);
     } else if (action === 'down') {
       moveItem(index, index + 1);
+    } else if (action === 'send') {
+      sendFromQueue(index);
     }
+  });
+
+  list.addEventListener('dragstart', (event) => {
+    const target = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    if (!target) return;
+    const index = Number(target.dataset.index);
+    if (!Number.isInteger(index)) return;
+    dragIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(index));
+      try { event.dataTransfer.setDragImage(target, 20, 20); } catch (_) { /* noop */ }
+    }
+    target.classList.add('cq-item-dragging');
+  });
+
+  list.addEventListener('dragend', () => {
+    list.querySelector('.cq-item-dragging')?.classList.remove('cq-item-dragging');
+    dragIndex = null;
+    clearDragIndicator();
+  });
+
+  list.addEventListener('dragover', (event) => {
+    if (dragIndex === null) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    if (!item) {
+      clearDragIndicator();
+      return;
+    }
+    const overIndex = Number(item.dataset.index);
+    if (!Number.isInteger(overIndex)) return;
+    if (overIndex === dragIndex) {
+      clearDragIndicator();
+      return;
+    }
+    const rect = item.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const position = event.clientY < midpoint ? 'before' : 'after';
+    if (item !== dragOverItem || position !== dragOverPosition) {
+      clearDragIndicator();
+      dragOverItem = item;
+      dragOverPosition = position;
+      item.classList.add(position === 'before' ? 'cq-drop-before' : 'cq-drop-after');
+    }
+  });
+
+  list.addEventListener('dragleave', (event) => {
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    if (item && item === dragOverItem) clearDragIndicator();
+  });
+
+  list.addEventListener('drop', (event) => {
+    if (dragIndex === null) return;
+    event.preventDefault();
+    let newIndex = dragIndex;
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    if (item) {
+      const overIndex = Number(item.dataset.index);
+      if (Number.isInteger(overIndex)) {
+        const rect = item.getBoundingClientRect();
+        const after = event.clientY >= rect.top + rect.height / 2;
+        newIndex = overIndex + (after ? 1 : 0);
+      }
+    } else {
+      newIndex = STATE.queue.length;
+    }
+    clearDragIndicator();
+    const length = STATE.queue.length;
+    if (newIndex > length) newIndex = length;
+    if (newIndex > dragIndex) newIndex -= 1;
+    moveItem(dragIndex, newIndex);
+    dragIndex = null;
   });
 
   // Shortcut inside page -----------------------------------------------------
@@ -533,7 +659,10 @@
   });
 
   // Handle SPA changes and rerenders -----------------------------------------
-  const rootObserver = new MutationObserver(() => { if (STATE.running) maybeKick(); });
+  const rootObserver = new MutationObserver(() => {
+    if (STATE.running) maybeKick();
+    scheduleControlRefresh();
+  });
   rootObserver.observe(document.documentElement, { subtree: true, childList: true });
 
   // Route change watcher ------------------------------------------------------
