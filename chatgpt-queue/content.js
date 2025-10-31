@@ -303,9 +303,10 @@
   const parseModelItems = (menu) => {
     const items = [];
     const seen = new Set();
-    menu.querySelectorAll('[data-testid^="model-switcher-"]').forEach((node) => {
-      const item = node.closest('[data-testid^="model-switcher-"]');
-      if (!item || seen.has(item)) return;
+    const candidates = menu.querySelectorAll('[role="menuitem"][data-testid]');
+    candidates.forEach((item) => {
+      if (!(item instanceof HTMLElement)) return;
+      if (seen.has(item)) return;
       seen.add(item);
       const testId = item.getAttribute('data-testid') || '';
       if (!testId.startsWith('model-switcher-')) return;
@@ -314,7 +315,12 @@
       const disabled = item.getAttribute('aria-disabled') === 'true' || item.matches('[data-disabled="true"]');
       if (disabled) return;
       const label = getModelNodeLabel(item) || id;
-      const selected = item.getAttribute('data-state') === 'checked' || item.getAttribute('aria-checked') === 'true';
+      const hasCheckIcon = !!item.querySelector('.trailing svg, [data-testid="check-icon"], svg[aria-hidden="false"]');
+      const selected =
+        item.getAttribute('data-state') === 'checked' ||
+        item.getAttribute('aria-checked') === 'true' ||
+        item.getAttribute('aria-pressed') === 'true' ||
+        hasCheckIcon;
       items.push({ id, label, selected });
     });
     return items;
@@ -373,10 +379,10 @@
 
   const findModelMenuItem = (menu, modelId) => {
     if (!menu || !modelId) return null;
-    const direct = menu.querySelector(`[data-testid="model-switcher-${escapeCss(modelId)}"]`);
-    if (direct) return direct.closest('[data-testid^="model-switcher-"]') || direct;
+    const direct = menu.querySelector(`[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`);
+    if (direct) return direct;
     const normalized = normalizeModelId(modelId);
-    const candidates = Array.from(menu.querySelectorAll('[data-testid^="model-switcher-"]'));
+    const candidates = Array.from(menu.querySelectorAll('[role="menuitem"][data-testid^="model-switcher-"]'));
     for (const candidate of candidates) {
       const tid = candidate.getAttribute('data-testid') || '';
       const id = tid.replace(/^model-switcher-/, '');
