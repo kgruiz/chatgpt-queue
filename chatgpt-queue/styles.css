@@ -73,7 +73,10 @@
 #cq-ui .cq-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+#cq-ui .cq-label {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
@@ -86,15 +89,15 @@
   color: var(--text-tertiary);
 }
 
-#cq-ui #cq-count {
+#cq-ui .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 24px;
   padding: 0 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
+  border: 1px solid rgba(217, 217, 227, 0.18);
+  background: rgba(217, 217, 227, 0.1);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 500;
@@ -107,6 +110,29 @@
   letter-spacing: 0.04em;
 }
 
+#cq-ui .cq-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#cq-ui .cq-controls__primary,
+#cq-ui .cq-controls__run {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#cq-ui .cq-controls__primary {
+  justify-content: flex-start;
+}
+
+#cq-ui .cq-controls__run {
+  justify-content: flex-end;
+}
+
 #cq-ui.is-running .cq-state {
   color: color-mix(in srgb, var(--accent) 70%, white 30%);
 }
@@ -116,16 +142,18 @@
 
 /* ===== Buttons (scoped) ===== */
 #cq-ui .btn {
-  --bg: var(--bg-elevated);
-  --fg: var(--text-primary);
-  --bd: var(--border);
-
+  --bg: rgba(217, 217, 227, 0.08);
+  --bg-hover: rgba(217, 217, 227, 0.16);
+  --fg: var(--text-secondary);
+  --fg-hover: var(--text-primary);
+  --bd: rgba(217, 217, 227, 0.14);
+  --bd-hover: rgba(217, 217, 227, 0.22);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--bd);
   background: var(--bg);
@@ -137,8 +165,9 @@
 }
 
 #cq-ui .btn:hover {
+  color: var(--fg-hover);
   background: var(--bg-hover);
-  border-color: color-mix(in srgb, var(--border) 75%, var(--text-tertiary) 25%);
+  border-color: var(--bd-hover);
 }
 
 #cq-ui .btn:active {
@@ -157,55 +186,34 @@
 
 #cq-ui .btn--primary {
   --bg: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  --bg-hover: linear-gradient(135deg, #1cc48c, #0ea27a);
   --bd: rgba(16, 163, 127, 0.35);
-  color: #061e16;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-#cq-ui .btn--primary:hover {
-  --bg: linear-gradient(135deg, #1cc48c, #0ea27a);
+  --bd-hover: rgba(16, 163, 127, 0.55);
+  --fg: #062b21;
+  --fg-hover: #041d17;
+  color: var(--fg);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 #cq-ui .btn--danger {
   --bg: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.2));
+  --bg-hover: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.28));
   --bd: rgba(239, 68, 68, 0.4);
-  color: color-mix(in srgb, var(--danger) 85%, white 15%);
+  --bd-hover: rgba(239, 68, 68, 0.55);
+  --fg: color-mix(in srgb, var(--danger) 85%, white 15%);
+  --fg-hover: color-mix(in srgb, var(--danger) 92%, white 8%);
+  color: var(--fg);
 }
 
-/* Small icon-like button */
-#cq-ui .icon-btn {
-  height: 30px;
+#cq-ui .btn--quiet {
+  --bg: rgba(255, 255, 255, 0.02);
+  --bd: rgba(217, 217, 227, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bd-hover: rgba(217, 217, 227, 0.18);
+  --fg: var(--text-secondary);
+  --fg-hover: var(--text-primary);
   padding: 0 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text-secondary);
-  font: inherit;
   font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-#cq-ui .icon-btn:hover {
-  background: var(--bg-hover);
-  border-color: color-mix(in srgb, var(--border) 80%, var(--text-tertiary) 20%);
-  color: var(--text-primary);
-}
-
-#cq-ui .icon-btn:focus-visible {
-  box-shadow: var(--ring);
-  outline: none;
-}
-
-/* ===== Toolbar rows ===== */
-#cq-ui .cq-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-#cq-ui .cq-row + .cq-row {
-  margin-top: -2px;
 }
 
 /* ===== Composer (scoped) ===== */
@@ -219,8 +227,8 @@
   grid-template-areas: "leading primary trailing";
   align-items: center;
   gap: 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: rgba(32, 33, 35, 0.92);
+  border: 1px solid rgba(217, 217, 227, 0.1);
   border-radius: 20px;
   padding: 12px 12px 12px 14px;
   box-shadow: var(--shadow-1);
@@ -251,8 +259,8 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-pill);
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(217, 217, 227, 0.12);
+  background: rgba(217, 217, 227, 0.06);
   color: var(--text-secondary);
   font-size: 16px;
   cursor: pointer;
@@ -273,6 +281,12 @@
   outline: none;
 }
 
+#cq-ui .composer__btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
 /* ===== Queue list ===== */
 #cq-ui .cq-queue {
   flex: 1;
@@ -285,7 +299,7 @@
 
 #cq-ui .cq-empty {
   padding: 16px;
-  border: 1px dashed var(--border);
+  border: 1px dashed rgba(217, 217, 227, 0.16);
   border-radius: var(--radius-lg);
   text-align: center;
   color: var(--text-tertiary);
@@ -296,8 +310,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: color-mix(in srgb, var(--bg-panel) 75%, var(--bg-muted) 25%);
-  border: 1px solid var(--border-subtle);
+  background: rgba(42, 43, 55, 0.92);
+  border: 1px solid rgba(217, 217, 227, 0.08);
   border-radius: var(--radius-lg);
   padding: 12px;
   box-shadow: var(--shadow-1);
