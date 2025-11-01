@@ -1,5 +1,14 @@
 (() => {
-  const STATE = { running: false, queue: [], busy: false, cooldownMs: 900, collapsed: false, showDock: true, phase: 'idle', models: [] };
+  const STATE = {
+    running: false,
+    queue: [],
+    busy: false,
+    cooldownMs: 900,
+    collapsed: false,
+    phase: 'idle',
+    models: [],
+    followupMode: 'queue'
+  };
   const SEL = {
     editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
     send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
@@ -438,79 +447,57 @@
   const ui = document.createElement('div');
   ui.id = 'cq-ui';
   ui.innerHTML = `
-    <div class="cq-header">
-      <div class="cq-title">
-        <span class="cq-label">Queue</span>
-        <span id="cq-count" class="badge" aria-live="polite">0</span>
-      </div>
-      <div class="cq-head-side">
+    <div class="cq-inline-header">
+      <div class="cq-inline-meta">
+        <span class="cq-label">Follow-ups</span>
+        <span id="cq-count" class="cq-count" aria-live="polite">0</span>
         <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
-        <button id="cq-collapse" class="btn btn--quiet" type="button" aria-label="Collapse queue panel">Hide</button>
       </div>
-    </div>
-    <div class="cq-controls" role="group" aria-label="Queue controls">
-      <button id="cq-add" class="btn btn--full" type="button">Add from input</button>
-      <button id="cq-next" class="btn" type="button">Send next</button>
-      <button id="cq-clear" class="btn" type="button">Clear</button>
-      <button id="cq-start" class="btn btn--primary" type="button">Start</button>
-      <button id="cq-stop" class="btn btn--danger" type="button" disabled>Stop</button>
-    </div>
-    <div class="composer">
-      <div class="composer__box">
-        <textarea id="cq-new-text" class="composer__input" placeholder="Type a prompt to queue" spellcheck="true"></textarea>
-        <button id="cq-new-add" class="composer__btn" type="button" aria-label="Queue text">➕</button>
-      </div>
-      <div class="composer__meta">
-        <label class="cq-field" for="cq-new-model">
-          <span class="cq-field__label">Model</span>
-          <select id="cq-new-model" class="cq-select" aria-label="Select model for new queue item"></select>
-        </label>
-        <div id="cq-new-media" class="cq-media-list cq-media-list--empty" aria-live="polite"></div>
+      <div class="cq-inline-actions">
+        <button id="cq-followups-trigger" class="cq-icon-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cq-followups-menu" aria-label="When to send follow-ups">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false">
+            <circle cx="4" cy="9" r="1.5"></circle>
+            <circle cx="9" cy="9" r="1.5"></circle>
+            <circle cx="14" cy="9" r="1.5"></circle>
+          </svg>
+        </button>
+        <div id="cq-followups-menu" class="cq-popover" role="menu" aria-label="When to send follow-ups" tabindex="-1" hidden>
+          <div class="cq-popover-title">When to send follow-ups</div>
+          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="queue" aria-checked="true">Queue</button>
+          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="immediate" aria-checked="false">Send immediately</button>
+          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="stop" aria-checked="false">Stop and send right away</button>
+        </div>
       </div>
     </div>
     <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
-  document.documentElement.appendChild(ui);
 
   const $ = (selector) => ui.querySelector(selector);
   const elCount = $('#cq-count');
   const elState = $('#cq-state');
-  const btnCollapse = $('#cq-collapse');
-  const btnAdd = $('#cq-add');
-  const btnStart = $('#cq-start');
-  const btnStop = $('#cq-stop');
-  const btnNext = $('#cq-next');
-  const btnClear = $('#cq-clear');
+  const list = $('#cq-list');
+  const followupsTrigger = $('#cq-followups-trigger');
+  const followupsMenu = $('#cq-followups-menu');
   const newInput = $('#cq-new-text');
   const btnNewAdd = $('#cq-new-add');
   const newModelSelect = $('#cq-new-model');
   const newMedia = $('#cq-new-media');
-  const list = $('#cq-list');
   renderComposerModelSelect();
   renderComposerAttachments();
-
-  const dock = document.createElement('button');
-  dock.id = 'cq-dock';
-  dock.type = 'button';
-  dock.textContent = 'Queue';
-  dock.setAttribute('aria-label', 'Open chatgpt queue panel');
-  document.documentElement.appendChild(dock);
-
-  ui.style.display = 'none';
   ui.setAttribute('aria-hidden', 'true');
-  dock.hidden = true;
 
   let saveTimer;
   let hydrated = false; // gate UI visibility until persisted state is loaded
   let dragIndex = null;
   let dragOverItem = null;
   let dragOverPosition = null;
+  let followupsMenuOpen = false;
 
   // Persist ------------------------------------------------------------------
   const persistable = () => ({
     running: STATE.running,
     queue: STATE.queue.map((entry) => cloneEntry(entry)),
     collapsed: STATE.collapsed,
-    showDock: STATE.showDock
+    followupMode: STATE.followupMode
   });
 
   const isContextInvalidatedError = (error) => {
@@ -548,7 +535,9 @@
           ? cq.queue.map((item) => normalizeEntry(item))
           : [];
         STATE.collapsed = cq.collapsed === true;
-        STATE.showDock = cq.showDock !== false;
+        const storedMode = typeof cq.followupMode === 'string' ? cq.followupMode : 'queue';
+        STATE.followupMode = storedMode === 'immediate' ? 'immediate' : 'queue';
+        STATE.running = STATE.followupMode === 'immediate' && cq.running !== false;
       }
       refreshAll();
       hydrated = true;
@@ -675,61 +664,49 @@
   function refreshControls(generatingOverride) {
     const generating = typeof generatingOverride === 'boolean' ? generatingOverride : isGenerating();
     const canManualSend = !STATE.running && !STATE.busy && !generating;
-    elCount.textContent = String(STATE.queue.length);
-    let status = 'Idle';
-    if (STATE.busy) {
-      status = STATE.phase === 'waiting' ? 'Waiting...' : 'Sending...';
-    } else if (STATE.running) {
-      status = 'Running';
+    if (elCount) {
+      elCount.textContent = String(STATE.queue.length);
     }
-    elState.textContent = status;
-    btnStart.disabled = STATE.running;
-    btnStop.disabled = !STATE.running;
-    btnNext.disabled = STATE.busy || STATE.queue.length === 0 || generating;
-    btnClear.disabled = STATE.queue.length === 0;
+    if (elState) {
+      let status = 'Idle';
+      if (STATE.busy) {
+        status = STATE.phase === 'waiting' ? 'Waiting…' : 'Sending…';
+      } else if (STATE.running) {
+        status = 'Auto-send';
+      }
+      elState.textContent = status;
+    }
     if (btnNewAdd) {
       const value = newInput ? newInput.value.trim() : '';
       const hasMedia = composerAttachments.length > 0;
       btnNewAdd.disabled = STATE.busy || (!value && !hasMedia);
     }
-    if (btnCollapse) {
-      const label = STATE.collapsed ? 'Show' : 'Hide';
-      btnCollapse.textContent = label;
-      btnCollapse.setAttribute('aria-label', `${label} queue panel`);
-    }
-    dock.classList.toggle('is-running', STATE.running);
-    dock.classList.toggle('is-busy', STATE.busy);
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
+    updateFollowupMenu();
     list.querySelectorAll('button[data-action="send"]').forEach((button) => {
       button.disabled = !canManualSend;
     });
   }
 
   function refreshVisibility() {
+    ensureMounted();
     if (!hydrated) {
       ui.style.display = 'none';
       ui.setAttribute('aria-hidden', 'true');
-      dock.hidden = true;
       return;
     }
     const collapsed = STATE.collapsed;
     ui.style.display = collapsed ? 'none' : 'flex';
     ui.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
-    dock.hidden = !(STATE.showDock && collapsed);
   }
 
   function setCollapsed(collapsed, persist = true) {
     STATE.collapsed = collapsed;
     refreshVisibility();
     refreshControls();
+    if (collapsed) setFollowupsMenuOpen(false);
     if (!collapsed) newInput?.focus({ preventScroll: true });
-    if (persist) save();
-  }
-
-  function setShowDock(show, persist = true) {
-    STATE.showDock = show;
-    refreshVisibility();
     if (persist) save();
   }
 
@@ -761,6 +738,118 @@
       refreshControls();
     });
   }
+
+  function ensureMounted() {
+    const root = composer();
+    if (!root) return;
+    let container = root.closest('#thread-bottom-container');
+    if (!container) {
+      // walk up until we hit something that looks like the prompt container
+      let current = root.parentElement;
+      while (current && current !== document.body && !current.matches('#thread-bottom-container')) {
+        current = current.parentElement;
+      }
+      container = current || root.parentElement;
+    }
+    if (!container) return;
+    let anchor = container.querySelector('#thread-bottom');
+    if (!anchor) {
+      anchor = root;
+      while (anchor && anchor.parentElement && anchor.parentElement !== container) {
+        anchor = anchor.parentElement;
+      }
+    }
+    if (!anchor) return;
+    if (anchor.parentElement !== container) {
+      if (ui.parentElement !== container) {
+        container.appendChild(ui);
+      }
+      return;
+    }
+    if (ui.parentElement !== container || ui.nextElementSibling !== anchor) {
+      container.insertBefore(ui, anchor);
+    }
+  }
+
+  function updateFollowupMenu() {
+    if (!followupsMenu) return;
+    const active = STATE.followupMode === 'immediate' ? 'immediate' : 'queue';
+    followupsMenu.querySelectorAll('[data-mode]').forEach((option) => {
+      const mode = option.dataset.mode || '';
+      const selected = mode === active;
+      option.setAttribute('aria-checked', selected ? 'true' : 'false');
+      option.classList.toggle('is-selected', selected);
+    });
+  }
+
+  function setFollowupsMenuOpen(open) {
+    if (!followupsMenu || !followupsTrigger) return;
+    followupsMenuOpen = open;
+    followupsMenu.hidden = !open;
+    followupsTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      followupsMenu.focus();
+    }
+  }
+
+  function setFollowupMode(mode, persist = true) {
+    const normalized = mode === 'immediate' ? 'immediate' : mode === 'stop' ? 'stop' : 'queue';
+    if (normalized === 'stop') {
+      STATE.running = false;
+      STATE.followupMode = 'queue';
+      if (!STATE.busy) STATE.phase = 'idle';
+      updateFollowupMenu();
+      if (persist) save();
+      refreshControls();
+      if (STATE.queue.length > 0) {
+        sendNext();
+      }
+      return;
+    }
+    STATE.followupMode = normalized;
+    STATE.running = normalized === 'immediate';
+    if (!STATE.running && !STATE.busy) {
+      STATE.phase = 'idle';
+    }
+    updateFollowupMenu();
+    refreshControls();
+    if (persist) save();
+    if (STATE.running) maybeKick();
+  }
+
+  if (followupsTrigger) {
+    followupsTrigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      ensureMounted();
+      setFollowupsMenuOpen(!followupsMenuOpen);
+    });
+  }
+
+  if (followupsMenu) {
+    followupsMenu.addEventListener('click', (event) => {
+      const option = event.target instanceof HTMLElement ? event.target.closest('[data-mode]') : null;
+      if (!option) return;
+      const mode = option.dataset.mode || 'queue';
+      setFollowupMode(mode);
+      setFollowupsMenuOpen(false);
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!followupsMenuOpen) return;
+    if (event.target instanceof Node) {
+      if (followupsMenu?.contains(event.target) || followupsTrigger?.contains(event.target)) return;
+    }
+    setFollowupsMenuOpen(false);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!followupsMenuOpen) return;
+    if (event.key === 'Escape') {
+      setFollowupsMenuOpen(false);
+      followupsTrigger?.focus();
+    }
+  });
 
   function populateModelSelect(select, selectedId, selectedLabel) {
     if (!select) return;
@@ -929,18 +1018,6 @@
     }).catch(() => {});
   }
 
-  function makeAction(label, action, index, disabled = false, extraClass = '') {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'cq-mini';
-    button.dataset.action = action;
-    button.dataset.index = String(index);
-    button.textContent = label;
-    if (disabled) button.disabled = true;
-    if (extraClass) button.classList.add(extraClass);
-    return button;
-  }
-
   function renderQueue(generatingOverride) {
     const generating = typeof generatingOverride === 'boolean' ? generatingOverride : isGenerating();
     const canManualSend = !STATE.running && !STATE.busy && !generating;
@@ -948,81 +1025,30 @@
     if (STATE.queue.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'cq-empty';
-      empty.textContent = 'Queue is empty.';
+      empty.textContent = 'No follow-ups queued.';
       list.appendChild(empty);
       return;
     }
 
     STATE.queue.forEach((entry, index) => {
-      const item = document.createElement('div');
-      item.className = 'cq-item';
-      item.dataset.index = String(index);
-      if (index === 0) item.classList.add('cq-item-next');
-      item.draggable = true;
+      const row = document.createElement('div');
+      row.className = 'cq-row';
+      row.dataset.index = String(index);
+      if (index === 0) row.classList.add('cq-row--next');
+      row.draggable = true;
 
-      const header = document.createElement('div');
-      header.className = 'cq-item-header';
+      const indicator = document.createElement('span');
+      indicator.className = 'cq-row-indicator';
+      indicator.textContent = String(index + 1);
+      row.appendChild(indicator);
 
-      const badge = document.createElement('span');
-      badge.className = 'cq-item-index';
-      badge.textContent = String(index + 1);
-      header.appendChild(badge);
-
-      const actions = document.createElement('div');
-      actions.className = 'cq-item-actions';
-      actions.append(
-        makeAction('Send', 'send', index, !canManualSend, 'cq-mini--accent'),
-        makeAction('Up', 'up', index, index === 0),
-        makeAction('Down', 'down', index, index === STATE.queue.length - 1),
-        makeAction('Delete', 'delete', index)
-      );
-      header.appendChild(actions);
-      item.appendChild(header);
-
-      const metaRow = document.createElement('div');
-      metaRow.className = 'cq-item-meta';
-
-      const modelField = document.createElement('label');
-      modelField.className = 'cq-field';
-      modelField.setAttribute('for', `cq-item-model-${index}`);
-
-      const modelLabel = document.createElement('span');
-      modelLabel.className = 'cq-field__label';
-      modelLabel.textContent = 'Model';
-      modelField.appendChild(modelLabel);
-
-      const modelSelect = document.createElement('select');
-      modelSelect.className = 'cq-select';
-      modelSelect.id = `cq-item-model-${index}`;
-      modelSelect.dataset.index = String(index);
-      populateModelSelect(modelSelect, entry.model, entry.modelLabel);
-      modelSelect.addEventListener('focus', () => { ensureModelOptions(); });
-      modelSelect.addEventListener('click', () => { ensureModelOptions(); });
-      modelSelect.addEventListener('change', () => {
-        const value = modelSelect.value || '';
-        const label = modelSelect.selectedOptions[0]?.textContent || '';
-        STATE.queue[index].model = value || null;
-        STATE.queue[index].modelLabel = value ? label : null;
-        save();
-      });
-      modelField.appendChild(modelSelect);
-      metaRow.appendChild(modelField);
-      item.appendChild(metaRow);
-
-      if (entry.attachments.length) {
-        const mediaWrap = document.createElement('div');
-        mediaWrap.className = 'cq-media-list';
-        mediaWrap.dataset.entryIndex = String(index);
-        entry.attachments.forEach((attachment) => {
-          const mediaNode = createAttachmentNode(attachment, { entryIndex: index });
-          mediaWrap.appendChild(mediaNode);
-        });
-        item.appendChild(mediaWrap);
-      }
+      const body = document.createElement('div');
+      body.className = 'cq-row-body';
 
       const textarea = document.createElement('textarea');
-      textarea.className = 'cq-item-text';
+      textarea.className = 'cq-row-text';
       textarea.value = entry.text;
+      textarea.placeholder = 'Empty follow-up';
       textarea.spellcheck = true;
       textarea.draggable = false;
       autoSize(textarea);
@@ -1035,9 +1061,53 @@
       textarea.addEventListener('paste', (event) => {
         handleAttachmentPaste(event, { type: 'entry', index, textarea });
       });
+      body.appendChild(textarea);
 
-      item.appendChild(textarea);
-      list.appendChild(item);
+      if (entry.attachments.length) {
+        const mediaWrap = document.createElement('div');
+        mediaWrap.className = 'cq-row-media';
+        mediaWrap.dataset.entryIndex = String(index);
+        entry.attachments.forEach((attachment) => {
+          const mediaNode = createAttachmentNode(attachment, { entryIndex: index });
+          mediaWrap.appendChild(mediaNode);
+        });
+        body.appendChild(mediaWrap);
+      }
+
+      row.appendChild(body);
+
+      const actions = document.createElement('div');
+      actions.className = 'cq-row-actions';
+
+      const sendButton = document.createElement('button');
+      sendButton.type = 'button';
+      sendButton.className = 'cq-icon-btn cq-icon-btn--send';
+      sendButton.dataset.action = 'send';
+      sendButton.dataset.index = String(index);
+      sendButton.setAttribute('aria-label', 'Send now');
+      sendButton.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+          <path d="M4.25 3.5L16.5 9.75L4.25 16.5L4.25 11L11 9.75L4.25 8.5L4.25 3.5Z" fill="currentColor"></path>
+        </svg>`;
+      if (!canManualSend) sendButton.disabled = true;
+      actions.appendChild(sendButton);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'cq-icon-btn cq-icon-btn--delete';
+      deleteButton.dataset.action = 'delete';
+      deleteButton.dataset.index = String(index);
+      deleteButton.setAttribute('aria-label', 'Remove follow-up');
+      deleteButton.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+          <path d="M6 6L6.8 16.2C6.87394 17.1321 7.64701 17.846 8.58083 17.846H11.4192C12.353 17.846 13.1261 17.1321 13.2 16.2L14 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+          <path d="M4 6H16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+          <path d="M8 6V4.5C8 3.67157 8.67157 3 9.5 3H10.5C11.3284 3 12 3.67157 12 4.5V6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+        </svg>`;
+      actions.appendChild(deleteButton);
+
+      row.appendChild(actions);
+      list.appendChild(row);
     });
   }
 
@@ -1176,28 +1246,17 @@
 
   function clearDragIndicator() {
     if (dragOverItem) {
-      dragOverItem.classList.remove('cq-drop-before', 'cq-drop-after');
+      dragOverItem.classList.remove('cq-row--drop-before', 'cq-row--drop-after');
     }
     dragOverItem = null;
     dragOverPosition = null;
   }
 
-  // Buttons ------------------------------------------------------------------
-  if (btnCollapse) {
-    btnCollapse.addEventListener('click', () => {
-      setCollapsed(true);
-    });
-  }
-
-  dock.addEventListener('click', () => {
-    if (!STATE.showDock) setShowDock(true);
-    setCollapsed(false);
-  });
-
-  btnAdd.addEventListener('click', () => {
+  function queueComposerInput() {
     const ed = findEditor();
-    const text = ed?.innerText?.trim();
-    if (!text) return;
+    if (!ed) return false;
+    const text = ed.innerText?.trim();
+    if (!text) return false;
     const modelId = currentModelId || composerModelId || null;
     const modelLabel = modelId ? labelForModel(modelId, currentModelLabel || composerModelLabel) : null;
     STATE.queue.push({ text, attachments: [], model: modelId, modelLabel });
@@ -1208,7 +1267,9 @@
     requestAnimationFrame(() => {
       list.scrollTop = list.scrollHeight;
     });
-  });
+    if (STATE.running) maybeKick();
+    return true;
+  }
 
   function queueNewInput() {
     if (!newInput) return;
@@ -1241,6 +1302,7 @@
       list.scrollTop = list.scrollHeight;
     });
     newInput.focus();
+    if (STATE.running) maybeKick();
   }
 
   if (newInput) {
@@ -1286,30 +1348,6 @@
     });
   }
 
-  btnStart.addEventListener('click', () => {
-    STATE.running = true;
-    if (!STATE.busy) STATE.phase = 'idle';
-    save();
-    refreshControls();
-    maybeKick();
-  });
-
-  btnStop.addEventListener('click', () => {
-    STATE.running = false;
-    STATE.busy = false;
-    STATE.phase = 'idle';
-    save();
-    refreshControls();
-  });
-
-  btnClear.addEventListener('click', () => {
-    STATE.queue = [];
-    save();
-    refreshAll();
-  });
-
-  btnNext.addEventListener('click', sendNext);
-
   list.addEventListener('click', (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
@@ -1335,17 +1373,13 @@
       STATE.queue.splice(index, 1);
       save();
       refreshAll();
-    } else if (action === 'up') {
-      moveItem(index, index - 1);
-    } else if (action === 'down') {
-      moveItem(index, index + 1);
     } else if (action === 'send') {
       sendFromQueue(index);
     }
   });
 
   list.addEventListener('dragstart', (event) => {
-    const target = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    const target = event.target instanceof HTMLElement ? event.target.closest('.cq-row') : null;
     if (!target) return;
     const index = Number(target.dataset.index);
     if (!Number.isInteger(index)) return;
@@ -1355,11 +1389,11 @@
       event.dataTransfer.setData('text/plain', String(index));
       try { event.dataTransfer.setDragImage(target, 20, 20); } catch (_) { /* noop */ }
     }
-    target.classList.add('cq-item-dragging');
+    target.classList.add('cq-row--dragging');
   });
 
   list.addEventListener('dragend', () => {
-    list.querySelector('.cq-item-dragging')?.classList.remove('cq-item-dragging');
+    list.querySelector('.cq-row--dragging')?.classList.remove('cq-row--dragging');
     dragIndex = null;
     clearDragIndicator();
   });
@@ -1368,7 +1402,7 @@
     if (dragIndex === null) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-row') : null;
     if (!item) {
       clearDragIndicator();
       return;
@@ -1386,12 +1420,12 @@
       clearDragIndicator();
       dragOverItem = item;
       dragOverPosition = position;
-      item.classList.add(position === 'before' ? 'cq-drop-before' : 'cq-drop-after');
+      item.classList.add(position === 'before' ? 'cq-row--drop-before' : 'cq-row--drop-after');
     }
   });
 
   list.addEventListener('dragleave', (event) => {
-    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-row') : null;
     if (item && item === dragOverItem) clearDragIndicator();
   });
 
@@ -1399,7 +1433,7 @@
     if (dragIndex === null) return;
     event.preventDefault();
     let newIndex = dragIndex;
-    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-item') : null;
+    const item = event.target instanceof HTMLElement ? event.target.closest('.cq-row') : null;
     if (item) {
       const overIndex = Number(item.dataset.index);
       if (Number.isInteger(overIndex)) {
@@ -1423,43 +1457,21 @@
     const meta = navigator.platform.includes('Mac') ? event.metaKey : event.ctrlKey;
     if (meta && event.shiftKey && event.key === 'Enter') {
       event.preventDefault();
-      btnAdd.click();
+      queueComposerInput();
     }
   }, true);
 
   // Commands from background --------------------------------------------------
   chrome.runtime?.onMessage.addListener((msg) => {
-    if (msg?.type === 'queue-from-shortcut') btnAdd.click();
+    if (msg?.type === 'queue-from-shortcut') queueComposerInput();
     if (msg?.type === 'toggle-queue') {
-      STATE.running = !STATE.running;
-      if (!STATE.running) {
-        STATE.busy = false;
-        STATE.phase = 'idle';
-      } else if (!STATE.busy) {
-        STATE.phase = 'idle';
-      }
-      save();
-      refreshControls();
-      if (STATE.running) maybeKick();
+      setFollowupMode(STATE.running ? 'queue' : 'immediate');
     }
     if (msg?.type === 'toggle-ui') {
-      if (!STATE.collapsed) {
-        setCollapsed(true, false);
-        setShowDock(true, false);
-      } else {
-        if (STATE.showDock) {
-          setShowDock(false, false);
-        } else {
-          setShowDock(true, false);
-          setCollapsed(false, false);
-        }
-      }
-      save();
+      setCollapsed(!STATE.collapsed);
     }
     if (msg?.type === 'show-ui') {
-      setShowDock(true, false);
-      setCollapsed(false, false);
-      save();
+      setCollapsed(false);
     }
   });
 
@@ -1467,6 +1479,7 @@
   const rootObserver = new MutationObserver(() => {
     if (STATE.running) maybeKick();
     scheduleControlRefresh();
+    ensureMounted();
   });
   rootObserver.observe(document.documentElement, { subtree: true, childList: true });
 
@@ -1479,6 +1492,7 @@
     }
   }, 800);
 
+  ensureMounted();
   refreshVisibility();
   load().then(() => ensureModelOptions()).catch(() => {});
 })();
