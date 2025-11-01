@@ -760,14 +760,26 @@
       }
     }
     if (!anchor) return;
-    if (anchor.parentElement !== container) {
+    if (!container.contains(anchor) || anchor.parentElement !== container) {
       if (ui.parentElement !== container) {
-        container.appendChild(ui);
+        try {
+          container.appendChild(ui);
+        } catch (_) {
+          // ignore if append fails
+        }
       }
       return;
     }
     if (ui.parentElement !== container || ui.nextElementSibling !== anchor) {
-      container.insertBefore(ui, anchor);
+      try {
+        container.insertBefore(ui, anchor);
+      } catch (_) {
+        try {
+          container.appendChild(ui);
+        } catch (_) {
+          /* noop */
+        }
+      }
     }
   }
 
