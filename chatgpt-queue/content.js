@@ -469,6 +469,31 @@
         </div>
       </div>
     </div>
+    <div class="cq-new">
+      <div class="cq-new-row">
+        <button id="cq-capture" class="cq-icon-btn cq-icon-btn--capture" type="button" aria-label="Add current prompt to follow-ups">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+            <path d="M6.00004 4.5C6.00004 3.11929 7.11933 2 8.50004 2H14C15.3807 2 16.5 3.11929 16.5 4.5V10C16.5 11.3807 15.3807 12.5 14 12.5H8.50004C7.11933 12.5 6.00004 11.3807 6.00004 10V4.5Z" stroke="currentColor" stroke-width="1.3"></path>
+            <path d="M10 7.25H4.5C3.11929 7.25 2 8.36929 2 9.75V15.5C2 16.8807 3.11929 18 4.5 18H10.25C11.6307 18 12.75 16.8807 12.75 15.5V10.125" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
+            <path d="M11.25 6V10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
+            <path d="M13.5 8.25L9 8.25" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
+          </svg>
+        </button>
+        <textarea id="cq-new-text" class="cq-new-text" placeholder="Type a follow-up to queue" spellcheck="true"></textarea>
+        <button id="cq-new-add" class="cq-icon-btn cq-icon-btn--add" type="button" aria-label="Queue follow-up" disabled>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+            <path d="M4.25 3.5L16.5 9.75L4.25 16.5V11L11 9.75L4.25 8.5V3.5Z" fill="currentColor"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="cq-new-footer">
+        <label class="cq-new-model">
+          <span class="cq-new-model-label">Model</span>
+          <select id="cq-new-model" class="cq-select" aria-label="Select follow-up model"></select>
+        </label>
+        <div id="cq-new-media" class="cq-row-media cq-row-media--composer cq-media-list cq-media-list--empty" aria-live="polite"></div>
+      </div>
+    </div>
     <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
 
   const $ = (selector) => ui.querySelector(selector);
@@ -481,6 +506,7 @@
   const btnNewAdd = $('#cq-new-add');
   const newModelSelect = $('#cq-new-model');
   const newMedia = $('#cq-new-media');
+  const btnCapture = $('#cq-capture');
   renderComposerModelSelect();
   renderComposerAttachments();
   ui.setAttribute('aria-hidden', 'true');
@@ -679,6 +705,9 @@
       const value = newInput ? newInput.value.trim() : '';
       const hasMedia = composerAttachments.length > 0;
       btnNewAdd.disabled = STATE.busy || (!value && !hasMedia);
+    }
+    if (btnCapture) {
+      btnCapture.disabled = STATE.busy;
     }
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
@@ -1359,6 +1388,15 @@
     newModelSelect.addEventListener('change', () => {
       composerModelId = newModelSelect.value || null;
       composerModelLabel = newModelSelect.selectedOptions[0]?.textContent || '';
+    });
+  }
+
+  if (btnCapture) {
+    btnCapture.addEventListener('click', () => {
+      const added = queueComposerInput();
+      if (!added) {
+        findEditor()?.focus({ preventScroll: true });
+      }
     });
   }
 
