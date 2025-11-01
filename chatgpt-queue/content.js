@@ -496,7 +496,7 @@
   const persistable = () => ({
     running: STATE.running,
     queue: STATE.queue.map((entry) => cloneEntry(entry)),
-    collapsed: STATE.collapsed,
+    collapsed: false,
     followupMode: STATE.followupMode
   });
 
@@ -534,7 +534,6 @@
         STATE.queue = Array.isArray(cq.queue)
           ? cq.queue.map((item) => normalizeEntry(item))
           : [];
-        STATE.collapsed = cq.collapsed === true;
         const storedMode = typeof cq.followupMode === 'string' ? cq.followupMode : 'queue';
         STATE.followupMode = storedMode === 'immediate' ? 'immediate' : 'queue';
         STATE.running = STATE.followupMode === 'immediate' && cq.running !== false;
@@ -701,12 +700,13 @@
     ui.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
   }
 
-  function setCollapsed(collapsed, persist = true) {
-    STATE.collapsed = collapsed;
+  function setCollapsed(_collapsed, persist = true) {
+    // Inline mode stays visible; keep storage compatibility by ignoring collapse.
+    STATE.collapsed = false;
     refreshVisibility();
     refreshControls();
-    if (collapsed) setFollowupsMenuOpen(false);
-    if (!collapsed) newInput?.focus({ preventScroll: true });
+    setFollowupsMenuOpen(false);
+    newInput?.focus({ preventScroll: true });
     if (persist) save();
   }
 
@@ -751,7 +751,16 @@
       }
       container = current || root.parentElement;
     }
-    if (!container) return;
+    if (!container) {
+      if (ui.parentElement !== document.body) {
+        try {
+          document.body.appendChild(ui);
+        } catch (_) {
+          /* noop */
+        }
+      }
+      return;
+    }
     let anchor = container.querySelector('#thread-bottom');
     if (!anchor) {
       anchor = root;
@@ -759,7 +768,16 @@
         anchor = anchor.parentElement;
       }
     }
-    if (!anchor) return;
+    if (!anchor) {
+      if (ui.parentElement !== container) {
+        try {
+          container.appendChild(ui);
+        } catch (_) {
+          /* noop */
+        }
+      }
+      return;
+    }
     if (!container.contains(anchor) || anchor.parentElement !== container) {
       if (ui.parentElement !== container) {
         try {
@@ -1479,8 +1497,8 @@
     if (msg?.type === 'toggle-queue') {
       setFollowupMode(STATE.running ? 'queue' : 'immediate');
     }
-    if (msg?.type === 'toggle-ui') {
-      setCollapsed(!STATE.collapsed);
+  if (msg?.type === 'toggle-ui') {
+      setCollapsed(false);
     }
     if (msg?.type === 'show-ui') {
       setCollapsed(false);
