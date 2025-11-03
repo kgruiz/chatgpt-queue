@@ -1383,14 +1383,14 @@
     async function sendFromQueue(index) {
         if (STATE.busy) return false;
         if (STATE.queue.length === 0) return false;
-        
+
         // Stop any ongoing generation first
         if (isGenerating()) {
             clickStop();
             // Wait until generation stops before proceeding
             await waitUntilIdle();
         }
-        
+
         const root = composer();
         if (!root) return false;
 
