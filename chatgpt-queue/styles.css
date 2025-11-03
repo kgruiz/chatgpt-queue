@@ -1,6 +1,6 @@
 /*
   ChatGPT inline queue styling.
-  All styles are scoped to #cq-ui to avoid leaking into the host page.
+  Most rules are scoped to #cq-ui; .cq-composer-queue-btn customizes the inline composer button.
 */
 
 #cq-ui {
@@ -36,8 +36,8 @@
 #cq-ui {
   position: relative;
   width: 100%;
-  max-width: min(100%, var(--thread-content-max-width, 48rem));
-  margin: 0 auto 16px;
+  max-width: 100%;
+  margin: 0 0 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -45,11 +45,31 @@
   letter-spacing: -0.01em;
   color: var(--text-primary);
   box-sizing: border-box;
-  align-self: center;
+  align-self: stretch;
 }
 
 #cq-ui[aria-hidden="true"] {
   display: none !important;
+}
+
+.cq-composer-queue-btn {
+  transition: none !important;
+  cursor: pointer;
+}
+
+.cq-composer-queue-btn:hover {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cq-composer-queue-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.cq-composer-queue-btn:disabled {
+  cursor: not-allowed;
 }
 
 #cq-ui .cq-inline-header {
@@ -216,6 +236,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 #cq-ui .cq-empty {
@@ -231,6 +252,7 @@
   position: relative;
   display: flex;
   align-items: stretch;
+  width: 100%;
   gap: 12px;
   padding: 12px 14px;
   border-radius: var(--radius-xl);
@@ -238,6 +260,7 @@
   background: linear-gradient(150deg, rgba(38, 39, 45, 0.9), rgba(44, 45, 52, 0.92));
   box-shadow: var(--shadow-1);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  box-sizing: border-box;
 }
 
 #cq-ui .cq-row--next {

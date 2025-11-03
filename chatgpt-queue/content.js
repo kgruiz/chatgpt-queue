@@ -747,7 +747,7 @@
       ensureComposerQueueButton();
     }
     if (composerQueueButton) {
-      composerQueueButton.disabled = STATE.busy || generating || !hasComposerPrompt();
+      composerQueueButton.disabled = STATE.busy || !hasComposerPrompt();
     }
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
@@ -759,14 +759,9 @@
 
   function refreshVisibility() {
     ensureMounted();
-    if (!hydrated) {
-      ui.style.display = 'none';
-      ui.setAttribute('aria-hidden', 'true');
-      return;
-    }
-    const collapsed = STATE.collapsed;
-    ui.style.display = collapsed ? 'none' : 'flex';
-    ui.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    const shouldShow = hydrated && !STATE.collapsed && STATE.queue.length > 0;
+    ui.style.display = shouldShow ? 'flex' : 'none';
+    ui.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
   }
 
   function setCollapsed(_collapsed, persist = true) {
@@ -863,21 +858,28 @@
   }
 
   function deriveQueueButtonClasses(sendButton) {
-    if (!(sendButton instanceof HTMLElement)) return 'btn relative btn-secondary cq-composer-queue-btn';
-    const tokens = new Set((sendButton.className || '').split(/\s+/).filter(Boolean));
-    const hadBtn = tokens.has('btn');
-    const hadRelative = tokens.has('relative');
-    if (tokens.has('btn-primary')) {
-      tokens.delete('btn-primary');
-      tokens.add('btn-secondary');
-    } else if (tokens.has('btn') && !tokens.has('btn-secondary')) {
-      tokens.add('btn-secondary');
+    const baseTokens = new Set([
+      'cq-composer-queue-btn',
+      'relative',
+      'flex',
+      'items-center',
+      'justify-center',
+      'h-9',
+      'w-9',
+      'rounded-full',
+      'composer-secondary-button-color',
+      'disabled:text-gray-50',
+      'disabled:opacity-30'
+    ]);
+    if (sendButton instanceof HTMLElement) {
+      (sendButton.className || '').split(/\s+/).forEach((token) => {
+        if (!token) return;
+        if (token.startsWith('dark:') || token.startsWith('light:') || token.startsWith('focus-visible:')) {
+          baseTokens.add(token);
+        }
+      });
     }
-    if (!hadBtn) tokens.add('btn');
-    if (hadRelative) tokens.add('relative');
-    tokens.add('btn-secondary');
-    tokens.add('cq-composer-queue-btn');
-    return Array.from(tokens).join(' ');
+    return Array.from(baseTokens).join(' ');
   }
 
   function ensureComposerQueueButton(rootParam) {
@@ -1193,6 +1195,7 @@
     const generating = isGenerating();
     refreshControls(generating);
     renderQueue(generating);
+    refreshVisibility();
   }
 
   async function waitUntilIdle(timeoutMs = 120000) {
