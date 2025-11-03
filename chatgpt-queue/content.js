@@ -897,13 +897,13 @@
       button.type = 'button';
       button.id = 'cq-composer-queue-btn';
       button.setAttribute('aria-label', 'Add prompt to follow-up queue');
+      button.title = 'Add to queue';
       button.innerHTML = `
         <span class="cq-composer-queue-btn__icon" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor">
             <path d="M120-320v-80h280v80H120Zm0-160v-80h440v80H120Zm0-160v-80h440v80H120Zm520 480v-160H480v-80h160v-160h80v160h160v80H720v160h-80Z" />
           </svg>
-        </span>
-        <span class="cq-composer-queue-btn__label">Add to queue</span>`;
+        </span>`;
       button.addEventListener('click', async (event) => {
         event.preventDefault();
         const added = await queueComposerInput();

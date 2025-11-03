@@ -110,11 +110,9 @@
 #cq-ui .cq-composer-queue-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   padding-inline: 12px;
   min-height: 36px;
-  font-size: 13px;
-  font-weight: 500;
 }
 
 #cq-ui .cq-composer-queue-btn__icon {
