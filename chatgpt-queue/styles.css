@@ -107,6 +107,24 @@
   align-items: center;
 }
 
+#cq-ui .cq-composer-queue-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 12px;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#cq-ui .cq-composer-queue-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
 #cq-ui .cq-icon-button {
   width: 32px;
   height: 32px;
