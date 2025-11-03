@@ -1380,6 +1380,47 @@
         });
     }
 
+    async function waitForSendReady(timeoutMs = 5000) {
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+            const root = composer();
+            if (root) {
+                const button = findSendButton(root);
+                if (
+                    button &&
+                    !button.disabled &&
+                    button.getAttribute("aria-disabled") !== "true"
+                ) {
+                    return true;
+                }
+            }
+            await sleep(60);
+        }
+        return false;
+    }
+
+    async function waitForSendLaunch(timeoutMs = 8000) {
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+            if (isGenerating()) return true;
+            const root = composer();
+            if (!root) {
+                await sleep(60);
+                continue;
+            }
+            const button = findSendButton(root);
+            if (!button) return true;
+            if (
+                button.disabled ||
+                button.getAttribute("aria-disabled") === "true"
+            ) {
+                return true;
+            }
+            await sleep(60);
+        }
+        return false;
+    }
+
     async function sendFromQueue(index) {
         if (STATE.busy) return false;
         if (STATE.queue.length === 0) return false;
@@ -1440,9 +1481,30 @@
             return false;
         }
 
+        const readyToSend = await waitForSendReady();
+        if (!readyToSend) {
+            STATE.busy = false;
+            STATE.phase = "idle";
+            STATE.queue.splice(index, 0, removed);
+            refreshAll();
+            save();
+            return false;
+        }
+
         clickSend();
         STATE.phase = "waiting";
         refreshControls(true);
+
+        const launched = await waitForSendLaunch();
+        if (!launched) {
+            STATE.busy = false;
+            STATE.phase = "idle";
+            STATE.queue.splice(index, 0, removed);
+            refreshAll();
+            save();
+            return false;
+        }
+
         await waitUntilIdle();
 
         STATE.busy = false;
