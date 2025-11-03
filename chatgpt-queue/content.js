@@ -511,28 +511,31 @@
   const ui = document.createElement('div');
   ui.id = 'cq-ui';
   ui.innerHTML = `
-    <div class="cq-inline-header">
-      <div class="cq-inline-meta">
-        <span class="cq-label">Follow-ups</span>
-        <span id="cq-count" class="cq-count" aria-live="polite">0</span>
-        <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
-      </div>
-      <div class="cq-inline-actions">
-        <button id="cq-followups-trigger" class="cq-icon-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cq-followups-menu" aria-label="When to send follow-ups">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false">
-            <circle cx="4" cy="9" r="1.5"></circle>
-            <circle cx="9" cy="9" r="1.5"></circle>
-            <circle cx="14" cy="9" r="1.5"></circle>
-          </svg>
-        </button>
-        <div id="cq-followups-menu" class="cq-popover" role="menu" aria-label="When to send follow-ups" tabindex="-1" hidden>
-          <div class="cq-popover-title">When to send follow-ups</div>
-          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="queue" aria-checked="true">Queue</button>
-          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="immediate" aria-checked="false">Send immediately</button>
-          <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="stop" aria-checked="false">Stop and send right away</button>
+    <div class="cq-shell">
+      <div class="cq-inline-header">
+        <div class="cq-inline-meta">
+          <span class="cq-label">Follow-ups</span>
+          <span id="cq-count" class="cq-count" aria-live="polite">0</span>
+          <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
+        </div>
+        <div class="cq-inline-actions">
+          <button id="cq-followups-trigger" class="cq-icon-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cq-followups-menu" aria-label="When to send follow-ups">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false">
+              <circle cx="4" cy="9" r="1.5"></circle>
+              <circle cx="9" cy="9" r="1.5"></circle>
+              <circle cx="14" cy="9" r="1.5"></circle>
+            </svg>
+          </button>
+          <div id="cq-followups-menu" class="cq-popover" role="menu" aria-label="When to send follow-ups" tabindex="-1" hidden>
+            <div class="cq-popover-title">When to send follow-ups</div>
+            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="queue" aria-checked="true">Queue</button>
+            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="immediate" aria-checked="false">Send immediately</button>
+            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="stop" aria-checked="false">Stop and send right away</button>
+          </div>
         </div>
       </div>
-    <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
+      <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>
+    </div>`;
 
   const $ = (selector) => ui.querySelector(selector);
   const elCount = $('#cq-count');

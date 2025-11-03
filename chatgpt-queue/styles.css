@@ -52,6 +52,16 @@
   display: none !important;
 }
 
+#cq-ui .cq-shell {
+  width: 100%;
+  max-width: min(100%, var(--thread-content-max-width, 48rem));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
 .cq-composer-queue-btn {
   transition: none !important;
   cursor: pointer;
