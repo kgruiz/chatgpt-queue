@@ -893,6 +893,11 @@
                 button.disabled = !canManualSend;
             },
         );
+        if (STATE.queue.length === 0 || STATE.busy) {
+            cancelAutoDispatch();
+        } else {
+            maybeAutoDispatch();
+        }
     }
 
     function refreshVisibility() {
@@ -949,6 +954,45 @@
             controlRefreshPending = false;
             refreshControls();
         });
+    }
+
+    let autoDispatchTimer = null;
+
+    function shouldAutoDispatch() {
+        if (STATE.busy) return false;
+        if (isGenerating()) return false;
+        if (STATE.queue.length === 0) return false;
+        if (!composer()) return false;
+        if (hasComposerPrompt()) return false;
+        return true;
+    }
+
+    function cancelAutoDispatch() {
+        if (!autoDispatchTimer) return;
+        clearTimeout(autoDispatchTimer);
+        autoDispatchTimer = null;
+    }
+
+    function maybeAutoDispatch(delay = 120) {
+        if (!shouldAutoDispatch()) {
+            cancelAutoDispatch();
+            return;
+        }
+        if (autoDispatchTimer) return;
+        autoDispatchTimer = setTimeout(() => {
+            autoDispatchTimer = null;
+            if (!shouldAutoDispatch()) return;
+            const result = sendFromQueue(0);
+            if (result && typeof result.then === "function") {
+                result
+                    .then((success) => {
+                        if (!success) maybeAutoDispatch(240);
+                    })
+                    .catch(() => {
+                        maybeAutoDispatch(240);
+                    });
+            }
+        }, delay);
     }
 
     function ensureMounted() {
@@ -1511,21 +1555,10 @@
         STATE.phase = "idle";
         refreshControls();
         save();
-        
-        // Automatically send the next message if there are more in the queue
-        if (STATE.queue.length > 0) {
-            // Use setTimeout to avoid potential race conditions and ensure state is fully updated
-            setTimeout(() => {
-                sendNext();
-            }, 100);
+        if (STATE.queue.length === 0) {
+            cancelAutoDispatch();
         }
-        
         return true;
-    }
-
-    async function sendNext() {
-        if (STATE.queue.length === 0) return;
-        await sendFromQueue(0);
     }
 
     function moveItem(from, to) {
