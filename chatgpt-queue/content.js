@@ -869,7 +869,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = !STATE.busy && !generating;
+        const canManualSend = !STATE.busy;
         if (elCount) {
             elCount.textContent = String(STATE.queue.length);
         }
@@ -1211,7 +1211,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = !STATE.running && !STATE.busy && !generating;
+        const canManualSend = !STATE.running && !STATE.busy;
         list.textContent = "";
         if (STATE.queue.length === 0) {
             const empty = document.createElement("div");
