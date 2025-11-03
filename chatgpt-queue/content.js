@@ -7,7 +7,6 @@
         collapsed: false,
         phase: "idle",
         models: [],
-        followupMode: "queue",
     };
     const SEL = {
         editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
@@ -638,21 +637,6 @@
           <span id="cq-count" class="cq-count" aria-live="polite">0</span>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
         </div>
-        <div class="cq-inline-actions">
-          <button id="cq-followups-trigger" class="cq-icon-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cq-followups-menu" aria-label="When to send follow-ups">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-              <path d="M15.498 8.50159C16.3254 8.50159 16.9959 9.17228 16.9961 9.99963C16.9961 10.8271 16.3256 11.4987 15.498 11.4987C14.6705 11.4987 14 10.8271 14 9.99963C14.0002 9.17228 14.6706 8.50159 15.498 8.50159Z"></path>
-              <path d="M4.49805 8.50159C5.32544 8.50159 5.99689 9.17228 5.99707 9.99963C5.99707 10.8271 5.32555 11.4987 4.49805 11.4987C3.67069 11.4985 3 10.827 3 9.99963C3.00018 9.17239 3.6708 8.50176 4.49805 8.50159Z"></path>
-              <path d="M10.0003 8.50159C10.8276 8.50176 11.4982 9.17239 11.4984 9.99963C11.4984 10.827 10.8277 11.4985 10.0003 11.4987C9.17283 11.4987 8.50131 10.8271 8.50131 9.99963C8.50149 9.17228 9.17294 8.50159 10.0003 8.50159Z"></path>
-            </svg>
-          </button>
-          <div id="cq-followups-menu" class="cq-popover" role="menu" aria-label="When to send follow-ups" tabindex="-1" hidden>
-            <div class="cq-popover-title">When to send follow-ups</div>
-            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="queue" aria-checked="true">Queue</button>
-            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="immediate" aria-checked="false">Send immediately</button>
-            <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="stop" aria-checked="false">Stop and send right away</button>
-          </div>
-        </div>
       </div>
       <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>
     </div>`;
@@ -661,8 +645,6 @@
     const elCount = $("#cq-count");
     const elState = $("#cq-state");
     const list = $("#cq-list");
-    const followupsTrigger = $("#cq-followups-trigger");
-    const followupsMenu = $("#cq-followups-menu");
     const collapseToggle = $("#cq-collapse-toggle");
     ui.setAttribute("aria-hidden", "true");
 
@@ -671,14 +653,12 @@
     let dragIndex = null;
     let dragOverItem = null;
     let dragOverPosition = null;
-    let followupsMenuOpen = false;
 
     // Persist ------------------------------------------------------------------
     const persistable = () => ({
         running: STATE.running,
         queue: STATE.queue.map((entry) => cloneEntry(entry)),
         collapsed: STATE.collapsed,
-        followupMode: STATE.followupMode,
     });
 
     const isContextInvalidatedError = (error) => {
@@ -715,19 +695,10 @@
         new Promise((resolve) => {
             const applyState = (cq) => {
                 if (cq) {
-                    STATE.running = !!cq.running;
+                    STATE.running = false; // Always queue mode, never auto-send
                     STATE.queue = Array.isArray(cq.queue)
                         ? cq.queue.map((item) => normalizeEntry(item))
                         : [];
-                    const storedMode =
-                        typeof cq.followupMode === "string"
-                            ? cq.followupMode
-                            : "queue";
-                    STATE.followupMode =
-                        storedMode === "immediate" ? "immediate" : "queue";
-                    STATE.running =
-                        STATE.followupMode === "immediate" &&
-                        cq.running !== false;
                     STATE.collapsed =
                         typeof cq.collapsed === "boolean"
                             ? cq.collapsed
@@ -736,7 +707,6 @@
                 refreshAll();
                 hydrated = true;
                 refreshVisibility();
-                if (STATE.running) maybeKick();
                 resolve();
             };
 
@@ -894,7 +864,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = !STATE.running && !STATE.busy && !generating;
+        const canManualSend = !STATE.busy && !generating;
         if (elCount) {
             elCount.textContent = String(STATE.queue.length);
         }
@@ -902,8 +872,6 @@
             let status = "Idle";
             if (STATE.busy) {
                 status = STATE.phase === "waiting" ? "Waiting…" : "Sending…";
-            } else if (STATE.running) {
-                status = "Auto-send";
             }
             elState.textContent = status;
         }
@@ -914,9 +882,7 @@
         if (composerQueueButton) {
             composerQueueButton.disabled = STATE.busy || !hasComposerPrompt();
         }
-        ui.classList.toggle("is-running", STATE.running);
         ui.classList.toggle("is-busy", STATE.busy);
-        updateFollowupMenu();
         list.querySelectorAll('button[data-action="send"]').forEach(
             (button) => {
                 button.disabled = !canManualSend;
@@ -948,7 +914,6 @@
         STATE.collapsed = !!collapsed;
         refreshVisibility();
         refreshControls();
-        setFollowupsMenuOpen(false);
         if (persist) save();
     }
 
@@ -1149,78 +1114,6 @@
         ed.dataset.cqQueueBound = "true";
     }
 
-    function updateFollowupMenu() {
-        if (!followupsMenu) return;
-        const active =
-            STATE.followupMode === "immediate" ? "immediate" : "queue";
-        followupsMenu.querySelectorAll("[data-mode]").forEach((option) => {
-            const mode = option.dataset.mode || "";
-            const selected = mode === active;
-            option.setAttribute("aria-checked", selected ? "true" : "false");
-            option.classList.toggle("is-selected", selected);
-        });
-    }
-
-    function setFollowupsMenuOpen(open) {
-        if (!followupsMenu || !followupsTrigger) return;
-        followupsMenuOpen = open;
-        followupsMenu.hidden = !open;
-        followupsTrigger.setAttribute("aria-expanded", open ? "true" : "false");
-        if (open) {
-            followupsMenu.focus();
-        }
-    }
-
-    function setFollowupMode(mode, persist = true) {
-        const normalized =
-            mode === "immediate"
-                ? "immediate"
-                : mode === "stop"
-                  ? "stop"
-                  : "queue";
-        if (normalized === "stop") {
-            STATE.running = false;
-            STATE.followupMode = "queue";
-            if (!STATE.busy) STATE.phase = "idle";
-            updateFollowupMenu();
-            if (persist) save();
-            refreshControls();
-            if (STATE.queue.length > 0) {
-                sendNext();
-            }
-            return;
-        }
-        STATE.followupMode = normalized;
-        STATE.running = normalized === "immediate";
-        if (!STATE.running && !STATE.busy) {
-            STATE.phase = "idle";
-        }
-        updateFollowupMenu();
-        refreshControls();
-        if (persist) save();
-        if (STATE.running) maybeKick();
-    }
-
-    if (followupsTrigger) {
-        followupsTrigger.addEventListener("click", (event) => {
-            event.preventDefault();
-            ensureMounted();
-            setFollowupsMenuOpen(!followupsMenuOpen);
-        });
-    }
-
-    if (followupsMenu) {
-        followupsMenu.addEventListener("click", (event) => {
-            const option =
-                event.target instanceof HTMLElement
-                    ? event.target.closest("[data-mode]")
-                    : null;
-            if (!option) return;
-            const mode = option.dataset.mode || "queue";
-            setFollowupMode(mode);
-            setFollowupsMenuOpen(false);
-        });
-    }
 
     if (collapseToggle) {
         collapseToggle.addEventListener("click", (event) => {
@@ -1229,25 +1122,6 @@
         });
     }
 
-    document.addEventListener("click", (event) => {
-        if (!followupsMenuOpen) return;
-        if (event.target instanceof Node) {
-            if (
-                followupsMenu?.contains(event.target) ||
-                followupsTrigger?.contains(event.target)
-            )
-                return;
-        }
-        setFollowupsMenuOpen(false);
-    });
-
-    document.addEventListener("keydown", (event) => {
-        if (!followupsMenuOpen) return;
-        if (event.key === "Escape") {
-            setFollowupsMenuOpen(false);
-            followupsTrigger?.focus();
-        }
-    });
 
     function addAttachmentsToEntry(index, attachments) {
         if (!Array.isArray(attachments) || attachments.length === 0) return;
@@ -1500,7 +1374,6 @@
     async function sendFromQueue(index) {
         if (STATE.busy) return false;
         if (STATE.queue.length === 0) return false;
-        if (STATE.running && index !== 0) return false;
         if (isGenerating()) {
             refreshControls(true);
             return false;
@@ -1563,24 +1436,12 @@
         STATE.phase = "idle";
         refreshControls();
         save();
-        if (STATE.running) maybeKick();
         return true;
     }
 
     async function sendNext() {
         if (STATE.queue.length === 0) return;
         await sendFromQueue(0);
-    }
-
-    function maybeKick() {
-        if (
-            STATE.running &&
-            !STATE.busy &&
-            STATE.queue.length > 0 &&
-            !isGenerating()
-        ) {
-            setTimeout(() => sendNext(), 50);
-        }
     }
 
     function moveItem(from, to) {
@@ -1809,9 +1670,6 @@
     // Commands from background --------------------------------------------------
     chrome.runtime?.onMessage.addListener((msg) => {
         if (msg?.type === "queue-from-shortcut") void queueComposerInput();
-        if (msg?.type === "toggle-queue") {
-            setFollowupMode(STATE.running ? "queue" : "immediate");
-        }
         if (msg?.type === "toggle-ui") {
             setCollapsed(false);
         }
@@ -1822,7 +1680,6 @@
 
     // Handle SPA changes and rerenders -----------------------------------------
     const rootObserver = new MutationObserver(() => {
-        if (STATE.running) maybeKick();
         scheduleControlRefresh();
         ensureMounted();
     });
@@ -1830,15 +1687,6 @@
         subtree: true,
         childList: true,
     });
-
-    // Route change watcher ------------------------------------------------------
-    let lastHref = location.href;
-    setInterval(() => {
-        if (location.href !== lastHref) {
-            lastHref = location.href;
-            if (STATE.running) setTimeout(maybeKick, 300);
-        }
-    }, 800);
 
     ensureMounted();
     refreshVisibility();
