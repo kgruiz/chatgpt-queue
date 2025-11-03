@@ -515,8 +515,8 @@
       <div class="cq-inline-header">
         <div class="cq-inline-meta">
           <button id="cq-collapse-toggle" class="cq-collapse-toggle" type="button" aria-label="Collapse queue" aria-expanded="true">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M4 6L7 9L10 6"></path>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <path d="M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z"></path>
             </svg>
           </button>
           <span class="cq-label">Follow-ups</span>
@@ -525,10 +525,10 @@
         </div>
         <div class="cq-inline-actions">
           <button id="cq-followups-trigger" class="cq-icon-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cq-followups-menu" aria-label="When to send follow-ups">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false">
-              <circle cx="4" cy="9" r="1.5"></circle>
-              <circle cx="9" cy="9" r="1.5"></circle>
-              <circle cx="14" cy="9" r="1.5"></circle>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <path d="M15.498 8.50159C16.3254 8.50159 16.9959 9.17228 16.9961 9.99963C16.9961 10.8271 16.3256 11.4987 15.498 11.4987C14.6705 11.4987 14 10.8271 14 9.99963C14.0002 9.17228 14.6706 8.50159 15.498 8.50159Z"></path>
+              <path d="M4.49805 8.50159C5.32544 8.50159 5.99689 9.17228 5.99707 9.99963C5.99707 10.8271 5.32555 11.4987 4.49805 11.4987C3.67069 11.4985 3 10.827 3 9.99963C3.00018 9.17239 3.6708 8.50176 4.49805 8.50159Z"></path>
+              <path d="M10.0003 8.50159C10.8276 8.50176 11.4982 9.17239 11.4984 9.99963C11.4984 10.827 10.8277 11.4985 10.0003 11.4987C9.17283 11.4987 8.50131 10.8271 8.50131 9.99963C8.50149 9.17228 9.17294 8.50159 10.0003 8.50159Z"></path>
             </svg>
           </button>
           <div id="cq-followups-menu" class="cq-popover" role="menu" aria-label="When to send follow-ups" tabindex="-1" hidden>
@@ -1189,8 +1189,8 @@
       sendButton.dataset.index = String(index);
       sendButton.setAttribute('aria-label', 'Send now');
       sendButton.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-          <path d="M4.25 3.5L16.5 9.75L4.25 16.5L4.25 11L11 9.75L4.25 8.5L4.25 3.5Z" fill="currentColor"></path>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <path d="M8.99992 16V6.41407L5.70696 9.70704C5.31643 10.0976 4.68342 10.0976 4.29289 9.70704C3.90237 9.31652 3.90237 8.6835 4.29289 8.29298L9.29289 3.29298L9.36907 3.22462C9.76184 2.90427 10.3408 2.92686 10.707 3.29298L15.707 8.29298L15.7753 8.36915C16.0957 8.76192 16.0731 9.34092 15.707 9.70704C15.3408 10.0732 14.7618 10.0958 14.3691 9.7754L14.2929 9.70704L10.9999 6.41407V16C10.9999 16.5523 10.5522 17 9.99992 17C9.44764 17 8.99992 16.5523 8.99992 16Z"></path>
         </svg>`;
       if (!canManualSend) sendButton.disabled = true;
       actions.appendChild(sendButton);
