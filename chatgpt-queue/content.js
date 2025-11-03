@@ -1449,6 +1449,15 @@
         STATE.phase = "idle";
         refreshControls();
         save();
+        
+        // Automatically send the next message if there are more in the queue
+        if (STATE.queue.length > 0) {
+            // Use setTimeout to avoid potential race conditions and ensure state is fully updated
+            setTimeout(() => {
+                sendNext();
+            }, 100);
+        }
+        
         return true;
     }
 
