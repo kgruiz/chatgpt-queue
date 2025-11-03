@@ -811,6 +811,11 @@
         });
     }
 
+    function clickStop() {
+        const button = q(SEL.stop, composer());
+        if (button) button.click();
+    }
+
     function clickSend() {
         const button = q(SEL.send, composer());
         if (button) button.click();
@@ -1223,7 +1228,8 @@
             const row = document.createElement("div");
             row.className = "cq-row";
             row.dataset.index = String(index);
-            if (index === STATE.queue.length - 1) row.classList.add("cq-row--next");
+            if (index === STATE.queue.length - 1)
+                row.classList.add("cq-row--next");
             row.draggable = true;
 
             const indicator = document.createElement("span");
@@ -1377,10 +1383,14 @@
     async function sendFromQueue(index) {
         if (STATE.busy) return false;
         if (STATE.queue.length === 0) return false;
+        
+        // Stop any ongoing generation first
         if (isGenerating()) {
-            refreshControls(true);
-            return false;
+            clickStop();
+            // Wait until generation stops before proceeding
+            await waitUntilIdle();
         }
+        
         const root = composer();
         if (!root) return false;
 

@@ -441,15 +441,15 @@
 }
 
 #cq-ui .cq-icon-btn--send {
-  color: color-mix(in srgb, var(--accent-strong) 90%, white 10%);
-  border-color: rgba(16, 163, 127, 0.4);
-  background: rgba(16, 163, 127, 0.14);
+  color: var(--text-secondary);
+  border-color: rgba(217, 217, 227, 0.16);
+  background: var(--bg-muted);
 }
 
 #cq-ui .cq-icon-btn--send:hover {
   color: var(--text-primary);
-  background: rgba(16, 163, 127, 0.22);
-  border-color: rgba(16, 163, 127, 0.56);
+  background: rgba(217, 217, 227, 0.16);
+  border-color: rgba(217, 217, 227, 0.26);
 }
 
 #cq-ui .cq-icon-btn--delete:hover {
