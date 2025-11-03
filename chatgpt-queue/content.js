@@ -885,7 +885,7 @@
             ensureComposerQueueButton();
         }
         if (composerQueueButton) {
-            composerQueueButton.disabled = STATE.busy || !hasComposerPrompt();
+            composerQueueButton.disabled = !hasComposerPrompt();
         }
         ui.classList.toggle("is-busy", STATE.busy);
         list.querySelectorAll('button[data-action="send"]').forEach(
