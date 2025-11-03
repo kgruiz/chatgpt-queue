@@ -30,7 +30,7 @@
 
   --shadow-1: 0 6px 18px rgba(0, 0, 0, 0.35);
   --shadow-2: 0 18px 34px rgba(0, 0, 0, 0.5);
-  --ring: 0 0 0 2px rgba(16, 163, 127, 0.35);
+  --ring: 0 0 0 2px rgba(217, 217, 227, 0.4);
 }
 
 #cq-ui {
@@ -93,6 +93,36 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
+}
+
+#cq-ui .cq-collapse-toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+#cq-ui .cq-collapse-toggle:hover {
+  color: var(--text-primary);
+  background: rgba(217, 217, 227, 0.1);
+}
+
+#cq-ui .cq-collapse-toggle:focus-visible {
+  outline: 2px solid rgba(217, 217, 227, 0.4);
+  outline-offset: 2px;
+}
+
+#cq-ui .cq-collapse-toggle[aria-expanded="false"] {
+  transform: rotate(-90deg);
 }
 
 #cq-ui .cq-label {
@@ -176,8 +206,8 @@
 }
 
 #cq-ui .cq-icon-button:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
+  outline: 2px solid rgba(217, 217, 227, 0.4);
+  outline-offset: 2px;
 }
 
 #cq-ui .cq-popover {
@@ -247,6 +277,11 @@
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  transition: opacity 0.2s ease;
+}
+
+#cq-ui .cq-queue[style*="display: none"] {
+  display: none !important;
 }
 
 #cq-ui .cq-empty {
@@ -349,13 +384,15 @@
 
 #cq-ui .cq-row-text:focus-visible {
   background: rgba(217, 217, 227, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(217, 217, 227, 0.2), var(--ring);
+  box-shadow: inset 0 0 0 1px rgba(217, 217, 227, 0.2);
+  outline: 2px solid rgba(217, 217, 227, 0.4);
+  outline-offset: 2px;
 }
 
 #cq-ui .cq-row-actions {
   flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   align-items: center;
   justify-content: center;
@@ -391,8 +428,8 @@
 }
 
 #cq-ui .cq-icon-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
+  outline: 2px solid rgba(217, 217, 227, 0.4);
+  outline-offset: 2px;
 }
 
 #cq-ui .cq-icon-btn[disabled] {

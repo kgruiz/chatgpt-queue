@@ -514,6 +514,11 @@
     <div class="cq-shell">
       <div class="cq-inline-header">
         <div class="cq-inline-meta">
+          <button id="cq-collapse-toggle" class="cq-collapse-toggle" type="button" aria-label="Collapse queue" aria-expanded="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M4 6L7 9L10 6"></path>
+            </svg>
+          </button>
           <span class="cq-label">Follow-ups</span>
           <span id="cq-count" class="cq-count" aria-live="polite">0</span>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
@@ -543,6 +548,7 @@
   const list = $('#cq-list');
   const followupsTrigger = $('#cq-followups-trigger');
   const followupsMenu = $('#cq-followups-menu');
+  const collapseToggle = $('#cq-collapse-toggle');
   ui.setAttribute('aria-hidden', 'true');
 
   let saveTimer;
@@ -556,7 +562,7 @@
   const persistable = () => ({
     running: STATE.running,
     queue: STATE.queue.map((entry) => cloneEntry(entry)),
-    collapsed: false,
+    collapsed: STATE.collapsed,
     followupMode: STATE.followupMode
   });
 
@@ -597,6 +603,7 @@
         const storedMode = typeof cq.followupMode === 'string' ? cq.followupMode : 'queue';
         STATE.followupMode = storedMode === 'immediate' ? 'immediate' : 'queue';
         STATE.running = STATE.followupMode === 'immediate' && cq.running !== false;
+        STATE.collapsed = typeof cq.collapsed === 'boolean' ? cq.collapsed : false;
       }
       refreshAll();
       hydrated = true;
@@ -762,14 +769,20 @@
 
   function refreshVisibility() {
     ensureMounted();
-    const shouldShow = hydrated && !STATE.collapsed && STATE.queue.length > 0;
+    const shouldShow = hydrated && STATE.queue.length > 0;
     ui.style.display = shouldShow ? 'flex' : 'none';
     ui.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    if (collapseToggle) {
+      collapseToggle.setAttribute('aria-expanded', STATE.collapsed ? 'false' : 'true');
+      collapseToggle.setAttribute('aria-label', STATE.collapsed ? 'Expand queue' : 'Collapse queue');
+    }
+    if (list) {
+      list.style.display = STATE.collapsed ? 'none' : 'flex';
+    }
   }
 
-  function setCollapsed(_collapsed, persist = true) {
-    // Inline mode stays visible; keep storage compatibility by ignoring collapse.
-    STATE.collapsed = false;
+  function setCollapsed(collapsed, persist = true) {
+    STATE.collapsed = !!collapsed;
     refreshVisibility();
     refreshControls();
     setFollowupsMenuOpen(false);
@@ -1007,6 +1020,13 @@
       const mode = option.dataset.mode || 'queue';
       setFollowupMode(mode);
       setFollowupsMenuOpen(false);
+    });
+  }
+
+  if (collapseToggle) {
+    collapseToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      setCollapsed(!STATE.collapsed);
     });
   }
 
