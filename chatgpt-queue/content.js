@@ -1114,14 +1114,12 @@
         ed.dataset.cqQueueBound = "true";
     }
 
-
     if (collapseToggle) {
         collapseToggle.addEventListener("click", (event) => {
             event.preventDefault();
             setCollapsed(!STATE.collapsed);
         });
     }
-
 
     function addAttachmentsToEntry(index, attachments) {
         if (!Array.isArray(attachments) || attachments.length === 0) return;
@@ -1520,7 +1518,6 @@
             list.scrollTop = list.scrollHeight;
         });
         ed.focus?.({ preventScroll: true });
-        if (STATE.running) maybeKick();
         scheduleControlRefresh();
         return true;
     }
