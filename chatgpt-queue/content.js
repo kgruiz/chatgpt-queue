@@ -869,7 +869,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = !STATE.busy;
+        const canManualSend = STATE.queue.length > 0;
         if (elCount) {
             elCount.textContent = String(STATE.queue.length);
         }
@@ -957,8 +957,10 @@
     }
 
     let autoDispatchTimer = null;
+    let pendingManualSend = null;
 
     function shouldAutoDispatch() {
+        if (pendingManualSend) return false;
         if (STATE.busy) return false;
         if (isGenerating()) return false;
         if (STATE.queue.length === 0) return false;
@@ -968,12 +970,23 @@
     }
 
     function cancelAutoDispatch() {
-        if (!autoDispatchTimer) return;
-        clearTimeout(autoDispatchTimer);
-        autoDispatchTimer = null;
+        if (autoDispatchTimer) {
+            clearTimeout(autoDispatchTimer);
+            autoDispatchTimer = null;
+        }
     }
 
     function maybeAutoDispatch(delay = 120) {
+        if (pendingManualSend) {
+            if (STATE.busy) return;
+            const entry = pendingManualSend.entry;
+            pendingManualSend = null;
+            const index = STATE.queue.indexOf(entry);
+            if (index !== -1) {
+                void sendFromQueue(index);
+                return;
+            }
+        }
         if (!shouldAutoDispatch()) {
             cancelAutoDispatch();
             return;
@@ -995,6 +1008,19 @@
         }, delay);
     }
 
+    function requestSend(index, { manual = false } = {}) {
+        if (!Number.isInteger(index) || index < 0) return;
+        const entry = STATE.queue[index];
+        if (!entry) return;
+        if (manual && STATE.busy) {
+            pendingManualSend = { entry };
+            cancelAutoDispatch();
+            if (isGenerating()) clickStop();
+            scheduleControlRefresh();
+            return;
+        }
+        void sendFromQueue(index);
+    }
     function ensureMounted() {
         const root = composer();
         if (!root) return;
@@ -1668,7 +1694,7 @@
             save();
             refreshAll();
         } else if (action === "send") {
-            sendFromQueue(index);
+            requestSend(index, { manual: true });
         }
     });
 
