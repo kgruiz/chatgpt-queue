@@ -313,8 +313,8 @@
 }
 
 #cq-ui .cq-row--next {
-  border-color: color-mix(in srgb, var(--accent) 65%, rgba(217, 217, 227, 0.2) 35%);
-  box-shadow: 0 0 0 1px rgba(16, 163, 127, 0.32), var(--shadow-1);
+  border-color: rgba(217, 217, 227, 0.24);
+  box-shadow: var(--shadow-1);
 }
 
 #cq-ui .cq-row--dragging {
@@ -329,8 +329,8 @@
   right: 16px;
   height: 2px;
   border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
+  background: rgba(217, 217, 227, 0.5);
+  box-shadow: 0 0 10px rgba(217, 217, 227, 0.3);
 }
 
 #cq-ui .cq-row--drop-before::before {
