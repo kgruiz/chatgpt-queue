@@ -181,6 +181,7 @@
   let composerModelId = null;
   let composerModelLabel = '';
   let composerAttachments = [];
+  let composerQueueButton = null;
 
   const getModelNodeLabel = (node) => {
     if (!node) return '';
@@ -606,6 +607,16 @@
       return null;
     }
   };
+  const isVisible = (node) => node instanceof HTMLElement && node.offsetParent !== null;
+  const findSendButton = (root) => {
+    if (!root) return null;
+    const candidates = root.querySelectorAll(SEL.send);
+    for (const candidate of candidates) {
+      if (candidate instanceof HTMLElement && isVisible(candidate)) return candidate;
+    }
+    const fallback = candidates[0];
+    return fallback instanceof HTMLElement ? fallback : null;
+  };
   const composer = () => {
     const preset = q(SEL.composer);
     if (preset) return preset;
@@ -709,6 +720,13 @@
     if (btnCapture) {
       btnCapture.disabled = STATE.busy;
     }
+    if (!composerQueueButton || !composerQueueButton.isConnected) {
+      composerQueueButton = null;
+      ensureComposerQueueButton();
+    }
+    if (composerQueueButton) {
+      composerQueueButton.disabled = STATE.busy || generating || !hasComposerPrompt();
+    }
     ui.classList.toggle('is-running', STATE.running);
     ui.classList.toggle('is-busy', STATE.busy);
     updateFollowupMenu();
@@ -771,24 +789,27 @@
   function ensureMounted() {
     const root = composer();
     if (!root) return;
+    ensureComposerQueueButton(root);
+    ensureComposerInputListeners(root);
     let container = root.closest('#thread-bottom-container');
     if (!container) {
       // walk up until we hit something that looks like the prompt container
       let current = root.parentElement;
-      while (current && current !== document.body && !current.matches('#thread-bottom-container')) {
+      while (current && current !== document.body && current !== document.documentElement && !current.matches('#thread-bottom-container')) {
         current = current.parentElement;
       }
-      container = current || root.parentElement;
+      if (current && current.matches('#thread-bottom-container')) {
+        container = current;
+      }
+    }
+    if (!container && root.parentElement) {
+      container = root.parentElement;
+    }
+    if ((container === document.body || container === document.documentElement) && root.parentElement && root.parentElement !== container) {
+      container = root.parentElement;
     }
     if (!container) {
-      if (ui.parentElement !== document.body) {
-        try {
-          document.body.appendChild(ui);
-        } catch (_) {
-          /* noop */
-        }
-      }
-      return;
+      container = document.body;
     }
     let anchor = container.querySelector('#thread-bottom');
     if (!anchor) {
@@ -797,22 +818,12 @@
         anchor = anchor.parentElement;
       }
     }
-    if (!anchor) {
+    if (!anchor || !container.contains(anchor) || anchor.parentElement !== container) {
       if (ui.parentElement !== container) {
         try {
           container.appendChild(ui);
         } catch (_) {
           /* noop */
-        }
-      }
-      return;
-    }
-    if (!container.contains(anchor) || anchor.parentElement !== container) {
-      if (ui.parentElement !== container) {
-        try {
-          container.appendChild(ui);
-        } catch (_) {
-          // ignore if append fails
         }
       }
       return;
@@ -828,6 +839,79 @@
         }
       }
     }
+  }
+
+  function deriveQueueButtonClasses(sendButton) {
+    if (!(sendButton instanceof HTMLElement)) return 'btn relative btn-secondary cq-composer-queue-btn';
+    const tokens = new Set((sendButton.className || '').split(/\s+/).filter(Boolean));
+    const hadBtn = tokens.has('btn');
+    const hadRelative = tokens.has('relative');
+    if (tokens.has('btn-primary')) {
+      tokens.delete('btn-primary');
+      tokens.add('btn-secondary');
+    } else if (tokens.has('btn') && !tokens.has('btn-secondary')) {
+      tokens.add('btn-secondary');
+    }
+    if (!hadBtn) tokens.add('btn');
+    if (hadRelative) tokens.add('relative');
+    tokens.add('btn-secondary');
+    tokens.add('cq-composer-queue-btn');
+    return Array.from(tokens).join(' ');
+  }
+
+  function ensureComposerQueueButton(rootParam) {
+    const root = rootParam || composer();
+    if (!root) return;
+    const sendButton = findSendButton(root);
+    if (!sendButton) return;
+    const parent = sendButton.parentElement;
+    if (!parent) return;
+    let button = composerQueueButton;
+    if (button && !button.isConnected) {
+      button = null;
+      composerQueueButton = null;
+    }
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'cq-composer-queue-btn';
+      button.setAttribute('aria-label', 'Add prompt to follow-up queue');
+      button.textContent = 'Add to queue';
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        const added = queueComposerInput();
+        if (!added) {
+          const editor = findEditor();
+          editor?.focus?.({ preventScroll: true });
+        }
+        scheduleControlRefresh();
+      });
+    }
+    button.className = deriveQueueButtonClasses(sendButton);
+    if (button.parentElement !== parent) {
+      try {
+        parent.insertBefore(button, sendButton);
+      } catch (_) {
+        try {
+          parent.appendChild(button);
+        } catch (_) {
+          return;
+        }
+      }
+    }
+    composerQueueButton = button;
+  }
+
+  function ensureComposerInputListeners(rootParam) {
+    const root = rootParam || composer();
+    if (!root) return;
+    const ed = findEditor();
+    if (!ed || ed.dataset.cqQueueBound === 'true') return;
+    const notify = () => scheduleControlRefresh();
+    ['input', 'keyup', 'paste', 'cut', 'compositionend'].forEach((eventName) => {
+      ed.addEventListener(eventName, notify);
+    });
+    ed.dataset.cqQueueBound = 'true';
   }
 
   function updateFollowupMenu() {
@@ -1311,10 +1395,21 @@
     dragOverPosition = null;
   }
 
+  function getComposerPromptText() {
+    const ed = findEditor();
+    if (!ed) return '';
+    const text = ed.innerText || '';
+    return text.replace(/[\u200b\u200c\u200d\uFEFF]/g, '').trim();
+  }
+
+  function hasComposerPrompt() {
+    return getComposerPromptText().length > 0;
+  }
+
   function queueComposerInput() {
     const ed = findEditor();
     if (!ed) return false;
-    const text = ed.innerText?.trim();
+    const text = getComposerPromptText();
     if (!text) return false;
     const modelId = currentModelId || composerModelId || null;
     const modelLabel = modelId ? labelForModel(modelId, currentModelLabel || composerModelLabel) : null;
@@ -1327,6 +1422,7 @@
       list.scrollTop = list.scrollHeight;
     });
     if (STATE.running) maybeKick();
+    scheduleControlRefresh();
     return true;
   }
 
@@ -1535,7 +1631,7 @@
     if (msg?.type === 'toggle-queue') {
       setFollowupMode(STATE.running ? 'queue' : 'immediate');
     }
-  if (msg?.type === 'toggle-ui') {
+    if (msg?.type === 'toggle-ui') {
       setCollapsed(false);
     }
     if (msg?.type === 'show-ui') {
