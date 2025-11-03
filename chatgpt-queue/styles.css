@@ -87,6 +87,12 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  background: var(--bg-body);
+  padding: 8px 0;
+  margin-bottom: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 #cq-ui .cq-inline-meta {
@@ -117,8 +123,7 @@
 }
 
 #cq-ui .cq-collapse-toggle:focus-visible {
-  outline: 2px solid rgba(217, 217, 227, 0.4);
-  outline-offset: 2px;
+  outline: none;
 }
 
 #cq-ui .cq-collapse-toggle[aria-expanded="false"] {
@@ -206,8 +211,7 @@
 }
 
 #cq-ui .cq-icon-button:focus-visible {
-  outline: 2px solid rgba(217, 217, 227, 0.4);
-  outline-offset: 2px;
+  outline: none;
 }
 
 #cq-ui .cq-popover {
@@ -385,8 +389,7 @@
 #cq-ui .cq-row-text:focus-visible {
   background: rgba(217, 217, 227, 0.08);
   box-shadow: inset 0 0 0 1px rgba(217, 217, 227, 0.2);
-  outline: 2px solid rgba(217, 217, 227, 0.4);
-  outline-offset: 2px;
+  outline: none;
 }
 
 #cq-ui .cq-row-actions {
@@ -428,8 +431,7 @@
 }
 
 #cq-ui .cq-icon-btn:focus-visible {
-  outline: 2px solid rgba(217, 217, 227, 0.4);
-  outline-offset: 2px;
+  outline: none;
 }
 
 #cq-ui .cq-icon-btn[disabled] {

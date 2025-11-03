@@ -1216,11 +1216,14 @@
             return;
         }
 
-        STATE.queue.forEach((entry, index) => {
+        // Render queue in reverse order (next item at bottom)
+        const reversedQueue = [...STATE.queue].reverse();
+        reversedQueue.forEach((entry, reversedIndex) => {
+            const index = STATE.queue.length - 1 - reversedIndex;
             const row = document.createElement("div");
             row.className = "cq-row";
             row.dataset.index = String(index);
-            if (index === 0) row.classList.add("cq-row--next");
+            if (index === STATE.queue.length - 1) row.classList.add("cq-row--next");
             row.draggable = true;
 
             const indicator = document.createElement("span");
@@ -1277,6 +1280,7 @@
             sendButton.dataset.action = "send";
             sendButton.dataset.index = String(index);
             sendButton.setAttribute("aria-label", "Send now");
+            sendButton.title = "Send now";
             sendButton.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <path d="M8.99992 16V6.41407L5.70696 9.70704C5.31643 10.0976 4.68342 10.0976 4.29289 9.70704C3.90237 9.31652 3.90237 8.6835 4.29289 8.29298L9.29289 3.29298L9.36907 3.22462C9.76184 2.90427 10.3408 2.92686 10.707 3.29298L15.707 8.29298L15.7753 8.36915C16.0957 8.76192 16.0731 9.34092 15.707 9.70704C15.3408 10.0732 14.7618 10.0958 14.3691 9.7754L14.2929 9.70704L10.9999 6.41407V16C10.9999 16.5523 10.5522 17 9.99992 17C9.44764 17 8.99992 16.5523 8.99992 16Z"></path>
@@ -1290,6 +1294,7 @@
             deleteButton.dataset.action = "delete";
             deleteButton.dataset.index = String(index);
             deleteButton.setAttribute("aria-label", "Remove follow-up");
+            deleteButton.title = "Remove follow-up";
             deleteButton.innerHTML = `
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
           <path d="M6 6L6.8 16.2C6.87394 17.1321 7.64701 17.846 8.58083 17.846H11.4192C12.353 17.846 13.1261 17.1321 13.2 16.2L14 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
