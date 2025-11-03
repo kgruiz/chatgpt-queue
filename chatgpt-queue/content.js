@@ -141,6 +141,81 @@
     return fallback.length;
   };
 
+  const ATTACHMENT_REMOVE_SELECTORS = [
+    'button[data-testid="attachment-item-remove"]',
+    'button[data-testid="composer-upload-item-remove"]',
+    'button[aria-label^="Remove"]',
+    'button[aria-label^="Delete"]'
+  ];
+
+  const gatherComposerAttachments = async (root) => {
+    if (!root) return [];
+    const attachments = [];
+    const inputs = Array.from(root.querySelectorAll('input[type="file"]')).filter(
+      (input) => input instanceof HTMLInputElement
+    );
+    for (const input of inputs) {
+      const files = Array.from(input.files || []);
+      for (const file of files) {
+        if (!(file instanceof File)) continue;
+        try {
+          const attachment = await createAttachmentFromFile(file);
+          if (attachment) attachments.push(attachment);
+        } catch (_) {
+          /* noop */
+        }
+      }
+    }
+    const blobImages = Array.from(root.querySelectorAll('img[src^="blob:"]'));
+    if (blobImages.length && attachments.length >= blobImages.length) {
+      return attachments;
+    }
+    const seenDataUrls = new Set(attachments.map((attachment) => attachment.dataUrl));
+    for (const img of blobImages) {
+      const src = img.getAttribute('src');
+      if (!src) continue;
+      try {
+        const response = await fetch(src);
+        const blob = await response.blob();
+        const mime = blob.type || 'image/png';
+        const extension = mime.split('/')[1] || 'png';
+        const file = new File([blob], `image-${makeId()}.${extension}`, { type: mime });
+        const attachment = await createAttachmentFromFile(file);
+        if (attachment && !seenDataUrls.has(attachment.dataUrl)) {
+          attachments.push(attachment);
+          seenDataUrls.add(attachment.dataUrl);
+        }
+      } catch (_) {
+        /* noop */
+      }
+    }
+    return attachments;
+  };
+
+  const clearComposerAttachments = (root) => {
+    if (!root) return;
+    const removeQuery = ATTACHMENT_REMOVE_SELECTORS.join(',');
+    ATTACHMENT_SELECTORS.forEach((selector) => {
+      root.querySelectorAll(selector).forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        const removeButton = removeQuery ? node.querySelector(removeQuery) : null;
+        if (removeButton instanceof HTMLElement) {
+          removeButton.click();
+        }
+      });
+    });
+    root.querySelectorAll('input[type="file"]').forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      if (!input.value) return;
+      try {
+        input.value = '';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (_) {
+        /* noop */
+      }
+    });
+  };
+
   const waitForAttachmentsReady = (root, baseCount, expectedIncrease, timeoutMs = 4000) => new Promise((resolve) => {
     if (!expectedIncrease) {
       resolve(true);
@@ -178,9 +253,6 @@
   let currentModelId = null;
   let currentModelLabel = '';
   let modelsPromise = null;
-  let composerModelId = null;
-  let composerModelLabel = '';
-  let composerAttachments = [];
   let composerQueueButton = null;
 
   const getModelNodeLabel = (node) => {
@@ -258,17 +330,13 @@
   };
 
   const setCurrentModel = (id, label = '') => {
-    const previous = currentModelId;
     currentModelId = id || null;
-    currentModelLabel = label || labelForModel(id, currentModelLabel || '');
-    const prevNormalized = normalizeModelId(previous);
-    const currentNormalized = normalizeModelId(currentModelId);
-    if (!composerModelId || normalizeModelId(composerModelId) === prevNormalized) {
-      composerModelId = currentModelId;
-      composerModelLabel = currentModelLabel;
-    } else if (currentNormalized && normalizeModelId(composerModelId) === currentNormalized) {
-      composerModelLabel = currentModelLabel;
+    if (!id) {
+      currentModelLabel = label || '';
+      return;
     }
+    const info = getModelById(id);
+    currentModelLabel = label || info?.label || currentModelLabel || id;
   };
 
   const markModelSelected = (id, label = '') => {
@@ -355,10 +423,7 @@
   };
 
   const ensureModelOptions = async (options = {}) => {
-    if (!options.force && STATE.models.length) {
-      renderComposerModelSelect();
-      return STATE.models;
-    }
+    if (!options.force && STATE.models.length) return STATE.models;
     if (modelsPromise) return modelsPromise;
     modelsPromise = (async () => {
       const models = await fetchModelOptions();
@@ -373,7 +438,6 @@
         markModelSelected(models[0].id, models[0].label);
       }
       const queueUpdated = applyDefaultModelToQueueIfMissing();
-      renderComposerModelSelect();
       const newSignature = JSON.stringify(models.map((model) => ({ id: model.id, label: model.label })));
       if (queueUpdated || newSignature !== previousSignature) {
         refreshAll();
@@ -423,7 +487,6 @@
       markModelSelected(modelId, label);
       return true;
     });
-    if (result) renderComposerModelSelect();
     return !!result;
   };
 
@@ -469,32 +532,6 @@
           <button type="button" role="menuitemradio" class="cq-popover-option" data-mode="stop" aria-checked="false">Stop and send right away</button>
         </div>
       </div>
-    </div>
-    <div class="cq-new">
-      <div class="cq-new-row">
-        <button id="cq-capture" class="cq-icon-btn cq-icon-btn--capture" type="button" aria-label="Add current prompt to follow-ups">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-            <path d="M6.00004 4.5C6.00004 3.11929 7.11933 2 8.50004 2H14C15.3807 2 16.5 3.11929 16.5 4.5V10C16.5 11.3807 15.3807 12.5 14 12.5H8.50004C7.11933 12.5 6.00004 11.3807 6.00004 10V4.5Z" stroke="currentColor" stroke-width="1.3"></path>
-            <path d="M10 7.25H4.5C3.11929 7.25 2 8.36929 2 9.75V15.5C2 16.8807 3.11929 18 4.5 18H10.25C11.6307 18 12.75 16.8807 12.75 15.5V10.125" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
-            <path d="M11.25 6V10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
-            <path d="M13.5 8.25L9 8.25" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
-          </svg>
-        </button>
-        <textarea id="cq-new-text" class="cq-new-text" placeholder="Type a follow-up to queue" spellcheck="true"></textarea>
-        <button id="cq-new-add" class="cq-icon-btn cq-icon-btn--add" type="button" aria-label="Queue follow-up" disabled>
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-            <path d="M4.25 3.5L16.5 9.75L4.25 16.5V11L11 9.75L4.25 8.5V3.5Z" fill="currentColor"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="cq-new-footer">
-        <label class="cq-new-model">
-          <span class="cq-new-model-label">Model</span>
-          <select id="cq-new-model" class="cq-select" aria-label="Select follow-up model"></select>
-        </label>
-        <div id="cq-new-media" class="cq-row-media cq-row-media--composer cq-media-list cq-media-list--empty" aria-live="polite"></div>
-      </div>
-    </div>
     <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>`;
 
   const $ = (selector) => ui.querySelector(selector);
@@ -503,13 +540,6 @@
   const list = $('#cq-list');
   const followupsTrigger = $('#cq-followups-trigger');
   const followupsMenu = $('#cq-followups-menu');
-  const newInput = $('#cq-new-text');
-  const btnNewAdd = $('#cq-new-add');
-  const newModelSelect = $('#cq-new-model');
-  const newMedia = $('#cq-new-media');
-  const btnCapture = $('#cq-capture');
-  renderComposerModelSelect();
-  renderComposerAttachments();
   ui.setAttribute('aria-hidden', 'true');
 
   let saveTimer;
@@ -712,14 +742,6 @@
       }
       elState.textContent = status;
     }
-    if (btnNewAdd) {
-      const value = newInput ? newInput.value.trim() : '';
-      const hasMedia = composerAttachments.length > 0;
-      btnNewAdd.disabled = STATE.busy || (!value && !hasMedia);
-    }
-    if (btnCapture) {
-      btnCapture.disabled = STATE.busy;
-    }
     if (!composerQueueButton || !composerQueueButton.isConnected) {
       composerQueueButton = null;
       ensureComposerQueueButton();
@@ -753,7 +775,6 @@
     refreshVisibility();
     refreshControls();
     setFollowupsMenuOpen(false);
-    newInput?.focus({ preventScroll: true });
     if (persist) save();
   }
 
@@ -877,9 +898,9 @@
       button.id = 'cq-composer-queue-btn';
       button.setAttribute('aria-label', 'Add prompt to follow-up queue');
       button.textContent = 'Add to queue';
-      button.addEventListener('click', (event) => {
+      button.addEventListener('click', async (event) => {
         event.preventDefault();
-        const added = queueComposerInput();
+        const added = await queueComposerInput();
         if (!added) {
           const editor = findEditor();
           editor?.focus?.({ preventScroll: true });
@@ -994,94 +1015,6 @@
     }
   });
 
-  function populateModelSelect(select, selectedId, selectedLabel) {
-    if (!select) return;
-    const models = STATE.models;
-    const normalizedSelected = normalizeModelId(selectedId);
-    select.textContent = '';
-    if (!models.length) {
-      const option = document.createElement('option');
-      option.value = selectedId || '';
-      option.textContent = selectedLabel || selectedId || 'Loading models…';
-      select.appendChild(option);
-      select.disabled = true;
-      return;
-    }
-    select.disabled = false;
-    models.forEach((model) => {
-      const option = document.createElement('option');
-      option.value = model.id;
-      option.textContent = model.label || model.id;
-      if (model.selected) option.dataset.selected = 'true';
-      select.appendChild(option);
-    });
-    if (normalizedSelected) {
-      const match = models.find((model) => normalizeModelId(model.id) === normalizedSelected);
-      if (match) {
-        select.value = match.id;
-      } else if (selectedId) {
-        const fallback = document.createElement('option');
-        fallback.value = selectedId;
-        fallback.textContent = selectedLabel || labelForModel(selectedId, selectedLabel || selectedId);
-        fallback.dataset.cqMissing = 'true';
-        select.appendChild(fallback);
-        select.value = selectedId;
-      }
-    }
-    if (!select.value) {
-      const preferred = models.find((model) => model.selected) || models[0];
-      select.value = preferred?.id || '';
-    }
-  }
-
-  function renderComposerModelSelect() {
-    if (!newModelSelect) return;
-    populateModelSelect(newModelSelect, composerModelId, composerModelLabel);
-    if (newModelSelect.selectedOptions.length > 0) {
-      composerModelId = newModelSelect.value || null;
-      composerModelLabel = newModelSelect.selectedOptions[0].textContent || composerModelLabel;
-    } else {
-      composerModelId = null;
-      composerModelLabel = '';
-    }
-  }
-
-  function renderComposerAttachments() {
-    if (!newMedia) return;
-    newMedia.textContent = '';
-    if (!composerAttachments.length) {
-      newMedia.classList.add('cq-media-list--empty');
-      return;
-    }
-    newMedia.classList.remove('cq-media-list--empty');
-    composerAttachments.forEach((attachment) => {
-      const node = createAttachmentNode(attachment, { context: 'composer' });
-      newMedia.appendChild(node);
-    });
-  }
-
-  function addComposerAttachments(attachments) {
-    if (!Array.isArray(attachments) || attachments.length === 0) return;
-    const seen = new Set(composerAttachments.map((att) => att.id));
-    attachments.forEach((attachment) => {
-      if (!seen.has(attachment.id)) {
-        composerAttachments.push(cloneAttachment(attachment));
-        seen.add(attachment.id);
-      }
-    });
-    renderComposerAttachments();
-    refreshControls();
-  }
-
-  function removeComposerAttachment(id) {
-    const next = composerAttachments.filter((attachment) => attachment.id !== id);
-    if (next.length !== composerAttachments.length) {
-      composerAttachments = next;
-      renderComposerAttachments();
-      refreshControls();
-    }
-  }
-
   function addAttachmentsToEntry(index, attachments) {
     if (!Array.isArray(attachments) || attachments.length === 0) return;
     const entry = STATE.queue[index];
@@ -1109,7 +1042,7 @@
     }
   }
 
-  function createAttachmentNode(attachment, { context, entryIndex } = {}) {
+  function createAttachmentNode(attachment, { entryIndex } = {}) {
     const wrapper = document.createElement('div');
     wrapper.className = 'cq-media';
     wrapper.dataset.attachmentId = attachment.id;
@@ -1134,8 +1067,6 @@
     remove.dataset.attachmentRemove = attachment.id;
     if (typeof entryIndex === 'number') {
       remove.dataset.entryIndex = String(entryIndex);
-    } else {
-      remove.dataset.entryIndex = context || 'composer';
     }
     remove.textContent = 'Remove';
     wrapper.appendChild(remove);
@@ -1153,9 +1084,7 @@
     }
     collectImagesFromDataTransfer(dataTransfer).then((attachments) => {
       if (!attachments.length) return;
-      if (type === 'composer') {
-        addComposerAttachments(attachments);
-      } else if (type === 'entry' && typeof index === 'number') {
+      if (type === 'entry' && typeof index === 'number') {
         addAttachmentsToEntry(index, attachments);
       }
     }).catch(() => {});
@@ -1402,18 +1331,35 @@
     return text.replace(/[\u200b\u200c\u200d\uFEFF]/g, '').trim();
   }
 
+  const composerHasAttachments = () => {
+    const root = composer();
+    return countComposerAttachments(root) > 0;
+  };
+
   function hasComposerPrompt() {
-    return getComposerPromptText().length > 0;
+    return getComposerPromptText().length > 0 || composerHasAttachments();
   }
 
-  function queueComposerInput() {
+  async function queueComposerInput() {
     const ed = findEditor();
     if (!ed) return false;
+    const root = composer();
+    if (!root) return false;
     const text = getComposerPromptText();
-    if (!text) return false;
-    const modelId = currentModelId || composerModelId || null;
-    const modelLabel = modelId ? labelForModel(modelId, currentModelLabel || composerModelLabel) : null;
-    STATE.queue.push({ text, attachments: [], model: modelId, modelLabel });
+    const attachmentCount = countComposerAttachments(root);
+    const hadAttachments = attachmentCount > 0;
+    const attachments = hadAttachments ? await gatherComposerAttachments(root) : [];
+    if (!text && attachments.length === 0) return false;
+    if (hadAttachments && attachments.length === 0) {
+      console.warn('[cq] Unable to capture composer attachments; queue aborted.');
+      return false;
+    }
+    const modelId = currentModelId || null;
+    const modelLabel = modelId ? labelForModel(modelId, currentModelLabel) : null;
+    STATE.queue.push({ text, attachments: attachments.map((attachment) => cloneAttachment(attachment)), model: modelId, modelLabel });
+    if (attachments.length) {
+      clearComposerAttachments(root);
+    }
     ed.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     save();
@@ -1421,95 +1367,10 @@
     requestAnimationFrame(() => {
       list.scrollTop = list.scrollHeight;
     });
+    ed.focus?.({ preventScroll: true });
     if (STATE.running) maybeKick();
     scheduleControlRefresh();
     return true;
-  }
-
-  function queueNewInput() {
-    if (!newInput) return;
-    const text = newInput.value;
-    const normalized = (text || '').replace(/\r\n/g, '\n');
-    if (!normalized.trim() && composerAttachments.length === 0) return;
-    const composerSelectedOption = newModelSelect?.selectedOptions?.[0];
-    let selectedModelId = newModelSelect?.value || composerModelId || null;
-    if (!selectedModelId) {
-      const preferred = STATE.models.find((model) => model.selected) || STATE.models[0];
-      selectedModelId = preferred?.id || currentModelId || null;
-    }
-    const selectedModelLabel = selectedModelId
-      ? (composerSelectedOption?.textContent || composerModelLabel || currentModelLabel || labelForModel(selectedModelId))
-      : null;
-    const entry = {
-      text: normalized,
-      attachments: composerAttachments.map((attachment) => cloneAttachment(attachment)),
-      model: selectedModelId,
-      modelLabel: selectedModelLabel
-    };
-    STATE.queue.push(entry);
-    newInput.value = '';
-    autoSize(newInput);
-    composerAttachments = [];
-    renderComposerAttachments();
-    save();
-    refreshAll();
-    requestAnimationFrame(() => {
-      list.scrollTop = list.scrollHeight;
-    });
-    newInput.focus();
-    if (STATE.running) maybeKick();
-  }
-
-  if (newInput) {
-    autoSize(newInput);
-    newInput.addEventListener('input', () => {
-      autoSize(newInput);
-      refreshControls();
-    });
-    newInput.addEventListener('paste', (event) => {
-      handleAttachmentPaste(event, { type: 'composer', textarea: newInput });
-    });
-    newInput.addEventListener('keydown', (event) => {
-      const meta = navigator.platform.includes('Mac') ? event.metaKey : event.ctrlKey;
-      if (meta && event.shiftKey && event.key === 'Enter') {
-        event.preventDefault();
-        queueNewInput();
-      }
-    });
-  }
-
-  if (newModelSelect) {
-    newModelSelect.addEventListener('focus', () => { ensureModelOptions(); });
-    newModelSelect.addEventListener('click', () => { ensureModelOptions(); });
-    newModelSelect.addEventListener('change', () => {
-      composerModelId = newModelSelect.value || null;
-      composerModelLabel = newModelSelect.selectedOptions[0]?.textContent || '';
-    });
-  }
-
-  if (btnCapture) {
-    btnCapture.addEventListener('click', () => {
-      const added = queueComposerInput();
-      if (!added) {
-        findEditor()?.focus({ preventScroll: true });
-      }
-    });
-  }
-
-  if (btnNewAdd) {
-    btnNewAdd.addEventListener('click', () => {
-      queueNewInput();
-    });
-  }
-
-  if (newMedia) {
-    newMedia.addEventListener('click', (event) => {
-      const target = event.target instanceof HTMLElement ? event.target.closest('button[data-attachment-remove]') : null;
-      if (!target) return;
-      const id = target.dataset.attachmentRemove;
-      if (!id) return;
-      removeComposerAttachment(id);
-    });
   }
 
   list.addEventListener('click', (event) => {
@@ -1621,13 +1482,13 @@
     const meta = navigator.platform.includes('Mac') ? event.metaKey : event.ctrlKey;
     if (meta && event.shiftKey && event.key === 'Enter') {
       event.preventDefault();
-      queueComposerInput();
+      void queueComposerInput();
     }
   }, true);
 
   // Commands from background --------------------------------------------------
   chrome.runtime?.onMessage.addListener((msg) => {
-    if (msg?.type === 'queue-from-shortcut') queueComposerInput();
+    if (msg?.type === 'queue-from-shortcut') void queueComposerInput();
     if (msg?.type === 'toggle-queue') {
       setFollowupMode(STATE.running ? 'queue' : 'immediate');
     }
