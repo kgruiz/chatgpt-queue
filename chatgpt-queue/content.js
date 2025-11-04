@@ -1130,17 +1130,56 @@
         const root = rootParam || composer();
         if (!root) return;
         const sendButton = findSendButton(root);
-        if (!sendButton) return;
-        let parent = sendButton.parentElement;
-        if (!parent) return;
-        let anchor = sendButton;
+        const voiceButton = q(SEL.voice, root);
+
+        const resolveAnchor = (node) => {
+            if (!(node instanceof HTMLElement)) {
+                return { anchor: null, parent: null };
+            }
+            let anchorRef = node;
+            let parentRef = node.parentElement;
+            if (
+                parentRef instanceof HTMLElement &&
+                parentRef.tagName === "SPAN" &&
+                parentRef.parentElement instanceof HTMLElement
+            ) {
+                anchorRef = parentRef;
+                parentRef = parentRef.parentElement;
+            }
+            if (!(parentRef instanceof HTMLElement)) {
+                parentRef = anchorRef.closest(
+                    '[data-testid="composer-actions"], [data-testid="composer-toolbar"], [data-testid="composer-bottom-buttons"], [data-testid="composer-controls"]',
+                );
+            }
+            return {
+                anchor: anchorRef instanceof HTMLElement ? anchorRef : null,
+                parent: parentRef instanceof HTMLElement ? parentRef : null,
+            };
+        };
+
+        let { anchor, parent } = resolveAnchor(sendButton);
+        if (!parent) {
+            ({ anchor, parent } = resolveAnchor(voiceButton));
+        }
         if (
             parent instanceof HTMLElement &&
-            parent.tagName === "SPAN" &&
-            parent.parentElement
+            parent.getAttribute("data-testid") ===
+                "composer-speech-button-container"
         ) {
             anchor = parent;
             parent = parent.parentElement;
+        }
+        if (!parent) {
+            const candidate = root.querySelector(
+                '[data-testid="composer-speech-button-container"], [data-testid="composer-actions"], [data-testid="composer-toolbar"], [data-testid="composer-bottom-buttons"], [data-testid="composer-controls"]',
+            );
+            if (candidate instanceof HTMLElement) {
+                parent = candidate;
+                anchor =
+                    Array.from(candidate.children).find(
+                        (node) => node instanceof HTMLElement,
+                    ) || null;
+            }
         }
         if (!(parent instanceof HTMLElement)) return;
         let button = composerQueueButton;
@@ -1170,13 +1209,22 @@
                 scheduleControlRefresh();
             });
         }
-        button.className = deriveQueueButtonClasses(sendButton);
+        const classSource =
+            (sendButton instanceof HTMLElement && sendButton) ||
+            (voiceButton instanceof HTMLElement && voiceButton) ||
+            (anchor instanceof HTMLElement ? anchor : null);
+        button.className = deriveQueueButtonClasses(classSource);
         try {
             if (
                 button.parentElement !== parent ||
-                button.nextElementSibling !== anchor
+                (anchor instanceof HTMLElement &&
+                    button.nextElementSibling !== anchor)
             ) {
-                parent.insertBefore(button, anchor);
+                if (anchor instanceof HTMLElement && parent.contains(anchor)) {
+                    parent.insertBefore(button, anchor);
+                } else {
+                    parent.appendChild(button);
+                }
             }
         } catch (_) {
             try {
