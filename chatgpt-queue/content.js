@@ -1131,8 +1131,18 @@
         if (!root) return;
         const sendButton = findSendButton(root);
         if (!sendButton) return;
-        const parent = sendButton.parentElement;
+        let parent = sendButton.parentElement;
         if (!parent) return;
+        let anchor = sendButton;
+        if (
+            parent instanceof HTMLElement &&
+            parent.tagName === "SPAN" &&
+            parent.parentElement
+        ) {
+            anchor = parent;
+            parent = parent.parentElement;
+        }
+        if (!(parent instanceof HTMLElement)) return;
         let button = composerQueueButton;
         if (button && !button.isConnected) {
             button = null;
@@ -1161,15 +1171,18 @@
             });
         }
         button.className = deriveQueueButtonClasses(sendButton);
-        if (button.parentElement !== parent) {
+        try {
+            if (
+                button.parentElement !== parent ||
+                button.nextElementSibling !== anchor
+            ) {
+                parent.insertBefore(button, anchor);
+            }
+        } catch (_) {
             try {
-                parent.insertBefore(button, sendButton);
+                parent.appendChild(button);
             } catch (_) {
-                try {
-                    parent.appendChild(button);
-                } catch (_) {
-                    return;
-                }
+                return;
             }
         }
         composerQueueButton = button;
