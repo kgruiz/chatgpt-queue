@@ -1859,10 +1859,17 @@
     document.addEventListener(
         "keydown",
         (event) => {
+            if (event.key !== "Enter") return;
             const meta = navigator.platform.includes("Mac")
                 ? event.metaKey
                 : event.ctrlKey;
-            if (meta && event.shiftKey && event.key === "Enter") {
+            const metaShortcut = meta && event.shiftKey && !event.altKey;
+            const altShortcut =
+                event.altKey &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                !event.shiftKey;
+            if (metaShortcut || altShortcut) {
                 event.preventDefault();
                 void queueComposerInput();
             }

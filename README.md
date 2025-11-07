@@ -10,7 +10,7 @@ Queue prompts for ChatGPT and send them automatically once each reply finishes. 
 
 - Floating queue widget that stays visible while you browse the conversation.
 - Full queue dashboard that lists upcoming prompts with inline editing, reordering, delete controls, and a built-in prompt composer.
-- One-click capture of the current composer input, plus a Cmd/Ctrl+Shift+Enter shortcut.
+- One-click capture of the current composer input, plus Option/Alt+Enter or Cmd/Ctrl+Shift+Enter shortcuts.
 - Automatic prompt dispatch with built-in cooldown once ChatGPT finishes responding.
 - Manual controls for pausing, sending the next item, or clearing the queue.
 - Collapsible panel that tucks into a minimal dock button, with an extension-icon toggle if you want the UI hidden entirely.
@@ -28,7 +28,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 ## Usage
 
 1. Visit `https://chatgpt.com` or `https://chat.openai.com`.
-2. Type a prompt in the ChatGPT composer. Use **Cmd+Shift+Enter** (macOS) or **Ctrl+Shift+Enter** (Windows/Linux) to move the text into the queue. You can also click **Add from input**.
+2. Type a prompt in the ChatGPT composer. Use **Option+Enter** (macOS) or **Alt+Enter** (Windows/Linux) to move the text into the queue (Cmd/Ctrl+Shift+Enter still works). You can also click **Add from input**.
 3. Alternatively, compose prompts directly in the queue panel using the inline text area and click **Queue text** (or press the same shortcut) to stage them without touching the main editor.
 4. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown.
 5. Use **Stop** to pause, **Send next** for a single dispatch, and **Clear** to empty the queue.
@@ -39,7 +39,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
-| Queue current input (in composer) | Cmd+Shift+Enter | Ctrl+Shift+Enter |
+| Queue current input (in composer) | Option+Enter or Cmd+Shift+Enter | Alt+Enter or Ctrl+Shift+Enter |
 | Toggle queue (in composer) | Cmd+Shift+. | Ctrl+Shift+. |
 | Extension shortcut default | Cmd+Shift+Y | Ctrl+Shift+Y |
 | Extension toggle default | Cmd+Shift+G | Ctrl+Shift+G |
@@ -50,7 +50,7 @@ Shortcuts can be customized from the browser’s extension shortcuts settings.
 
 - Every queued prompt appears in an editable card; changes save automatically to `chrome.storage.local`.
 - A dedicated queue composer lets you add prompts without touching the main ChatGPT input.
-- Use **Cmd/Ctrl+Shift+Enter** inside the queue composer to queue quickly; the **Queue text** button offers the same action.
+- Use **Option/Alt+Enter** or **Cmd/Ctrl+Shift+Enter** inside the queue composer to queue quickly; the **Queue text** button offers the same action.
 - Use the **Up** and **Down** controls to reorder items without leaving the page.
 - Choose **Delete** on a card to drop it from the run; the panel updates immediately so you can keep an eye on what is next.
 - The first card is highlighted, making it easy to see the next prompt the extension plans to send.
