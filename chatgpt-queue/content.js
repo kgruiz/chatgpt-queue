@@ -1860,19 +1860,14 @@
         "keydown",
         (event) => {
             if (event.key !== "Enter") return;
-            const meta = navigator.platform.includes("Mac")
-                ? event.metaKey
-                : event.ctrlKey;
-            const metaShortcut = meta && event.shiftKey && !event.altKey;
-            const altShortcut =
+            const altOnly =
                 event.altKey &&
                 !event.metaKey &&
                 !event.ctrlKey &&
                 !event.shiftKey;
-            if (metaShortcut || altShortcut) {
-                event.preventDefault();
-                void queueComposerInput();
-            }
+            if (!altOnly) return;
+            event.preventDefault();
+            void queueComposerInput();
         },
         true,
     );
