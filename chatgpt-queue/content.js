@@ -7,6 +7,9 @@
         collapsed: false,
         phase: "idle",
         models: [],
+        paused: false,
+        pauseReason: "",
+        pausedAt: null,
     };
     const SEL = {
         editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
@@ -16,6 +19,19 @@
         composer:
             'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
     };
+
+    const navPlatform =
+        typeof navigator === "object"
+            ? navigator.userAgentData?.platform ||
+              navigator.platform ||
+              navigator.userAgent ||
+              ""
+            : "";
+    const isApplePlatform = /mac|iphone|ipad|ipod/i.test(navPlatform);
+    const PAUSE_SHORTCUT_LABEL = isApplePlatform
+        ? "Cmd+Shift+P"
+        : "Ctrl+Shift+P";
+    const PAUSE_SHORTCUT_DISPLAY = PAUSE_SHORTCUT_LABEL;
 
     const makeId = () =>
         `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -636,6 +652,21 @@
           <span class="cq-label">Follow-ups</span>
           <span id="cq-count" class="cq-count" aria-live="polite">0</span>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
+          <span id="cq-pause-meta" class="cq-pause-meta" aria-live="polite"></span>
+        </div>
+        <div class="cq-inline-actions">
+          <button id="cq-pause-toggle" class="cq-pause-toggle" type="button" aria-pressed="false" aria-label="Pause queue" data-state="active">
+            <span class="cq-pause-toggle__icon" aria-hidden="true">
+              <svg class="cq-pause-toggle__icon-state cq-pause-toggle__icon-state--pause" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <path d="M5 3.25C4.58579 3.25 4.25 3.58579 4.25 4V12C4.25 12.4142 4.58579 12.75 5 12.75H6.5C6.91421 12.75 7.25 12.4142 7.25 12V4C7.25 3.58579 6.91421 3.25 6.5 3.25H5ZM9.5 3.25C9.08579 3.25 8.75 3.58579 8.75 4V12C8.75 12.4142 9.08579 12.75 9.5 12.75H11C11.4142 12.75 11.75 12.4142 11.75 12V4C11.75 3.58579 11.4142 3.25 11 3.25H9.5Z"></path>
+              </svg>
+              <svg class="cq-pause-toggle__icon-state cq-pause-toggle__icon-state--resume" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <path d="M4.5 3.5C4.5 3.08579 4.83579 2.75 5.25 2.75C5.37798 2.75 5.50362 2.78404 5.61394 2.84837L12.1139 6.34837C12.4517 6.54208 12.5663 6.97906 12.3726 7.3169C12.3077 7.42946 12.2139 7.52332 12.1013 7.58826L5.60134 11.3383C5.2645 11.532 4.82752 11.4174 4.63381 11.0805C4.56948 10.9702 4.53544 10.8446 4.53544 10.7166V3.5H4.5Z"></path>
+              </svg>
+            </span>
+            <span id="cq-pause-label" class="cq-pause-toggle__label">Pause queue</span>
+            <span id="cq-pause-shortcut" class="cq-pause-toggle__shortcut">${PAUSE_SHORTCUT_DISPLAY}</span>
+          </button>
         </div>
       </div>
       <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>
@@ -646,6 +677,11 @@
     const elState = $("#cq-state");
     const list = $("#cq-list");
     const collapseToggle = $("#cq-collapse-toggle");
+    const pauseToggle = $("#cq-pause-toggle");
+    const pauseLabel = $("#cq-pause-label");
+    const pauseShortcut = $("#cq-pause-shortcut");
+    const pauseMeta = $("#cq-pause-meta");
+    if (pauseMeta) pauseMeta.hidden = true;
     ui.setAttribute("aria-hidden", "true");
 
     let saveTimer;
@@ -659,6 +695,9 @@
         running: STATE.running,
         queue: STATE.queue.map((entry) => cloneEntry(entry)),
         collapsed: STATE.collapsed,
+        paused: STATE.paused,
+        pauseReason: STATE.pauseReason,
+        pausedAt: STATE.pausedAt,
     });
 
     const isContextInvalidatedError = (error) => {
@@ -703,6 +742,14 @@
                         typeof cq.collapsed === "boolean"
                             ? cq.collapsed
                             : false;
+                    STATE.paused =
+                        typeof cq.paused === "boolean" ? cq.paused : false;
+                    STATE.pauseReason =
+                        typeof cq.pauseReason === "string"
+                            ? cq.pauseReason
+                            : "";
+                    STATE.pausedAt =
+                        typeof cq.pausedAt === "number" ? cq.pausedAt : null;
                 }
                 refreshAll();
                 hydrated = true;
@@ -869,16 +916,24 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = STATE.queue.length > 0;
+        const manualSendEnabled =
+            STATE.queue.length > 0 && !STATE.busy && !STATE.paused;
         if (elCount) {
             elCount.textContent = String(STATE.queue.length);
         }
         if (elState) {
             let status = "Idle";
-            if (STATE.busy) {
+            if (STATE.paused) {
+                status = "Paused";
+            } else if (STATE.busy) {
                 status = STATE.phase === "waiting" ? "Waiting…" : "Sending…";
             }
             elState.textContent = status;
+        }
+        if (pauseMeta) {
+            const metaText = pauseMetaText();
+            pauseMeta.textContent = metaText;
+            pauseMeta.hidden = !STATE.paused || !metaText;
         }
         if (!composerQueueButton || !composerQueueButton.isConnected) {
             composerQueueButton = null;
@@ -887,13 +942,47 @@
         if (composerQueueButton) {
             composerQueueButton.disabled = !hasComposerPrompt();
         }
+        if (pauseToggle) {
+            pauseToggle.dataset.state = STATE.paused ? "paused" : "active";
+            pauseToggle.setAttribute(
+                "aria-pressed",
+                STATE.paused ? "true" : "false",
+            );
+            pauseToggle.setAttribute(
+                "aria-label",
+                STATE.paused ? "Resume queue" : "Pause queue",
+            );
+            pauseToggle.title = `${STATE.paused ? "Resume" : "Pause"} queue (${PAUSE_SHORTCUT_LABEL})`;
+        }
+        if (pauseLabel) {
+            pauseLabel.textContent = STATE.paused
+                ? "Resume queue"
+                : "Pause queue";
+        }
+        if (pauseShortcut) {
+            pauseShortcut.textContent = PAUSE_SHORTCUT_DISPLAY;
+        }
         ui.classList.toggle("is-busy", STATE.busy);
-        list.querySelectorAll('button[data-action="send"]').forEach(
-            (button) => {
-                button.disabled = !canManualSend;
-            },
-        );
-        if (STATE.queue.length === 0 || STATE.busy) {
+        ui.classList.toggle("is-paused", STATE.paused);
+        if (list) {
+            list.querySelectorAll('button[data-action="send"]').forEach(
+                (button) => {
+                    button.disabled = !manualSendEnabled;
+                    if (!manualSendEnabled) {
+                        if (STATE.paused) {
+                            button.title = "Resume queue to send";
+                        } else if (STATE.busy) {
+                            button.title = "Queue busy";
+                        } else {
+                            button.title = "Queue empty";
+                        }
+                    } else {
+                        button.title = "Send now";
+                    }
+                },
+            );
+        }
+        if (STATE.queue.length === 0 || STATE.busy || STATE.paused) {
             cancelAutoDispatch();
         } else {
             maybeAutoDispatch();
@@ -925,6 +1014,69 @@
         refreshVisibility();
         refreshControls();
         if (persist) save();
+    }
+
+    const normalizePauseReason = (value) =>
+        typeof value === "string" ? value.trim() : "";
+
+    const formatPauseTime = (timestamp) => {
+        if (typeof timestamp !== "number" || Number.isNaN(timestamp))
+            return "";
+        try {
+            return new Intl.DateTimeFormat(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+            }).format(new Date(timestamp));
+        } catch (_) {
+            try {
+                return new Date(timestamp).toLocaleTimeString();
+            } catch (_) {
+                return "";
+            }
+        }
+    };
+
+    function pauseMetaText() {
+        if (!STATE.paused) return "";
+        const parts = [];
+        const timeText = formatPauseTime(STATE.pausedAt);
+        if (timeText) {
+            parts.push(`Paused ${timeText}`);
+        } else {
+            parts.push("Paused");
+        }
+        if (STATE.pauseReason) {
+            parts.push(`— ${STATE.pauseReason}`);
+        }
+        return parts.join(" ");
+    }
+
+    function setPaused(next, { reason } = {}) {
+        const target = !!next;
+        const normalizedReason = target ? normalizePauseReason(reason) : "";
+        const alreadyMatched =
+            STATE.paused === target &&
+            (target ? STATE.pauseReason === normalizedReason : true);
+        if (alreadyMatched) return;
+        STATE.paused = target;
+        if (STATE.paused) {
+            STATE.pauseReason = normalizedReason;
+            STATE.pausedAt = Date.now();
+            cancelAutoDispatch();
+        } else {
+            STATE.pauseReason = "";
+            STATE.pausedAt = null;
+        }
+        refreshControls();
+        save();
+        if (!STATE.paused) {
+            maybeAutoDispatch(120);
+        }
+    }
+
+    function togglePaused(reason) {
+        if (!hydrated) return;
+        setPaused(!STATE.paused, { reason });
     }
 
     function autoSize(textarea) {
@@ -962,6 +1114,7 @@
     function shouldAutoDispatch() {
         if (pendingManualSend) return false;
         if (STATE.busy) return false;
+        if (STATE.paused) return false;
         if (isGenerating()) return false;
         if (STATE.queue.length === 0) return false;
         if (!composer()) return false;
@@ -977,8 +1130,12 @@
     }
 
     function maybeAutoDispatch(delay = 120) {
+        if (STATE.paused) {
+            cancelAutoDispatch();
+            return;
+        }
         if (pendingManualSend) {
-            if (STATE.busy) return;
+            if (STATE.busy || STATE.paused) return;
             const entry = pendingManualSend.entry;
             pendingManualSend = null;
             const index = STATE.queue.indexOf(entry);
@@ -1010,6 +1167,7 @@
 
     function requestSend(index, { manual = false } = {}) {
         if (!Number.isInteger(index) || index < 0) return;
+        if (STATE.paused) return;
         const entry = STATE.queue[index];
         if (!entry) return;
         if (manual && STATE.busy) {
@@ -1257,6 +1415,13 @@
         });
     }
 
+    if (pauseToggle) {
+        pauseToggle.addEventListener("click", (event) => {
+            event.preventDefault();
+            togglePaused();
+        });
+    }
+
     function addAttachmentsToEntry(index, attachments) {
         if (!Array.isArray(attachments) || attachments.length === 0) return;
         const entry = STATE.queue[index];
@@ -1342,7 +1507,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const canManualSend = !STATE.running && !STATE.busy;
+        const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
         list.textContent = "";
         if (STATE.queue.length === 0) {
             const empty = document.createElement("div");
@@ -1417,12 +1582,18 @@
             sendButton.dataset.action = "send";
             sendButton.dataset.index = String(index);
             sendButton.setAttribute("aria-label", "Send now");
-            sendButton.title = "Send now";
             sendButton.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <path d="M8.99992 16V6.41407L5.70696 9.70704C5.31643 10.0976 4.68342 10.0976 4.29289 9.70704C3.90237 9.31652 3.90237 8.6835 4.29289 8.29298L9.29289 3.29298L9.36907 3.22462C9.76184 2.90427 10.3408 2.92686 10.707 3.29298L15.707 8.29298L15.7753 8.36915C16.0957 8.76192 16.0731 9.34092 15.707 9.70704C15.3408 10.0732 14.7618 10.0958 14.3691 9.7754L14.2929 9.70704L10.9999 6.41407V16C10.9999 16.5523 10.5522 17 9.99992 17C9.44764 17 8.99992 16.5523 8.99992 16Z"></path>
         </svg>`;
-            if (!canManualSend) sendButton.disabled = true;
+            if (!canManualSend) {
+                sendButton.disabled = true;
+                sendButton.title = STATE.paused
+                    ? "Resume queue to send"
+                    : "Queue busy";
+            } else {
+                sendButton.title = "Send now";
+            }
             actions.appendChild(sendButton);
 
             const deleteButton = document.createElement("button");
@@ -1554,6 +1725,7 @@
 
     async function sendFromQueue(index) {
         if (STATE.busy) return false;
+        if (STATE.paused) return false;
         if (STATE.queue.length === 0) return false;
 
         // Stop any ongoing generation first
@@ -1854,6 +2026,28 @@
         moveItem(dragIndex, newIndex);
         dragIndex = null;
     });
+
+    const matchesPauseShortcut = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (!event.shiftKey) return false;
+        if (event.altKey) return false;
+        const key = event.key.toLowerCase();
+        if (key !== "p") return false;
+        if (isApplePlatform) {
+            return event.metaKey && !event.ctrlKey;
+        }
+        return event.ctrlKey && !event.metaKey;
+    };
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (!matchesPauseShortcut(event)) return;
+            event.preventDefault();
+            togglePaused();
+        },
+        true,
+    );
 
     // Shortcut inside page -----------------------------------------------------
     document.addEventListener(
