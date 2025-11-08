@@ -1330,10 +1330,19 @@
     }
 
     function setCollapsed(collapsed, persist = true) {
-        STATE.collapsed = !!collapsed;
+        const next = !!collapsed;
+        const focusInQueue =
+            next &&
+            list instanceof HTMLElement &&
+            document.activeElement instanceof HTMLElement &&
+            list.contains(document.activeElement);
+        STATE.collapsed = next;
         refreshVisibility();
         refreshControls();
         if (persist) save();
+        if (focusInQueue) {
+            focusComposerEditor();
+        }
     }
 
     const normalizePauseReason = (value) =>
