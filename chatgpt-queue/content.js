@@ -922,9 +922,9 @@
 
             const footer = document.createElement("div");
             footer.className =
-                "flex w-full flex-row items-center justify-end text-sm select-none";
+                "grow overflow-y-auto p-4 pt-1 flex flex-col justify-end text-sm select-none";
             const footerInner = document.createElement("div");
-            footerInner.className = "flex-0";
+            footerInner.className = "flex w-full flex-row items-center justify-end";
             const buttonRow = document.createElement("div");
             buttonRow.className =
                 "flex flex-col gap-3 sm:flex-row-reverse mt-5 sm:mt-4 flex w-full flex-row-reverse";
