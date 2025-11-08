@@ -279,7 +279,7 @@
 }
 
 #cq-ui .cq-composer-queue-btn,
-.cq-composer-hold-btn {
+#cq-ui .cq-composer-hold-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -292,12 +292,12 @@
 }
 
 #cq-ui .cq-composer-queue-btn:hover,
-.cq-composer-hold-btn:hover {
+#cq-ui .cq-composer-hold-btn:hover {
   opacity: 1;
 }
 
 #cq-ui .cq-composer-queue-btn:disabled,
-.cq-composer-hold-btn:disabled {
+#cq-ui .cq-composer-hold-btn:disabled {
   color: var(--text-tertiary);
 }
 
