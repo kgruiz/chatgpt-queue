@@ -1580,6 +1580,7 @@
 
         // Render queue in reverse order (next item at bottom)
         const reversedQueue = [...STATE.queue].reverse();
+        const textareasToSize = [];
         reversedQueue.forEach((entry, reversedIndex) => {
             const index = STATE.queue.length - 1 - reversedIndex;
             const row = document.createElement("div");
@@ -1619,6 +1620,7 @@
                 });
             });
             body.appendChild(textarea);
+            textareasToSize.push(textarea);
 
             if (entry.attachments.length) {
                 const mediaWrap = document.createElement("div");
@@ -1673,8 +1675,12 @@
 
             row.appendChild(actions);
             list.appendChild(row);
-            queueMicrotask(() => autoSize(textarea));
         });
+        if (textareasToSize.length) {
+            requestAnimationFrame(() => {
+                textareasToSize.forEach((area) => autoSize(area));
+            });
+        }
     }
 
     function refreshAll() {
