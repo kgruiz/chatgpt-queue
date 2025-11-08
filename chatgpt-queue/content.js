@@ -112,15 +112,13 @@
 
     function injectQueueShortcutsIntoList(list) {
         if (!(list instanceof HTMLDListElement)) return;
+        if (list.querySelector('[data-cq-shortcut-origin="queue"]')) return;
         const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
             id: entry.id,
             label: entry.label,
             keys: resolveShortcutKeys(entry),
         })).filter((entry) => entry.keys.length > 0);
         if (!shortcuts.length) return;
-        list.querySelectorAll('[data-cq-shortcut-origin="queue"]').forEach((node) => {
-            node.remove();
-        });
         const fragment = document.createDocumentFragment();
         const heading = document.createElement("dt");
         heading.className =
