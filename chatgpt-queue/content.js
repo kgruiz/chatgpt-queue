@@ -1006,6 +1006,12 @@
                 STATE.collapsed ? "Expand queue" : "Collapse queue",
             );
         }
+        if (collapseToggle?.parentElement?.classList.contains("cq-inline-meta")) {
+            const header = collapseToggle.closest(".cq-inline-header");
+            if (header) {
+                header.classList.toggle("is-collapsed", STATE.collapsed);
+            }
+        }
         if (list) {
             list.classList.toggle("is-collapsed", STATE.collapsed);
             list.setAttribute(
