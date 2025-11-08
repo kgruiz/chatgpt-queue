@@ -2394,14 +2394,11 @@
         true,
     );
 
-    document.addEventListener(
-        "keydown",
-        (event) => {
-            if (!matchesShortcutPopoverToggle(event)) return;
-            scheduleShortcutPopoverRefreshBurst();
-        },
-        true,
-    );
+    document.addEventListener("keyup", (event) => {
+        if (event.repeat) return;
+        if (!matchesShortcutPopoverToggle(event)) return;
+        scheduleShortcutPopoverRefreshBurst();
+    });
 
     // Shortcut inside page -----------------------------------------------------
     document.addEventListener(
