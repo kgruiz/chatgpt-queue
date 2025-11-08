@@ -433,7 +433,8 @@
   max-height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: opacity 0.2s ease;
+  opacity: 1;
+  transition: max-height 0.25s ease, opacity 0.25s ease;
   margin-top: 0;
   padding-top: 0;
 }
@@ -442,8 +443,11 @@
   margin-top: 0;
 }
 
-#cq-ui .cq-queue[style*="display: none"] {
-  display: none !important;
+#cq-ui .cq-queue.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 #cq-ui .cq-row {
@@ -529,8 +533,8 @@
 
 #cq-ui .cq-row-indicator:focus-visible {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), var(--ring);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--text-primary);
   background-color: rgba(255, 255, 255, 0.08);
 }
 

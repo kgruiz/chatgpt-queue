@@ -1007,7 +1007,7 @@
             );
         }
         if (list) {
-            list.style.display = STATE.collapsed ? "none" : "flex";
+            list.classList.toggle("is-collapsed", STATE.collapsed);
             list.setAttribute(
                 "aria-hidden",
                 STATE.collapsed ? "true" : "false",
@@ -1590,7 +1590,6 @@
             };
             indicator.addEventListener("focus", () => {
                 indicatorCommitLocked = false;
-                indicator.select();
             });
             indicator.addEventListener("blur", () => {
                 commitIndicatorValue();
