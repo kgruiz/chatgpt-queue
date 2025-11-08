@@ -33,6 +33,135 @@
         : "Ctrl+Shift+P";
     const PAUSE_SHORTCUT_DISPLAY = isApplePlatform ? "⌘⇧P" : "Ctrl+Shift+P";
 
+    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue";
+    const KEYBOARD_SHORTCUT_ENTRIES = [
+        {
+            id: "queue-add",
+            label: "Queue current input",
+            macKeys: ["option", "enter"],
+            otherKeys: ["alt", "enter"],
+        },
+        {
+            id: "queue-hold",
+            label: "Queue input & pause",
+            macKeys: ["option", "command", "enter"],
+            otherKeys: ["alt", "control", "enter"],
+        },
+        {
+            id: "queue-pause",
+            label: "Pause/resume queue",
+            macKeys: ["shift", "command", "p"],
+            otherKeys: ["shift", "control", "p"],
+        },
+    ];
+
+    const KEY_DISPLAY_MAP = {
+        option: { glyph: "⌥", aria: "Option" },
+        command: { glyph: "⌘", aria: "Command" },
+        meta: { glyph: "⌘", aria: "Command" },
+        shift: { glyph: "⇧", aria: "Shift" },
+        control: { glyph: "Ctrl", aria: "Control" },
+        ctrl: { glyph: "Ctrl", aria: "Control" },
+        alt: { glyph: "Alt", aria: "Alt" },
+        enter: { glyph: "↩", aria: "Enter" },
+        return: { glyph: "↩", aria: "Return" },
+        p: { glyph: "P", aria: "P" },
+        period: { glyph: ".", aria: "Period" },
+    };
+
+    const resolveShortcutKeys = (entry) => {
+        const keys = isApplePlatform ? entry.macKeys : entry.otherKeys;
+        return Array.isArray(keys) && keys.length ? [...keys] : [];
+    };
+
+    const resolveKeyDisplay = (token) => {
+        if (typeof token !== "string") {
+            return { glyph: "?", aria: "Key" };
+        }
+        const normalized = token.toLowerCase();
+        if (KEY_DISPLAY_MAP[normalized]) {
+            return KEY_DISPLAY_MAP[normalized];
+        }
+        const label = token.length === 1 ? token.toUpperCase() : token;
+        return { glyph: label, aria: label };
+    };
+
+    function buildShortcutKeyGroup(tokens) {
+        const wrapper = document.createElement("div");
+        wrapper.className =
+            "inline-flex whitespace-pre *:inline-flex *:font-sans";
+        tokens.forEach((token) => {
+            const { glyph, aria } = resolveKeyDisplay(token);
+            const kbd = document.createElement("kbd");
+            if (aria) kbd.setAttribute("aria-label", aria);
+            const span = document.createElement("span");
+            span.className = "min-w-[1em]";
+            span.textContent = glyph;
+            kbd.appendChild(span);
+            wrapper.appendChild(kbd);
+        });
+        return wrapper;
+    }
+
+    function injectQueueShortcutsIntoList(list) {
+        if (!(list instanceof HTMLDListElement)) return;
+        const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
+            id: entry.id,
+            label: entry.label,
+            keys: resolveShortcutKeys(entry),
+        })).filter((entry) => entry.keys.length > 0);
+        if (!shortcuts.length) return;
+        list.querySelectorAll('[data-cq-shortcut-origin="queue"]').forEach((node) => {
+            node.remove();
+        });
+        const fragment = document.createDocumentFragment();
+        const heading = document.createElement("dt");
+        heading.className =
+            "text-token-text-tertiary col-span-2 mt-2 empty:hidden";
+        heading.dataset.cqShortcutOrigin = "queue";
+        heading.textContent = KEYBOARD_SHORTCUT_SECTION_LABEL;
+        fragment.appendChild(heading);
+        shortcuts.forEach((shortcut) => {
+            const dt = document.createElement("dt");
+            dt.dataset.cqShortcutOrigin = "queue";
+            dt.textContent = shortcut.label;
+            fragment.appendChild(dt);
+            const dd = document.createElement("dd");
+            dd.dataset.cqShortcutOrigin = "queue";
+            dd.className = "text-token-text-secondary justify-self-end";
+            dd.appendChild(buildShortcutKeyGroup(shortcut.keys));
+            fragment.appendChild(dd);
+        });
+        list.appendChild(fragment);
+    }
+
+    function findShortcutListFromHeading(heading) {
+        let current = heading?.parentElement || null;
+        while (current && current !== document.body) {
+            const list = current.querySelector?.("dl");
+            if (list instanceof HTMLDListElement) {
+                return list;
+            }
+            current = current.parentElement;
+        }
+        return null;
+    }
+
+    function refreshKeyboardShortcutPopover() {
+        const seen = new Set();
+        const headings = document.querySelectorAll("h2");
+        headings.forEach((heading) => {
+            if (!(heading instanceof HTMLElement)) return;
+            const label = heading.textContent?.trim().toLowerCase();
+            if (label !== "keyboard shortcuts") return;
+            const list = findShortcutListFromHeading(heading);
+            if (list && !seen.has(list)) {
+                seen.add(list);
+                injectQueueShortcutsIntoList(list);
+            }
+        });
+    }
+
     const makeId = () =>
         `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -2275,6 +2404,7 @@
     const rootObserver = new MutationObserver(() => {
         scheduleControlRefresh();
         ensureMounted();
+        refreshKeyboardShortcutPopover();
     });
     rootObserver.observe(document.documentElement, {
         subtree: true,
@@ -2282,6 +2412,7 @@
     });
 
     ensureMounted();
+    refreshKeyboardShortcutPopover();
     refreshVisibility();
     load()
         .then(() => ensureModelOptions())
