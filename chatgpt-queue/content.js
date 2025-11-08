@@ -34,6 +34,7 @@
     const PAUSE_SHORTCUT_DISPLAY = isApplePlatform ? "⌘⇧P" : "Ctrl+Shift+P";
 
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue";
+    const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
     const KEYBOARD_SHORTCUT_ENTRIES = [
         {
             id: "queue-add",
@@ -159,6 +160,12 @@
                 seen.add(list);
                 injectQueueShortcutsIntoList(list);
             }
+        });
+    }
+
+    function scheduleShortcutPopoverRefreshBurst() {
+        SHORTCUT_POPOVER_REFRESH_DELAYS.forEach((delay) => {
+            setTimeout(() => refreshKeyboardShortcutPopover(), delay);
         });
     }
 
@@ -2367,12 +2374,31 @@
         return hasAlt && hasCtrl && !hasMeta;
     };
 
+    const matchesShortcutPopoverToggle = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (normalized !== "/" && normalized !== "?") return false;
+        if (isApplePlatform) {
+            return event.metaKey && !event.ctrlKey && !event.altKey;
+        }
+        return event.ctrlKey && !event.metaKey && !event.altKey;
+    };
+
     document.addEventListener(
         "keydown",
         (event) => {
             if (!matchesPauseShortcut(event)) return;
             event.preventDefault();
             togglePaused();
+        },
+        true,
+    );
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (!matchesShortcutPopoverToggle(event)) return;
+            scheduleShortcutPopoverRefreshBurst();
         },
         true,
     );
