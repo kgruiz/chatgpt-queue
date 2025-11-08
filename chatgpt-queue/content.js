@@ -60,6 +60,36 @@
             macKeys: ["shift", "command", "."],
             otherKeys: ["shift", "control", "."],
         },
+        {
+            id: "queue-focus-prev",
+            label: "Focus previous follow-up",
+            macKeys: ["option", "arrowup"],
+            otherKeys: ["alt", "arrowup"],
+        },
+        {
+            id: "queue-focus-next",
+            label: "Focus next follow-up",
+            macKeys: ["option", "arrowdown"],
+            otherKeys: ["alt", "arrowdown"],
+        },
+        {
+            id: "queue-send-focused",
+            label: "Send focused follow-up",
+            macKeys: ["enter"],
+            otherKeys: ["enter"],
+        },
+        {
+            id: "queue-delete-focused",
+            label: "Delete focused follow-up",
+            macKeys: ["shift", "delete"],
+            otherKeys: ["shift", "delete"],
+        },
+        {
+            id: "queue-delete-focused-skip",
+            label: "Delete focused follow-up (skip confirm)",
+            macKeys: ["option", "shift", "delete"],
+            otherKeys: ["alt", "shift", "delete"],
+        },
     ];
 
     const KEY_DISPLAY_MAP = {
@@ -72,8 +102,11 @@
         alt: { glyph: "Alt", aria: "Alt" },
         enter: { glyph: "⏎", aria: "Enter" },
         return: { glyph: "⏎", aria: "Return" },
+        delete: { glyph: "Del", aria: "Delete" },
         p: { glyph: "P", aria: "P" },
         period: { glyph: ".", aria: "Period" },
+        arrowup: { glyph: "↑", aria: "Arrow Up" },
+        arrowdown: { glyph: "↓", aria: "Arrow Down" },
     };
 
     const resolveShortcutKeys = (entry) => {
