@@ -918,8 +918,7 @@
             typeof generatingOverride === "boolean"
                 ? generatingOverride
                 : isGenerating();
-        const manualSendEnabled =
-            STATE.queue.length > 0 && !STATE.busy && !STATE.paused;
+        const manualSendEnabled = STATE.queue.length > 0 && !STATE.busy;
         if (elCount) {
             elCount.textContent = String(STATE.queue.length);
         }
@@ -985,9 +984,7 @@
                 (button) => {
                     button.disabled = !manualSendEnabled;
                     if (!manualSendEnabled) {
-                        if (STATE.paused) {
-                            button.title = "Resume queue to send";
-                        } else if (STATE.busy) {
+                        if (STATE.busy) {
                             button.title = "Queue busy";
                         } else {
                             button.title = "Queue empty";
@@ -1150,19 +1147,20 @@
     }
 
     function maybeAutoDispatch(delay = 120) {
-        if (STATE.paused) {
-            cancelAutoDispatch();
-            return;
-        }
         if (pendingManualSend) {
-            if (STATE.busy || STATE.paused) return;
-            const entry = pendingManualSend.entry;
+            if (STATE.busy) return;
+            if (STATE.paused && !pendingManualSend.allowWhilePaused) return;
+            const { entry, allowWhilePaused } = pendingManualSend;
             pendingManualSend = null;
             const index = STATE.queue.indexOf(entry);
             if (index !== -1) {
-                void sendFromQueue(index);
+                void sendFromQueue(index, { allowWhilePaused: !!allowWhilePaused });
                 return;
             }
+        }
+        if (STATE.paused) {
+            cancelAutoDispatch();
+            return;
         }
         if (!shouldAutoDispatch()) {
             cancelAutoDispatch();
@@ -1187,17 +1185,18 @@
 
     function requestSend(index, { manual = false } = {}) {
         if (!Number.isInteger(index) || index < 0) return;
-        if (STATE.paused) return;
+        const allowWhilePaused = !!manual;
+        if (STATE.paused && !allowWhilePaused) return;
         const entry = STATE.queue[index];
         if (!entry) return;
         if (manual && STATE.busy) {
-            pendingManualSend = { entry };
+            pendingManualSend = { entry, allowWhilePaused };
             cancelAutoDispatch();
             if (isGenerating()) clickStop();
             scheduleControlRefresh();
             return;
         }
-        void sendFromQueue(index);
+        void sendFromQueue(index, { allowWhilePaused });
     }
     function ensureMounted() {
         const root = composer();
@@ -1785,9 +1784,9 @@
         return false;
     }
 
-    async function sendFromQueue(index) {
+    async function sendFromQueue(index, { allowWhilePaused = false } = {}) {
         if (STATE.busy) return false;
-        if (STATE.paused) return false;
+        if (STATE.paused && !allowWhilePaused) return false;
         if (STATE.queue.length === 0) return false;
 
         // Stop any ongoing generation first
