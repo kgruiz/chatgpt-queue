@@ -1378,8 +1378,12 @@
             queueBtn.title = "Add to queue";
             queueBtn.innerHTML = `
         <span class="cq-composer-queue-btn__icon" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor">
-            <path d="M120-320v-80h280v80H120Zm0-160v-80h440v80H120Zm0-160v-80h440v80H120Zm520 480v-160H480v-80h160v-160h80v160h160v80H720v160h-80Z" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="6" width="14" height="2" rx="1"></rect>
+            <rect x="3" y="11" width="14" height="2" rx="1"></rect>
+            <rect x="3" y="16" width="10" height="2" rx="1"></rect>
+            <rect x="16" y="14" width="2" height="6" rx="1"></rect>
+            <rect x="14" y="16" width="6" height="2" rx="1"></rect>
           </svg>
         </span>`;
             queueBtn.addEventListener("click", (event) => {
