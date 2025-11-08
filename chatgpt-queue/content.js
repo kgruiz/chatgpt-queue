@@ -1570,12 +1570,29 @@
             indicator.draggable = false;
 
             let indicatorCommitLocked = false;
-            const resetIndicator = () => {
-                indicator.value = String(index + 1);
+            const storeOriginalValue = () => {
+                indicator.dataset.originalValue = String(index + 1);
             };
+            storeOriginalValue();
+
+            const getOriginalValue = () =>
+                indicator.dataset.originalValue || String(index + 1);
+
+            const clearPrefill = () => {
+                indicator.removeAttribute("data-prefill");
+            };
+
+            const resetIndicator = () => {
+                indicator.value = getOriginalValue();
+                clearPrefill();
+            };
+
+            const hasDigits = () => indicator.value.trim().length > 0;
+
             const commitIndicatorValue = () => {
                 if (indicatorCommitLocked) return;
                 indicatorCommitLocked = true;
+                clearPrefill();
                 const numericValue = Number.parseInt(
                     indicator.value.trim(),
                     10,
@@ -1594,56 +1611,82 @@
                 }
                 moveItem(index, targetIndex);
             };
-            const clearPrefill = () => {
-                delete indicator.dataset.prefill;
-            };
 
             indicator.addEventListener("focus", () => {
                 indicatorCommitLocked = false;
+                storeOriginalValue();
                 indicator.dataset.prefill = "true";
+                indicator.value = "";
             });
             indicator.addEventListener("blur", () => {
-                clearPrefill();
+                if (!hasDigits()) {
+                    resetIndicator();
+                    return;
+                }
                 commitIndicatorValue();
             });
             indicator.addEventListener("keydown", (event) => {
-                if (indicator.dataset.prefill === "true") {
-                    if (/^\d$/.test(event.key)) {
-                        event.preventDefault();
-                        indicator.value = event.key;
-                        const pos = indicator.value.length;
-                        indicator.setSelectionRange(pos, pos);
-                        clearPrefill();
-                        return;
-                    }
-                    if (event.key === "Backspace" || event.key === "Delete") {
-                        event.preventDefault();
-                        indicator.value = "";
-                        clearPrefill();
-                        return;
-                    }
-                }
+                const allowControlKeys = [
+                    "Backspace",
+                    "Delete",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "ArrowUp",
+                    "ArrowDown",
+                    "Tab",
+                    "Home",
+                    "End",
+                ];
                 if (event.key === "Enter") {
                     event.preventDefault();
-                    commitIndicatorValue();
+                    if (!hasDigits()) {
+                        resetIndicator();
+                    } else {
+                        commitIndicatorValue();
+                    }
                     indicator.blur();
-                } else if (event.key === "Escape") {
+                    return;
+                }
+                if (event.key === "Escape") {
                     event.preventDefault();
                     resetIndicator();
-                    clearPrefill();
                     indicator.blur();
+                    return;
+                }
+                if (allowControlKeys.includes(event.key)) {
+                    if (event.key === "Backspace" || event.key === "Delete") {
+                        if (!hasDigits()) {
+                            indicator.value = "";
+                        }
+                    }
+                    return;
+                }
+                if (event.metaKey || event.ctrlKey || event.altKey) {
+                    return;
+                }
+                if (event.key.length === 1 && !/\d/.test(event.key)) {
+                    event.preventDefault();
+                }
+            });
+            indicator.addEventListener("input", () => {
+                const digits = indicator.value.replace(/[^0-9]/g, "");
+                if (indicator.value !== digits) {
+                    indicator.value = digits;
+                }
+                if (digits.length > 0) {
+                    clearPrefill();
                 }
             });
             indicator.addEventListener("paste", (event) => {
-                if (indicator.dataset.prefill !== "true") return;
                 const text = event.clipboardData?.getData("text") || "";
                 if (!text) return;
                 const digits = text.replace(/[^0-9]/g, "");
-                if (!digits) return;
+                if (!digits) {
+                    event.preventDefault();
+                    return;
+                }
                 event.preventDefault();
                 indicator.value = digits;
-                const pos = indicator.value.length;
-                indicator.setSelectionRange(pos, pos);
                 clearPrefill();
             });
             indicator.addEventListener("dragstart", (event) => {

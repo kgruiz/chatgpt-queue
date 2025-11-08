@@ -540,6 +540,10 @@
     box-shadow 0.15s ease;
 }
 
+#cq-ui .cq-row-indicator[data-prefill="true"] {
+  caret-color: transparent;
+}
+
 #cq-ui .cq-row-indicator:focus,
 #cq-ui .cq-row-indicator:active {
   user-select: text;
