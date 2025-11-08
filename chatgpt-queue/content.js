@@ -1584,6 +1584,7 @@
             const index = STATE.queue.length - 1 - reversedIndex;
             const row = document.createElement("div");
             row.className = "cq-row";
+            row.classList.add("shadow-short");
             row.dataset.index = String(index);
             if (index === STATE.queue.length - 1)
                 row.classList.add("cq-row--next");

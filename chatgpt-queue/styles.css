@@ -72,6 +72,16 @@
   display: none !important;
 }
 
+#cq-ui .shadow-short {
+  --tw-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.1),
+    inset 0px 0px 1px 0px rgba(255, 255, 255, 0.2);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000),
+    var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+
 #cq-ui .cq-shell {
   width: 100%;
   max-width: min(100%, var(--thread-content-max-width, 48rem));
@@ -448,8 +458,6 @@
   padding: 0.625rem;
   border-radius: 28px;
   background-color: #303030;
-  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.1),
-    inset 0px 0px 1px 0px rgba(255, 255, 255, 0.2);
   box-sizing: border-box;
   color: #fff;
   color-scheme: dark;
