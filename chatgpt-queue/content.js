@@ -814,6 +814,7 @@
     const elState = $("#cq-state");
     const list = $("#cq-list");
     const collapseToggle = $("#cq-collapse-toggle");
+    const inlineHeader = $(".cq-inline-header");
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
     const pauseShortcut = $("#cq-pause-shortcut");
@@ -1585,6 +1586,13 @@
     if (collapseToggle) {
         collapseToggle.addEventListener("click", (event) => {
             event.preventDefault();
+            setCollapsed(!STATE.collapsed);
+        });
+    }
+
+    if (inlineHeader) {
+        inlineHeader.addEventListener("click", (event) => {
+            if (event.target !== inlineHeader) return;
             setCollapsed(!STATE.collapsed);
         });
     }
