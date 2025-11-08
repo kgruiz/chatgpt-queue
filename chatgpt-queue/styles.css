@@ -88,7 +88,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   box-sizing: border-box;
 }
 
@@ -118,7 +118,7 @@
   justify-content: space-between;
   gap: 12px;
   background: var(--bg-body);
-  padding: 2px 0 0;
+  padding: 12px 0;
   margin-bottom: 0;
   position: sticky;
   top: 0;
@@ -434,6 +434,12 @@
   overflow-y: auto;
   overflow-x: hidden;
   transition: opacity 0.2s ease;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+#cq-ui .cq-row:first-child {
+  margin-top: 0;
 }
 
 #cq-ui .cq-queue[style*="display: none"] {
