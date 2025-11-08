@@ -647,14 +647,15 @@
       <div class="cq-inline-header">
         <div class="cq-inline-meta">
           <button id="cq-collapse-toggle" class="cq-collapse-toggle" type="button" aria-label="Collapse queue" aria-expanded="true">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-              <path d="M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z"></path>
-            </svg>
+            <span class="cq-collapse-toggle__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <path d="M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z"></path>
+              </svg>
+            </span>
+            <span class="cq-label">Follow-ups</span>
           </button>
-          <span class="cq-label">Follow-ups</span>
           <span id="cq-count" class="cq-count" aria-live="polite">0</span>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
-          <span id="cq-pause-meta" class="cq-pause-meta" aria-live="polite"></span>
         </div>
         <div class="cq-inline-actions">
           <button id="cq-pause-toggle" class="cq-pause-toggle" type="button" aria-pressed="false" aria-label="Pause queue" data-state="active">
@@ -682,8 +683,6 @@
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
     const pauseShortcut = $("#cq-pause-shortcut");
-    const pauseMeta = $("#cq-pause-meta");
-    if (pauseMeta) pauseMeta.hidden = true;
     ui.setAttribute("aria-hidden", "true");
 
     let saveTimer;
@@ -931,11 +930,6 @@
             }
             elState.textContent = status;
         }
-        if (pauseMeta) {
-            const metaText = pauseMetaText();
-            pauseMeta.textContent = metaText;
-            pauseMeta.hidden = !STATE.paused || !metaText;
-        }
         if (!composerQueueButton || !composerQueueButton.isConnected) {
             composerQueueButton = null;
         }
@@ -1035,38 +1029,6 @@
 
     const normalizePauseReason = (value) =>
         typeof value === "string" ? value.trim() : "";
-
-    const formatPauseTime = (timestamp) => {
-        if (typeof timestamp !== "number" || Number.isNaN(timestamp))
-            return "";
-        try {
-            return new Intl.DateTimeFormat(undefined, {
-                hour: "numeric",
-                minute: "2-digit",
-            }).format(new Date(timestamp));
-        } catch (_) {
-            try {
-                return new Date(timestamp).toLocaleTimeString();
-            } catch (_) {
-                return "";
-            }
-        }
-    };
-
-    function pauseMetaText() {
-        if (!STATE.paused) return "";
-        const parts = [];
-        const timeText = formatPauseTime(STATE.pausedAt);
-        if (timeText) {
-            parts.push(`Paused ${timeText}`);
-        } else {
-            parts.push("Paused");
-        }
-        if (STATE.pauseReason) {
-            parts.push(`— ${STATE.pauseReason}`);
-        }
-        return parts.join(" ");
-    }
 
     function setPaused(next, { reason } = {}) {
         const target = !!next;
