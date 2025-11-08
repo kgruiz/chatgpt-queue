@@ -446,7 +446,7 @@
   padding: 18px 20px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--bg-elevated);
+  background: #303030;
   box-shadow: var(--shadow-1);
   transition: border-color 0.15s ease, box-shadow 0.15s ease,
     transform 0.15s ease;
