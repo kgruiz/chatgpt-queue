@@ -580,6 +580,10 @@
       rgba(255, 255, 255, 0.08)
     );
   }
+
+  #cq-ui .cq-row .cq-row-actions .cq-icon-btn--delete:hover {
+    background-color: #e02e2a23;
+  }
 }
 
 #cq-ui .cq-icon-btn {
