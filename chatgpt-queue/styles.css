@@ -81,7 +81,8 @@
     var(--tw-ring-offset-shadow, 0 0 #0000),
     var(--tw-ring-shadow, 0 0 #0000),
     var(--tw-shadow);
-  box-shadow: var(--cq-row-shadow-base);
+  --cq-row-shadow-accent: 0 0 #0000;
+  box-shadow: var(--cq-row-shadow-base), var(--cq-row-shadow-accent);
 }
 
 #cq-ui .cq-shell {
@@ -479,10 +480,9 @@
 }
 
 #cq-ui .cq-row--next {
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: var(--cq-row-shadow-base, 0 0 #0000),
-    rgba(0, 0, 0, 0.08) 0 6px 10px 0,
-    rgba(0, 0, 0, 0.62) 0 0 1px 0;
+  border-color: rgba(255, 255, 255, 0.26);
+  --cq-row-shadow-accent: 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 18px 36px -24px rgba(16, 163, 127, 0.45);
 }
 
 #cq-ui .cq-row--dragging {
