@@ -508,15 +508,10 @@
   font-size: 12px;
   border-radius: 50%;
   transition: background-color 0.1s linear;
-}
-
-@media (hover: hover) {
-  #cq-ui .cq-row:hover .cq-row-indicator {
-    background-color: var(
-      --interactive-bg-secondary-hover,
-      rgba(255, 255, 255, 0.08)
-    );
-  }
+  background-color: var(
+    --interactive-bg-secondary-hover,
+    rgba(255, 255, 255, 0.08)
+  );
 }
 
 #cq-ui .cq-row-body {
