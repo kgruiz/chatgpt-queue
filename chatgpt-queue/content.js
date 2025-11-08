@@ -831,6 +831,29 @@
         queueLabel.textContent = formatFollowUpLabel(STATE.queue.length);
     };
 
+    const getQueueRows = () =>
+        Array.from(list?.querySelectorAll?.(".cq-row") || []);
+
+    const focusQueueRow = (row) => {
+        if (!(row instanceof HTMLElement)) return false;
+        const textarea = row.querySelector(".cq-row-text");
+        if (!(textarea instanceof HTMLTextAreaElement)) return false;
+        textarea.focus({ preventScroll: true });
+        requestAnimationFrame(() => {
+            const length = textarea.value.length;
+            textarea.setSelectionRange(length, length);
+        });
+        row.scrollIntoView({ block: "nearest" });
+        return true;
+    };
+
+    const focusComposerEditor = () => {
+        const ed = findEditor();
+        if (!ed) return false;
+        ed.focus({ preventScroll: true });
+        return true;
+    };
+
     let saveTimer;
     let hydrated = false; // gate UI visibility until persisted state is loaded
     let dragIndex = null;
@@ -2406,6 +2429,13 @@
         return event.ctrlKey && !event.metaKey && !event.altKey;
     };
 
+    const matchesQueueNavigationShortcut = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (!event.altKey) return false;
+        if (event.ctrlKey || event.metaKey || event.shiftKey) return false;
+        return event.key === "ArrowDown" || event.key === "ArrowUp";
+    };
+
     document.addEventListener(
         "keydown",
         (event) => {
@@ -2418,6 +2448,42 @@
                 event.preventDefault();
                 setCollapsed(!STATE.collapsed);
             }
+        },
+        true,
+    );
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (!matchesQueueNavigationShortcut(event)) return;
+            if (!STATE.queue.length) return;
+            const rows = getQueueRows();
+            if (!rows.length) return;
+            const activeElement = document.activeElement;
+            const composerNode = composer();
+            const activeRow =
+                activeElement instanceof HTMLElement
+                    ? activeElement.closest(".cq-row")
+                    : null;
+            const withinComposer =
+                composerNode instanceof HTMLElement &&
+                composerNode.contains(activeElement);
+            if (!activeRow && !withinComposer) return;
+            event.preventDefault();
+            const direction = event.key === "ArrowDown" ? 1 : -1;
+            if (!activeRow) {
+                const targetIndex = direction > 0 ? 0 : rows.length - 1;
+                focusQueueRow(rows[targetIndex]);
+                return;
+            }
+            const currentIndex = rows.indexOf(activeRow);
+            if (currentIndex === -1) return;
+            const nextIndex = currentIndex + direction;
+            if (nextIndex < 0 || nextIndex >= rows.length) {
+                focusComposerEditor();
+                return;
+            }
+            focusQueueRow(rows[nextIndex]);
         },
         true,
     );

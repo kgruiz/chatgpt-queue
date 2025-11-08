@@ -41,6 +41,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 | --- | --- | --- |
 | Queue current input (in composer) | Option+Enter | Alt+Enter |
 | Queue input & pause | Option+Cmd+Enter | Alt+Ctrl+Enter |
+| Focus queue items | Option+↑ / Option+↓ | Alt+↑ / Alt+↓ |
 | Expand/collapse queue list | Cmd+Shift+. | Ctrl+Shift+. |
 | Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
 | Extension shortcut default | Cmd+Shift+Y | Ctrl+Shift+Y |
@@ -54,6 +55,7 @@ Shortcuts can be customized from the browser’s extension shortcuts settings.
 - A dedicated queue composer lets you add prompts without touching the main ChatGPT input.
 - Use **Option/Alt+Enter** inside the queue composer to queue quickly; the **Queue text** button offers the same action.
 - Use the **Up** and **Down** controls to reorder items without leaving the page.
+- Press **Option/Alt+↑** or **Option/Alt+↓** from the ChatGPT composer or any queue card to move focus through follow-ups without touching the mouse.
 - Choose **Delete** on a card to drop it from the run; the panel updates immediately so you can keep an eye on what is next.
 - The first card is highlighted, making it easy to see the next prompt the extension plans to send.
 
