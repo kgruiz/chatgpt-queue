@@ -179,15 +179,15 @@
 }
 
 #cq-ui.is-running .cq-state {
-  color: color-mix(in srgb, var(--accent) 70%, white 30%);
+  color: var(--text-accent);
 }
 
 #cq-ui.is-busy .cq-state {
-  color: var(--warning);
+  color: var(--text-status-warning);
 }
 
 #cq-ui.is-paused .cq-state {
-  color: var(--danger);
+  color: var(--text-status-error);
 }
 
 #cq-ui .cq-inline-actions {
@@ -208,9 +208,9 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(217, 217, 227, 0.2);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--interactive-bg-primary-default);
+  color: var(--text-inverted);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -227,10 +227,16 @@
   outline: none;
 }
 
+#cq-ui .cq-pause-toggle:hover,
+#cq-ui .cq-pause-toggle:focus-visible {
+  background: var(--interactive-bg-primary-hover);
+  color: var(--text-inverted);
+  outline: none;
+}
+
 #cq-ui .cq-pause-toggle[data-state="paused"] {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.45);
-  color: var(--danger);
+  border-color: rgba(255, 133, 131, 0.6);
+  color: var(--text-status-error);
 }
 
 #cq-ui .cq-pause-toggle__icon {
@@ -270,12 +276,36 @@
   letter-spacing: 0.05em;
 }
 
-#cq-ui .cq-composer-queue-btn {
+#cq-ui .cq-composer-queue-btn,
+.cq-composer-hold-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding-inline: 12px;
   min-height: 36px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--interactive-bg-primary-default);
+  color: var(--text-inverted);
+  transition: background 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, transform 0.1s ease;
+}
+
+#cq-ui .cq-composer-queue-btn:hover,
+.cq-composer-hold-btn:hover {
+  background: var(--interactive-bg-primary-hover);
+}
+
+#cq-ui .cq-composer-queue-btn:active,
+.cq-composer-hold-btn:active {
+  background: var(--interactive-bg-primary-press);
+}
+
+#cq-ui .cq-composer-queue-btn:disabled,
+.cq-composer-hold-btn:disabled {
+  background: var(--interactive-bg-primary-inactive);
+  color: var(--text-tertiary);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .cq-composer-controls {
@@ -292,14 +322,6 @@
   transform: scale(0.95);
 }
 
-
-.cq-composer-hold-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: 12px;
-  min-height: 36px;
-}
 
 .cq-composer-hold-btn__icon {
   display: inline-flex;
@@ -324,9 +346,9 @@
   height: 32px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(217, 217, 227, 0.16);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--interactive-bg-primary-default);
+  color: var(--icon-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,9 +358,13 @@
 
 #cq-ui .cq-icon-button:hover,
 #cq-ui .cq-icon-button[aria-expanded="true"] {
-  color: var(--text-primary);
-  border-color: rgba(217, 217, 227, 0.3);
-  background: rgba(217, 217, 227, 0.1);
+  background: var(--interactive-bg-primary-hover);
+  color: var(--icon-accent);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#cq-ui .cq-icon-button:active {
+  background: var(--interactive-bg-primary-press);
 }
 
 #cq-ui .cq-icon-button:focus-visible {
@@ -530,14 +556,16 @@
   width: auto;
   height: auto;
   padding: 4px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--interactive-bg-primary-default);
+  color: var(--icon-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease,
+    border-color 0.15s ease, opacity 0.15s ease;
 }
 
 #cq-ui .cq-icon-btn svg {
@@ -545,11 +573,13 @@
 }
 
 #cq-ui .cq-icon-btn:hover {
-  color: var(--text-primary);
+  background: var(--interactive-bg-primary-hover);
+  color: var(--icon-accent);
 }
 
 #cq-ui .cq-icon-btn:active {
-  opacity: 0.7;
+  background: var(--interactive-bg-primary-press);
+  opacity: 1;
 }
 
 #cq-ui .cq-icon-btn:focus-visible {
@@ -557,16 +587,18 @@
 }
 
 #cq-ui .cq-icon-btn[disabled] {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: var(--interactive-bg-primary-inactive);
+  color: var(--icon-tertiary);
 }
 
 #cq-ui .cq-icon-btn--send:hover {
-  color: var(--text-primary);
+  color: var(--icon-accent);
 }
 
 #cq-ui .cq-icon-btn--delete:hover {
-  color: var(--danger);
+  color: var(--icon-status-error);
 }
 
 #cq-ui .cq-row-media {
