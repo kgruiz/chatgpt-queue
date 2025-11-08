@@ -30,7 +30,7 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 1. Visit `https://chatgpt.com` or `https://chat.openai.com`.
 2. Type a prompt in the ChatGPT composer. Use **Option+Enter** (macOS) or **Alt+Enter** (Windows/Linux) to move the text into the queue. You can also click **Add from input**.
 3. Alternatively, compose prompts directly in the queue panel using the inline text area and click **Queue text** (or press the same shortcut) to stage them without touching the main editor.
-4. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown.
+4. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown. Auto-dispatch only runs when the main ChatGPT composer is empty, so queue or clear any draft text/attachments before expecting the next follow-up to fire automatically.
 5. Use **Stop** to pause, **Send next** for a single dispatch, and **Clear** to empty the queue.
 6. Manage queued items directly in the panel—edit text inline, move items with **Up**/**Down**, or remove them entirely.
 7. Collapse the panel with **Hide** to reveal a compact dock button; click the dock to reopen the queue when you need it again.
