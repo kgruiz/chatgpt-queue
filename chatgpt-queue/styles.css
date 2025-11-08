@@ -440,7 +440,7 @@
 #cq-ui .cq-row {
   position: relative;
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 36px minmax(0, 1fr) 120px;
   grid-template-areas: "leading primary trailing";
   align-items: center;
   width: 100%;
@@ -450,14 +450,20 @@
   border: 0 solid rgba(255, 255, 255, 0.05);
   background: #303030;
   background-clip: padding-box;
-  box-shadow: rgba(0, 0, 0, 0.04) 0 4px 4px 0,
-    rgba(0, 0, 0, 0.62) 0 0 1px 0;
+  box-shadow: rgba(0, 0, 0, 0) 0 0 0 0,
+    rgba(0, 0, 0, 0) 0 0 0 0,
+    rgba(0, 0, 0, 0) 0 0 0 0,
+    rgba(0, 0, 0, 0) 0 0 0 0,
+    rgba(0, 0, 0, 0.1) 0 4px 12px 0,
+    rgba(255, 255, 255, 0.2) 0 0 1px 0 inset;
   box-sizing: border-box;
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 24px;
   contain: inline-size;
+  color-scheme: dark;
+  cursor: text;
   pointer-events: auto;
 }
 
