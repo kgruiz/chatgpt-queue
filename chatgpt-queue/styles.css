@@ -272,15 +272,16 @@
   transform: scale(0.95);
 }
 
-.cq-composer-pause-btn {
+.cq-composer-hold-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding-inline: 12px;
   min-height: 36px;
+  gap: 6px;
 }
 
-.cq-composer-pause-btn__icon {
+.cq-composer-hold-btn__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -288,24 +289,11 @@
   height: 18px;
 }
 
-.cq-composer-pause-btn__icon-state {
-  display: none;
-}
-
-.cq-composer-pause-btn__icon-state--pause {
-  display: block;
-}
-
-.cq-composer-pause-btn[data-state="paused"] .cq-composer-pause-btn__icon-state--pause {
-  display: none;
-}
-
-.cq-composer-pause-btn[data-state="paused"] .cq-composer-pause-btn__icon-state--resume {
-  display: block;
-}
-
-.cq-composer-pause-btn[data-state="paused"] {
-  color: var(--danger);
+.cq-composer-hold-btn__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
 }
 
 #cq-ui .cq-composer-queue-btn__icon {

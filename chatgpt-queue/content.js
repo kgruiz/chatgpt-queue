@@ -340,7 +340,7 @@
     let modelsPromise = null;
     let composerControlGroup = null;
     let composerQueueButton = null;
-    let composerPauseButton = null;
+    let composerHoldButton = null;
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -940,27 +940,23 @@
         if (!composerQueueButton || !composerQueueButton.isConnected) {
             composerQueueButton = null;
         }
-        if (!composerPauseButton || !composerPauseButton.isConnected) {
-            composerPauseButton = null;
+        if (!composerHoldButton || !composerHoldButton.isConnected) {
+            composerHoldButton = null;
         }
         ensureComposerControls();
-        if (composerQueueButton) {
-            composerQueueButton.disabled = !hasComposerPrompt();
-            composerQueueButton.title = "Add to queue";
+        const promptHasContent = hasComposerPrompt();
+        const hasQueueItems = STATE.queue.length > 0;
+        const showComposerGroup = !promptHasContent || !hasQueueItems;
+        if (composerControlGroup) {
+            composerControlGroup.hidden = false;
         }
-        if (composerPauseButton) {
-            composerPauseButton.dataset.state = STATE.paused
-                ? "paused"
-                : "active";
-            composerPauseButton.setAttribute(
-                "aria-pressed",
-                STATE.paused ? "true" : "false",
-            );
-            composerPauseButton.setAttribute(
-                "aria-label",
-                STATE.paused ? "Resume queue" : "Pause queue",
-            );
-            composerPauseButton.title = `${STATE.paused ? "Resume" : "Pause"} queue (${PAUSE_SHORTCUT_LABEL})`;
+        if (composerQueueButton) {
+            composerQueueButton.disabled = !promptHasContent;
+        }
+        if (composerHoldButton) {
+            const showHold = promptHasContent && !hasQueueItems;
+            composerHoldButton.hidden = !showHold;
+            composerHoldButton.disabled = !promptHasContent;
         }
         if (pauseToggle) {
             pauseToggle.dataset.state = STATE.paused ? "paused" : "active";
@@ -1368,6 +1364,7 @@
             composerControlGroup = document.createElement("div");
             composerControlGroup.id = "cq-composer-controls";
             composerControlGroup.className = "cq-composer-controls";
+            composerControlGroup.hidden = true;
         }
 
         if (!composerQueueButton) {
@@ -1385,39 +1382,32 @@
             <path d="M120-320v-80h280v80H120Zm0-160v-80h440v80H120Zm0-160v-80h440v80H120Zm520 480v-160H480v-80h160v-160h80v160h160v80H720v160h-80Z" />
           </svg>
         </span>`;
-            queueBtn.addEventListener("click", async (event) => {
+            queueBtn.addEventListener("click", (event) => {
                 event.preventDefault();
-                const added = await queueComposerInput();
-                if (!added) {
-                    const editor = findEditor();
-                    editor?.focus?.({ preventScroll: true });
-                }
-                scheduleControlRefresh();
+                queueFromComposer();
             });
             composerQueueButton = queueBtn;
         }
 
-        if (!composerPauseButton) {
+        if (!composerHoldButton) {
             const pauseBtn = document.createElement("button");
             pauseBtn.type = "button";
-            pauseBtn.id = "cq-composer-pause-btn";
-            pauseBtn.className = "cq-composer-pause-btn";
-            pauseBtn.setAttribute("aria-pressed", "false");
-            pauseBtn.setAttribute("aria-label", "Pause queue");
+            pauseBtn.id = "cq-composer-hold-btn";
+            pauseBtn.className = "cq-composer-hold-btn";
+            pauseBtn.setAttribute("aria-label", "Add to queue and pause queue");
             pauseBtn.innerHTML = `
-        <span class="cq-composer-pause-btn__icon" aria-hidden="true">
-          <svg class="cq-composer-pause-btn__icon-state cq-composer-pause-btn__icon-state--pause" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <span class="cq-composer-hold-btn__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
             <path d="M5 3.25C4.58579 3.25 4.25 3.58579 4.25 4V12C4.25 12.4142 4.58579 12.75 5 12.75H6.5C6.91421 12.75 7.25 12.4142 7.25 12V4C7.25 3.58579 6.91421 3.25 6.5 3.25H5ZM9.5 3.25C9.08579 3.25 8.75 3.58579 8.75 4V12C8.75 12.4142 9.08579 12.75 9.5 12.75H11C11.4142 12.75 11.75 12.4142 11.75 12V4C11.75 3.58579 11.4142 3.25 11 3.25H9.5Z"></path>
           </svg>
-          <svg class="cq-composer-pause-btn__icon-state cq-composer-pause-btn__icon-state--resume" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
-            <path d="M4.5 3.5C4.5 3.08579 4.83579 2.75 5.25 2.75C5.37798 2.75 5.50362 2.78404 5.61394 2.84837L12.1139 6.34837C12.4517 6.54208 12.5663 6.97906 12.3726 7.3169C12.3077 7.42946 12.2139 7.52332 12.1013 7.58826L5.60134 11.3383C5.2645 11.532 4.82752 11.4174 4.63381 11.0805C4.56948 10.9702 4.53544 10.8446 4.53544 10.7166V3.5H4.5Z"></path>
-          </svg>
-        </span>`;
+        </span>
+        <span class="cq-composer-hold-btn__label">Add & hold</span>`;
             pauseBtn.addEventListener("click", (event) => {
                 event.preventDefault();
-                togglePaused();
+                queueFromComposer({ hold: true });
             });
-            composerPauseButton = pauseBtn;
+            pauseBtn.hidden = true;
+            composerHoldButton = pauseBtn;
         }
 
         const classSource =
@@ -1426,14 +1416,13 @@
             (anchor instanceof HTMLElement ? anchor : null);
         const sharedClasses = deriveQueueButtonClasses(classSource);
         composerQueueButton.className = sharedClasses;
-        composerPauseButton.className = sharedClasses;
-        composerPauseButton.classList.add("cq-composer-pause-btn");
+        composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
         if (!composerControlGroup.contains(composerQueueButton)) {
             composerControlGroup.appendChild(composerQueueButton);
         }
-        if (!composerControlGroup.contains(composerPauseButton)) {
-            composerControlGroup.appendChild(composerPauseButton);
+        if (!composerControlGroup.contains(composerHoldButton)) {
+            composerControlGroup.appendChild(composerHoldButton);
         }
 
         try {
@@ -1484,6 +1473,7 @@
             togglePaused();
         });
     }
+
 
     function addAttachmentsToEntry(index, attachments) {
         if (!Array.isArray(attachments) || attachments.length === 0) return;
@@ -1956,6 +1946,13 @@
         });
         ed.focus?.({ preventScroll: true });
         scheduleControlRefresh();
+        return true;
+    }
+
+    async function queueFromComposer({ hold = false } = {}) {
+        const added = await queueComposerInput();
+        if (!added) return false;
+        if (hold) setPaused(true);
         return true;
     }
 
