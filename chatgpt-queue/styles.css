@@ -123,6 +123,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  user-select: none;
 }
 
 #cq-ui .cq-inline-header.is-collapsed {
@@ -140,7 +141,7 @@
   min-height: 32px;
   padding: 4px 12px;
   border-radius: var(--radius-pill);
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   display: inline-flex;
@@ -148,13 +149,16 @@
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, transform 0.2s ease;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.2s ease,
+    border-color 0.15s ease, box-shadow 0.2s ease;
   flex-shrink: 0;
 }
 
 #cq-ui .cq-collapse-toggle:hover {
   color: var(--text-primary);
-  background: rgba(217, 217, 227, 0.1);
+  background: rgba(217, 217, 227, 0.14);
+  border-color: rgba(217, 217, 227, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 #cq-ui .cq-collapse-toggle:focus-visible {
@@ -531,8 +535,14 @@
   appearance: none;
   text-align: center;
   caret-color: var(--text-primary);
+  user-select: none;
   transition: border-color 0.15s ease, background 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+#cq-ui .cq-row-indicator:focus,
+#cq-ui .cq-row-indicator:active {
+  user-select: text;
 }
 
 #cq-ui .cq-row-indicator:focus-visible {
