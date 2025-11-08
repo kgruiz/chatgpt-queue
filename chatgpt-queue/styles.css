@@ -12,9 +12,29 @@
   --bg-hover: rgba(217, 217, 227, 0.12);
   --bg-muted: rgba(217, 217, 227, 0.06);
 
-  --text-primary: #ececf1;
-  --text-secondary: #d9d9e3;
-  --text-tertiary: #8e8ea0;
+  --text-primary: #fff;
+  --text-secondary: #f3f3f3;
+  --text-tertiary: #afafaf;
+  --text-inverted: #0d0d0d;
+  --text-inverted-static: #fff;
+  --text-accent: #66b5ff;
+  --text-status-warning: #ff9e6c;
+  --text-status-error: #ff8583;
+
+  --icon-primary: #e8e8e8;
+  --icon-secondary: #cdcdcd;
+  --icon-tertiary: #afafaf;
+  --icon-inverted: #0d0d0d;
+  --icon-inverted-static: #fff;
+  --icon-accent: #66b5ff;
+  --icon-status-warning: #ff9e6c;
+  --icon-status-error: #ff8583;
+
+  --interactive-bg-primary-default: #fff;
+  --interactive-bg-primary-hover: #fffc;
+  --interactive-bg-primary-press: #ffffffe5;
+  --interactive-bg-primary-inactive: #fff;
+  --interactive-bg-primary-selected: #fff;
 
   --accent: #10a37f;
   --accent-strong: #19c37d;
