@@ -51,6 +51,7 @@
   --shadow-1: 0 6px 18px rgba(0, 0, 0, 0.35);
   --shadow-2: 0 18px 34px rgba(0, 0, 0, 0.5);
   --ring: 0 0 0 2px rgba(217, 217, 227, 0.4);
+  --queue-shadow-bleed: 14px;
 }
 
 #cq-ui {
@@ -423,6 +424,7 @@
 }
 
 #cq-ui .cq-queue {
+  --queue-shadow-bleed-padding: var(--queue-shadow-bleed);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -434,6 +436,8 @@
   transition: max-height 0.25s ease, opacity 0.25s ease;
   margin-top: 0;
   padding-top: 0;
+  padding-bottom: var(--queue-shadow-bleed-padding);
+  margin-bottom: calc(var(--queue-shadow-bleed-padding) * -1);
 }
 
 #cq-ui .cq-row:first-child {
@@ -441,6 +445,7 @@
 }
 
 #cq-ui .cq-queue.is-collapsed {
+  --queue-shadow-bleed-padding: 0px;
   max-height: 0;
   opacity: 0;
   overflow: hidden;
