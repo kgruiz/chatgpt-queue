@@ -1603,7 +1603,7 @@
             textarea.placeholder = "Empty follow-up";
             textarea.spellcheck = true;
             textarea.draggable = false;
-            autoSize(textarea);
+            textarea.rows = 1;
             textarea.addEventListener("input", () => {
                 STATE.queue[index].text = textarea.value;
                 autoSize(textarea);
@@ -1672,6 +1672,7 @@
 
             row.appendChild(actions);
             list.appendChild(row);
+            autoSize(textarea);
         });
     }
 
