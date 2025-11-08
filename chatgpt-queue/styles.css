@@ -258,6 +258,11 @@
   min-height: 36px;
 }
 
+#cq-ui .cq-composer-queue-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 #cq-ui .cq-composer-queue-btn__icon {
   display: inline-flex;
   align-items: center;

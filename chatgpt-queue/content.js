@@ -940,7 +940,15 @@
             ensureComposerQueueButton();
         }
         if (composerQueueButton) {
-            composerQueueButton.disabled = !hasComposerPrompt();
+            const addDisabled = !hasComposerPrompt();
+            composerQueueButton.dataset.disabled = addDisabled
+                ? "true"
+                : "false";
+            composerQueueButton.setAttribute(
+                "aria-disabled",
+                addDisabled ? "true" : "false",
+            );
+            composerQueueButton.classList.toggle("is-disabled", addDisabled);
             const contextHint = STATE.paused ? "resume" : "pause";
             composerQueueButton.title = `Add to queue (right-click to ${contextHint} queue)`;
         }
@@ -1365,6 +1373,11 @@
         </span>`;
             button.addEventListener("click", async (event) => {
                 event.preventDefault();
+                if (button.dataset.disabled === "true") {
+                    const editor = findEditor();
+                    editor?.focus?.({ preventScroll: true });
+                    return;
+                }
                 const added = await queueComposerInput();
                 if (!added) {
                     const editor = findEditor();
@@ -1372,10 +1385,16 @@
                 }
                 scheduleControlRefresh();
             });
-            button.addEventListener("contextmenu", (event) => {
-                event.preventDefault();
-                togglePaused();
-            });
+            button.addEventListener(
+                "contextmenu",
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                    togglePaused();
+                },
+                true,
+            );
         }
         const classSource =
             (sendButton instanceof HTMLElement && sendButton) ||
