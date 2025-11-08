@@ -1112,9 +1112,6 @@
                 ? "Resume queue"
                 : "Pause queue";
         }
-        if (pauseShortcut) {
-            pauseShortcut.textContent = PAUSE_SHORTCUT_DISPLAY;
-        }
         ui.classList.toggle("is-busy", STATE.busy);
         ui.classList.toggle("is-paused", STATE.paused);
         if (list) {
