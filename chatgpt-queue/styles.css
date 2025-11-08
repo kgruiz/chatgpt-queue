@@ -88,7 +88,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   box-sizing: border-box;
 }
 
@@ -472,6 +472,10 @@
   pointer-events: auto;
   margin-bottom: 12px;
   min-height: 56px;
+}
+
+#cq-ui .cq-row:last-child {
+  margin-bottom: 0;
 }
 
 #cq-ui .cq-row--next {
