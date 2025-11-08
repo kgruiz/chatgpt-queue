@@ -1431,11 +1431,11 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
-        if (!composerControlGroup.contains(composerQueueButton)) {
-            composerControlGroup.appendChild(composerQueueButton);
-        }
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
+        }
+        if (!composerControlGroup.contains(composerQueueButton)) {
+            composerControlGroup.appendChild(composerQueueButton);
         }
 
         try {
