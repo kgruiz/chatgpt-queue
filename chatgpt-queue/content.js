@@ -54,6 +54,12 @@
             macKeys: ["shift", "command", "p"],
             otherKeys: ["shift", "control", "p"],
         },
+        {
+            id: "queue-collapse",
+            label: "Toggle queue list",
+            macKeys: ["shift", "command", "."],
+            otherKeys: ["shift", "control", "."],
+        },
     ];
 
     const KEY_DISPLAY_MAP = {
@@ -2371,6 +2377,20 @@
         return event.ctrlKey && !event.metaKey;
     };
 
+    const matchesQueueToggleShortcut = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (!event.shiftKey) return false;
+        if (event.altKey) return false;
+        const key = event.key;
+        const code = event.code;
+        const isPeriodKey = key === "." || key === ">" || code === "Period";
+        if (!isPeriodKey) return false;
+        if (isApplePlatform) {
+            return event.metaKey && !event.ctrlKey;
+        }
+        return event.ctrlKey && !event.metaKey;
+    };
+
     const matchesHoldShortcut = (event) => {
         if (!event || typeof event.key !== "string") return false;
         if (event.key !== "Enter") return false;
@@ -2396,9 +2416,15 @@
     document.addEventListener(
         "keydown",
         (event) => {
-            if (!matchesPauseShortcut(event)) return;
-            event.preventDefault();
-            togglePaused();
+            if (matchesPauseShortcut(event)) {
+                event.preventDefault();
+                togglePaused();
+                return;
+            }
+            if (matchesQueueToggleShortcut(event)) {
+                event.preventDefault();
+                setCollapsed(!STATE.collapsed);
+            }
         },
         true,
     );

@@ -40,7 +40,9 @@ _For Firefox testing_: open `about:debugging`, select **This Firefox**, choose *
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
 | Queue current input (in composer) | Option+Enter | Alt+Enter |
-| Toggle queue (in composer) | Cmd+Shift+. | Ctrl+Shift+. |
+| Queue input & pause | Option+Cmd+Enter | Alt+Ctrl+Enter |
+| Expand/collapse queue list | Cmd+Shift+. | Ctrl+Shift+. |
+| Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
 | Extension shortcut default | Cmd+Shift+Y | Ctrl+Shift+Y |
 | Extension toggle default | Cmd+Shift+G | Ctrl+Shift+G |
 
