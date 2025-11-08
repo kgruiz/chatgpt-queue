@@ -338,7 +338,9 @@
     let currentModelId = null;
     let currentModelLabel = "";
     let modelsPromise = null;
+    let composerControlGroup = null;
     let composerQueueButton = null;
+    let composerPauseButton = null;
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -937,20 +939,28 @@
         }
         if (!composerQueueButton || !composerQueueButton.isConnected) {
             composerQueueButton = null;
-            ensureComposerQueueButton();
         }
+        if (!composerPauseButton || !composerPauseButton.isConnected) {
+            composerPauseButton = null;
+        }
+        ensureComposerControls();
         if (composerQueueButton) {
-            const addDisabled = !hasComposerPrompt();
-            composerQueueButton.dataset.disabled = addDisabled
-                ? "true"
-                : "false";
-            composerQueueButton.setAttribute(
-                "aria-disabled",
-                addDisabled ? "true" : "false",
+            composerQueueButton.disabled = !hasComposerPrompt();
+            composerQueueButton.title = "Add to queue";
+        }
+        if (composerPauseButton) {
+            composerPauseButton.dataset.state = STATE.paused
+                ? "paused"
+                : "active";
+            composerPauseButton.setAttribute(
+                "aria-pressed",
+                STATE.paused ? "true" : "false",
             );
-            composerQueueButton.classList.toggle("is-disabled", addDisabled);
-            const contextHint = STATE.paused ? "resume" : "pause";
-            composerQueueButton.title = `Add to queue (right-click to ${contextHint} queue)`;
+            composerPauseButton.setAttribute(
+                "aria-label",
+                STATE.paused ? "Resume queue" : "Pause queue",
+            );
+            composerPauseButton.title = `${STATE.paused ? "Resume" : "Pause"} queue (${PAUSE_SHORTCUT_LABEL})`;
         }
         if (pauseToggle) {
             pauseToggle.dataset.state = STATE.paused ? "paused" : "active";
@@ -1196,7 +1206,7 @@
     function ensureMounted() {
         const root = composer();
         if (!root) return;
-        ensureComposerQueueButton(root);
+        ensureComposerControls(root);
         ensureComposerInputListeners(root);
         let container = root.closest("#thread-bottom-container");
         if (!container) {
@@ -1298,7 +1308,7 @@
         return Array.from(baseTokens).join(" ");
     }
 
-    function ensureComposerQueueButton(rootParam) {
+    function ensureComposerControls(rootParam) {
         const root = rootParam || composer();
         if (!root) return;
         const sendButton = findSendButton(root);
@@ -1354,30 +1364,29 @@
             }
         }
         if (!(parent instanceof HTMLElement)) return;
-        let button = composerQueueButton;
-        if (button && !button.isConnected) {
-            button = null;
-            composerQueueButton = null;
+        if (!composerControlGroup || !composerControlGroup.isConnected) {
+            composerControlGroup = document.createElement("div");
+            composerControlGroup.id = "cq-composer-controls";
+            composerControlGroup.className = "cq-composer-controls";
         }
-        if (!button) {
-            button = document.createElement("button");
-            button.type = "button";
-            button.id = "cq-composer-queue-btn";
-            button.setAttribute("aria-label", "Add prompt to follow-up queue");
-            button.title = "Add to queue";
-            button.innerHTML = `
+
+        if (!composerQueueButton) {
+            const queueBtn = document.createElement("button");
+            queueBtn.type = "button";
+            queueBtn.id = "cq-composer-queue-btn";
+            queueBtn.setAttribute(
+                "aria-label",
+                "Add prompt to follow-up queue",
+            );
+            queueBtn.title = "Add to queue";
+            queueBtn.innerHTML = `
         <span class="cq-composer-queue-btn__icon" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor">
             <path d="M120-320v-80h280v80H120Zm0-160v-80h440v80H120Zm0-160v-80h440v80H120Zm520 480v-160H480v-80h160v-160h80v160h160v80H720v160h-80Z" />
           </svg>
         </span>`;
-            button.addEventListener("click", async (event) => {
+            queueBtn.addEventListener("click", async (event) => {
                 event.preventDefault();
-                if (button.dataset.disabled === "true") {
-                    const editor = findEditor();
-                    editor?.focus?.({ preventScroll: true });
-                    return;
-                }
                 const added = await queueComposerInput();
                 if (!added) {
                     const editor = findEditor();
@@ -1385,42 +1394,67 @@
                 }
                 scheduleControlRefresh();
             });
-            button.addEventListener(
-                "contextmenu",
-                (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    event.stopImmediatePropagation();
-                    togglePaused();
-                },
-                true,
-            );
+            composerQueueButton = queueBtn;
         }
+
+        if (!composerPauseButton) {
+            const pauseBtn = document.createElement("button");
+            pauseBtn.type = "button";
+            pauseBtn.id = "cq-composer-pause-btn";
+            pauseBtn.className = "cq-composer-pause-btn";
+            pauseBtn.setAttribute("aria-pressed", "false");
+            pauseBtn.setAttribute("aria-label", "Pause queue");
+            pauseBtn.innerHTML = `
+        <span class="cq-composer-pause-btn__icon" aria-hidden="true">
+          <svg class="cq-composer-pause-btn__icon-state cq-composer-pause-btn__icon-state--pause" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <path d="M5 3.25C4.58579 3.25 4.25 3.58579 4.25 4V12C4.25 12.4142 4.58579 12.75 5 12.75H6.5C6.91421 12.75 7.25 12.4142 7.25 12V4C7.25 3.58579 6.91421 3.25 6.5 3.25H5ZM9.5 3.25C9.08579 3.25 8.75 3.58579 8.75 4V12C8.75 12.4142 9.08579 12.75 9.5 12.75H11C11.4142 12.75 11.75 12.4142 11.75 12V4C11.75 3.58579 11.4142 3.25 11 3.25H9.5Z"></path>
+          </svg>
+          <svg class="cq-composer-pause-btn__icon-state cq-composer-pause-btn__icon-state--resume" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <path d="M4.5 3.5C4.5 3.08579 4.83579 2.75 5.25 2.75C5.37798 2.75 5.50362 2.78404 5.61394 2.84837L12.1139 6.34837C12.4517 6.54208 12.5663 6.97906 12.3726 7.3169C12.3077 7.42946 12.2139 7.52332 12.1013 7.58826L5.60134 11.3383C5.2645 11.532 4.82752 11.4174 4.63381 11.0805C4.56948 10.9702 4.53544 10.8446 4.53544 10.7166V3.5H4.5Z"></path>
+          </svg>
+        </span>`;
+            pauseBtn.addEventListener("click", (event) => {
+                event.preventDefault();
+                togglePaused();
+            });
+            composerPauseButton = pauseBtn;
+        }
+
         const classSource =
             (sendButton instanceof HTMLElement && sendButton) ||
             (voiceButton instanceof HTMLElement && voiceButton) ||
             (anchor instanceof HTMLElement ? anchor : null);
-        button.className = deriveQueueButtonClasses(classSource);
+        const sharedClasses = deriveQueueButtonClasses(classSource);
+        composerQueueButton.className = sharedClasses;
+        composerPauseButton.className = sharedClasses;
+        composerPauseButton.classList.add("cq-composer-pause-btn");
+
+        if (!composerControlGroup.contains(composerQueueButton)) {
+            composerControlGroup.appendChild(composerQueueButton);
+        }
+        if (!composerControlGroup.contains(composerPauseButton)) {
+            composerControlGroup.appendChild(composerPauseButton);
+        }
+
         try {
             if (
-                button.parentElement !== parent ||
+                composerControlGroup.parentElement !== parent ||
                 (anchor instanceof HTMLElement &&
-                    button.nextElementSibling !== anchor)
+                    composerControlGroup.nextElementSibling !== anchor)
             ) {
                 if (anchor instanceof HTMLElement && parent.contains(anchor)) {
-                    parent.insertBefore(button, anchor);
+                    parent.insertBefore(composerControlGroup, anchor);
                 } else {
-                    parent.appendChild(button);
+                    parent.appendChild(composerControlGroup);
                 }
             }
         } catch (_) {
             try {
-                parent.appendChild(button);
+                parent.appendChild(composerControlGroup);
             } catch (_) {
-                return;
+                /* noop */
             }
         }
-        composerQueueButton = button;
     }
 
     function ensureComposerInputListeners(rootParam) {
