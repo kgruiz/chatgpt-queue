@@ -807,7 +807,6 @@
               </svg>
             </span>
             <span id="cq-pause-label" class="cq-pause-toggle__label">Pause queue</span>
-            <span id="cq-pause-shortcut" class="cq-pause-toggle__shortcut">${PAUSE_SHORTCUT_DISPLAY}</span>
           </button>
         </div>
       </div>
@@ -821,7 +820,6 @@
     const inlineHeader = $(".cq-inline-header");
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
-    const pauseShortcut = $("#cq-pause-shortcut");
     const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
 
