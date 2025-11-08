@@ -75,11 +75,12 @@
 #cq-ui .shadow-short {
   --tw-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.1),
     inset 0px 0px 1px 0px rgba(255, 255, 255, 0.2);
-  box-shadow: var(--tw-inset-shadow, 0 0 #0000),
+  --cq-row-shadow-base: var(--tw-inset-shadow, 0 0 #0000),
     var(--tw-inset-ring-shadow, 0 0 #0000),
     var(--tw-ring-offset-shadow, 0 0 #0000),
     var(--tw-ring-shadow, 0 0 #0000),
     var(--tw-shadow);
+  box-shadow: var(--cq-row-shadow-base);
 }
 
 #cq-ui .cq-shell {
@@ -474,7 +475,8 @@
 
 #cq-ui .cq-row--next {
   border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: rgba(0, 0, 0, 0.08) 0 6px 10px 0,
+  box-shadow: var(--cq-row-shadow-base, 0 0 #0000),
+    rgba(0, 0, 0, 0.08) 0 6px 10px 0,
     rgba(0, 0, 0, 0.62) 0 0 1px 0;
 }
 
