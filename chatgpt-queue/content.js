@@ -781,7 +781,7 @@
                 <path d="M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z"></path>
               </svg>
             </span>
-            <span class="cq-label">Follow-ups</span>
+            <span id="cq-label" class="cq-label" aria-live="polite">0 follow-ups</span>
           </button>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
         </div>
@@ -810,7 +810,16 @@
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
     const pauseShortcut = $("#cq-pause-shortcut");
+    const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
+
+    const formatFollowUpLabel = (count) =>
+        `${count} follow-up${count === 1 ? "" : "s"}`;
+
+    const refreshQueueLabel = () => {
+        if (!queueLabel) return;
+        queueLabel.textContent = formatFollowUpLabel(STATE.queue.length);
+    };
 
     let saveTimer;
     let hydrated = false; // gate UI visibility until persisted state is loaded
@@ -1045,6 +1054,7 @@
                 ? generatingOverride
                 : isGenerating();
         const manualSendEnabled = STATE.queue.length > 0 && !STATE.busy;
+        refreshQueueLabel();
         if (elState) {
             let status = "Idle";
             if (STATE.paused) {
