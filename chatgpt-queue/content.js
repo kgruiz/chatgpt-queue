@@ -854,6 +854,145 @@
         return true;
     };
 
+    const entryPreviewText = (entry, index) => {
+        const raw =
+            (typeof entry?.text === "string" ? entry.text : "").trim() ||
+            `Follow-up #${(index ?? 0) + 1}`;
+        return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
+    };
+
+    const showDeleteConfirmDialog = (entry, index) =>
+        new Promise((resolve) => {
+            const title = "Delete follow-up?";
+            const preview = entryPreviewText(entry, index);
+            const previousActive = document.activeElement;
+            const overlay = document.createElement("div");
+            overlay.dataset.cqModal = "true";
+            overlay.className =
+                "fixed inset-0 z-[2147483647] flex items-center justify-center bg-token-main-surface-secondary/70 backdrop-blur-sm";
+
+            const dialog = document.createElement("div");
+            dialog.setAttribute("role", "dialog");
+            dialog.setAttribute("aria-modal", "true");
+            dialog.className =
+                "popover bg-token-bg-primary relative col-auto col-start-2 row-auto row-start-2 h-full w-full text-start start-1/2 ltr:-translate-x-1/2 rtl:translate-x-1/2 rounded-2xl shadow-long flex flex-col focus:outline-hidden max-w-md overflow-hidden";
+            dialog.tabIndex = -1;
+
+            const header = document.createElement("header");
+            header.className =
+                "min-h-header-height flex justify-between p-2.5 ps-4 select-none";
+            const headerWrap = document.createElement("div");
+            headerWrap.className = "flex max-w-full items-center";
+            const headerTextWrap = document.createElement("div");
+            headerTextWrap.className = "flex max-w-full min-w-0 grow flex-col";
+            const h2 = document.createElement("h2");
+            h2.className = "text-token-text-primary text-lg font-normal";
+            h2.textContent = title;
+            headerTextWrap.appendChild(h2);
+            headerWrap.appendChild(headerTextWrap);
+            header.appendChild(headerWrap);
+            header.appendChild(document.createElement("div"));
+
+            const body = document.createElement("div");
+            body.className = "grow overflow-y-auto p-4 pt-1";
+            const bodyLine = document.createElement("div");
+            bodyLine.textContent = "This will delete ";
+            const strong = document.createElement("strong");
+            strong.textContent = preview;
+            bodyLine.appendChild(strong);
+            bodyLine.append(".");
+            body.appendChild(bodyLine);
+
+            const footer = document.createElement("div");
+            footer.className =
+                "flex w-full flex-row items-center justify-end text-sm select-none";
+            const footerInner = document.createElement("div");
+            footerInner.className = "flex-0";
+            const buttonRow = document.createElement("div");
+            buttonRow.className =
+                "flex flex-col gap-3 sm:flex-row-reverse mt-5 sm:mt-4 flex w-full flex-row-reverse";
+            const confirmBtn = document.createElement("button");
+            confirmBtn.className = "btn relative btn-danger";
+            confirmBtn.type = "button";
+            confirmBtn.dataset.testid = "cq-delete-queue-confirm";
+            confirmBtn.innerHTML =
+                '<div class="flex items-center justify-center">Delete</div>';
+            const cancelBtn = document.createElement("button");
+            cancelBtn.className = "btn relative btn-secondary";
+            cancelBtn.type = "button";
+            cancelBtn.innerHTML =
+                '<div class="flex items-center justify-center">Cancel</div>';
+            buttonRow.append(confirmBtn, cancelBtn);
+            footerInner.appendChild(buttonRow);
+            footer.appendChild(footerInner);
+
+            dialog.append(header, body, footer);
+            overlay.appendChild(dialog);
+
+            const cleanup = (result) => {
+                overlay.remove();
+                document.removeEventListener("keydown", onKeyDown, true);
+                previousActive?.focus?.({ preventScroll: true });
+                resolve(result);
+            };
+
+            const onKeyDown = (event) => {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    cleanup(false);
+                }
+            };
+
+            overlay.addEventListener("click", (event) => {
+                if (event.target === overlay) {
+                    cleanup(false);
+                }
+            });
+            cancelBtn.addEventListener("click", () => cleanup(false));
+            confirmBtn.addEventListener("click", () => cleanup(true));
+
+            document.addEventListener("keydown", onKeyDown, true);
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => {
+                confirmBtn.focus();
+            });
+        });
+
+    const deleteQueueEntry = (index) => {
+        if (!Number.isInteger(index)) return false;
+        if (index < 0 || index >= STATE.queue.length) return false;
+        STATE.queue.splice(index, 1);
+        save();
+        refreshAll();
+        return true;
+    };
+
+    const focusAfterDeletion = (index) => {
+        requestAnimationFrame(() => {
+            const rows = getQueueRows();
+            if (!rows.length) {
+                focusComposerEditor();
+                return;
+            }
+            const nextIndex = Math.min(index, rows.length - 1);
+            focusQueueRow(rows[nextIndex]);
+        });
+    };
+
+    const requestDeleteEntry = (index, { skipConfirm = false } = {}) => {
+        if (!Number.isInteger(index)) return;
+        if (skipConfirm) {
+            if (deleteQueueEntry(index)) focusAfterDeletion(index);
+            return;
+        }
+        const entry = STATE.queue[index];
+        if (!entry) return;
+        showDeleteConfirmDialog(entry, index).then((confirmed) => {
+            if (!confirmed) return;
+            if (deleteQueueEntry(index)) focusAfterDeletion(index);
+        });
+    };
+
     let saveTimer;
     let hydrated = false; // gate UI visibility until persisted state is loaded
     let dragIndex = null;
@@ -1899,6 +2038,27 @@
                     textarea,
                 });
             });
+            textarea.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    if (
+                        event.shiftKey ||
+                        event.altKey ||
+                        event.metaKey ||
+                        event.ctrlKey
+                    ) {
+                        return;
+                    }
+                    event.preventDefault();
+                    requestSend(index, { manual: true });
+                    return;
+                }
+                const isDeleteKey =
+                    event.key === "Delete" || event.key === "Backspace";
+                if (!isDeleteKey || !event.shiftKey) return;
+                event.preventDefault();
+                const skipConfirm = !!event.altKey;
+                requestDeleteEntry(index, { skipConfirm });
+            });
             body.appendChild(textarea);
             textareasToSize.push(textarea);
 
@@ -2277,9 +2437,7 @@
 
         const action = button.dataset.action;
         if (action === "delete") {
-            STATE.queue.splice(index, 1);
-            save();
-            refreshAll();
+            requestDeleteEntry(index);
         } else if (action === "send") {
             requestSend(index, { manual: true });
         }
