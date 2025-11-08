@@ -542,17 +542,18 @@
 }
 
 #cq-ui .cq-icon-btn {
-  width: auto;
-  height: auto;
-  padding: 4px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: none;
-  background: transparent;
+  border-radius: 999px;
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
 #cq-ui .cq-icon-btn svg {
@@ -560,11 +561,12 @@
 }
 
 #cq-ui .cq-icon-btn:hover {
+  opacity: 0.85;
   color: var(--text-primary);
 }
 
 #cq-ui .cq-icon-btn:active {
-  opacity: 0.75;
+  opacity: 0.65;
 }
 
 #cq-ui .cq-icon-btn:focus-visible {
