@@ -595,7 +595,8 @@
 }
 
 #cq-ui .cq-icon-btn:hover {
-  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
   color: var(--text-primary);
 }
 
