@@ -1,94 +1,108 @@
 # chatgpt-queue
 
-Queue prompts for ChatGPT and send them automatically once each reply finishes. The extension keeps conversations moving without manual babysitting.
+Queue prompts for ChatGPT and let them auto-send as soon as the previous reply finishes. The extension keeps long follow-up chains moving without babysitting the UI.
 
-## Overview
+## What It Does
 
-`chatgpt-queue` adds a compact control panel to ChatGPT that lets you gather prompts, start or pause the queue, and dispatch messages safely once the model is idle. State is stored locally so you can pick up where you left off, even if the page reloads.
-
-## Features
-
-- Floating queue widget that stays visible while you browse the conversation.
-- Full queue dashboard that lists upcoming prompts with inline editing, reordering, delete controls, and a built-in prompt composer.
-- One-click capture of the current composer input, plus an Option/Alt+Enter shortcut.
-- Automatic prompt dispatch with built-in cooldown once ChatGPT finishes responding.
-- Manual controls for pausing, sending the next item, or clearing the queue.
-- Collapsible panel that tucks into a minimal dock button, with an extension-icon toggle if you want the UI hidden entirely.
-- Lightweight implementation using a Manifest V3 background service worker and content script.
+- **Inline queue controls** - two buttons live next to the ChatGPT composer: *Add to queue* captures the current draft, while *Hold & queue* captures it and pauses the automation until you resume.
+- **Attachment-aware entries** - when you queue something that contains pasted images or uploaded files, those attachments stay with the follow-up, display in the queue, and are re-applied before the item sends.
+- **Model locking** - each queued follow-up remembers the ChatGPT model that was selected when it was captured, so mixed runs (e.g., GPT-4o followed by GPT-4.1) are replayed on the right model automatically.
+- **Keyboard-first editing** - navigate with Option/Alt+Arrow keys, send with Enter, delete with Shift+Delete, or reorder via drag-and-drop or by typing a new queue position.
+- **Persistent, local state** - items, attachments, collapsed state, and pause reasons live in `chrome.storage.local`, so a refresh or navigation keeps your queue intact.
+- **Keyboard shortcut helper** - when you open ChatGPT's built-in `?` shortcut panel, the queue shortcuts are injected into that list for quick reference.
 
 ## Installation
 
-1. Clone or download this repository.
-2. Open Chrome, Edge, Brave, Arc, or another Chromium-based browser.
-3. Navigate to the extension management page for your browser (e.g. `chrome://extensions`, `arc://extensions`), enable **Developer mode**, and note that many browsers will redirect from the Chrome URL automatically.
-4. Choose **Load unpacked** and select the `chatgpt-queue/` directory inside this project.
+### Chromium browsers (Chrome 133+, Edge, Brave, Arc)
 
-_For Firefox testing_: open `about:debugging`, select **This Firefox**, choose **Load Temporary Add-on**, and pick `manifest.json`. If your Firefox build lacks MV3 service workers, adjust the manifest background section to use `"scripts": ["bg.js"]` before loading.
+1. Clone or download this repository.
+2. Open `chrome://extensions` (Arc/Brave/Edge will redirect automatically) and switch **Developer mode** on.
+3. Click **Load unpacked** and choose the nested `chatgpt-queue/` directory.
+4. Keep Developer mode enabled so the unpacked extension stays active.
+
+> Note: Chrome 133+ and its siblings now disable unpacked extensions unless Developer Mode remains on. Google announced the policy change in the [December 20, 2024 Chromium Extensions PSA](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/cTdMVtxxooY), so make sure that toggle stays enabled while you develop or run chatgpt-queue.
+
+### Firefox (temporary add-on)
+
+1. Open `about:debugging`.
+2. Select **This Firefox** -> **Load Temporary Add-on...**.
+3. Choose `manifest.json`.
+4. If your Firefox build lacks MV3 service workers, edit the manifest first so the background section uses `"scripts": ["bg.js"]`.
 
 ## Usage
 
-1. Visit `https://chatgpt.com` or `https://chat.openai.com`.
-2. Type a prompt in the ChatGPT composer. Use **Option+Enter** (macOS) or **Alt+Enter** (Windows/Linux) to move the text into the queue. You can also click **Add from input**.
-3. Alternatively, compose prompts directly in the queue panel using the inline text area and click **Queue text** (or press the same shortcut) to stage them without touching the main editor.
-4. Click **Start** to begin processing. The extension sends the first prompt, waits until the stop button disappears and the send button returns, then proceeds after a short cooldown. Auto-dispatch only runs when the main ChatGPT composer is empty, so queue or clear any draft text/attachments before expecting the next follow-up to fire automatically.
-5. Use **Stop** to pause, **Send next** for a single dispatch, and **Clear** to empty the queue.
-6. Manage queued items directly in the panel—edit text inline, move items with **Up**/**Down**, or remove them entirely.
-7. Collapse the panel with **Hide** to reveal a compact dock button; click the dock to reopen the queue when you need it again.
+### Queue prompts quickly
 
-### Keyboard Shortcuts
+- Type in the ChatGPT composer, then either press **Option+Enter** (macOS) / **Alt+Enter** (Windows/Linux) or click the inline *Add to queue* button. The queue UI appears once you have at least one follow-up staged.
+- To capture and pause in a single shot, use **Option+Cmd+Enter** / **Alt+Ctrl+Enter** or click *Hold & queue*. The queue stays paused until you hit **Resume queue** or the same shortcut again.
+
+### Edit, reorder, and send
+
+- Every follow-up sits in its own card with a text area. Edit inline; changes persist automatically.
+- Drag cards to reorder, or type a new position number into the left-hand index field.
+- Use the arrow button on any card to send it immediately, even if the rest of the queue is paused.
+- Shift+Delete removes the focused card with a confirmation, and Option/Alt+Shift+Delete removes it instantly.
+
+### Attachments
+
+- When you queue a prompt that already has pasted screenshots or uploaded files, the extension captures those attachments and shows thumbnails inside the queue card.
+- Paste images directly into a queue card to add more attachments later. Use the **Remove** button on a thumbnail to drop it from that follow-up.
+- Attachments automatically clear from the ChatGPT composer once the follow-up is queued and reattach themselves when that follow-up runs.
+
+### Model locking
+
+- Whatever ChatGPT model (GPT-4o, GPT-4.1, o1-mini, etc.) is active when you queue a follow-up is stored with that item.
+- When the queue dispatches that item, it opens the model picker, selects the stored model, reapplies the prompt and attachments, and only then sends. Mixed-model runs no longer require manual babysitting.
+- If the model picker layout changes, open the model menu once so the queue script can learn the latest entries before replaying.
+
+### Running & visibility
+
+- The queue auto-dispatches whenever it has items, the composer is idle, and the queue is not paused. You can pause/resume from the header button or with **Shift+Cmd/Ctrl+P**.
+- The header collapse button (or **Shift+Cmd/Ctrl+.**) hides the card list but keeps the inline status visible. Click the Chrome toolbar icon to force the panel open if you collapsed it earlier.
+- Auto-dispatch waits until ChatGPT's stop button disappears and the composer is clear, then enforces a short cooldown before sending the next item.
+
+## Keyboard shortcuts
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
-| Queue current input (in composer) | Option+Enter | Alt+Enter |
-| Queue input & pause | Option+Cmd+Enter | Alt+Ctrl+Enter |
-| Focus queue items | Option+↑ / Option+↓ | Alt+↑ / Alt+↓ |
+| Queue current input | Option+Enter | Alt+Enter |
+| Queue current input & pause | Option+Cmd+Enter | Alt+Ctrl+Enter |
+| Navigate queue items | Option+Up / Option+Down | Alt+Up / Alt+Down |
 | Send focused follow-up | Enter | Enter |
 | Delete focused follow-up (confirm) | Shift+Delete | Shift+Delete |
-| Delete focused follow-up (instant) | Option+Shift+Delete | Alt+Shift+Delete |
-| Expand/collapse queue list | Cmd+Shift+. | Ctrl+Shift+. |
+| Delete focused follow-up (skip confirm) | Option+Shift+Delete | Alt+Shift+Delete |
+| Collapse/expand queue list | Shift+Cmd+. | Shift+Ctrl+. |
 | Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
-| Extension shortcut default | Cmd+Shift+Y | Ctrl+Shift+Y |
-| Extension toggle default | Cmd+Shift+G | Ctrl+Shift+G |
 
-Shortcuts can be customized from the browser’s extension shortcuts settings.
+Browser-level commands (set from `chrome://extensions/shortcuts`) include **Queue current input** with a default of **Cmd+Shift+Y** (macOS) / **Ctrl+Shift+Y** (Windows/Linux).
 
-### Queue Management
+## Persistence & data
 
-- Every queued prompt appears in an editable card; changes save automatically to `chrome.storage.local`.
-- A dedicated queue composer lets you add prompts without touching the main ChatGPT input.
-- Use **Option/Alt+Enter** inside the queue composer to queue quickly; the **Queue text** button offers the same action.
-- Use the **Up** and **Down** controls to reorder items without leaving the page.
-- Press **Option/Alt+↑** or **Option/Alt+↓** from the ChatGPT composer or any queue card to move focus through follow-ups without touching the mouse.
-- When a queue card is focused, press **Enter** to send it immediately, **Shift+Enter** for a newline, **Shift+Delete** to remove it with a confirmation, or **Option/Alt+Shift+Delete** to remove it instantly.
-- Choose **Delete** on a card to drop it from the run; the panel updates immediately so you can keep an eye on what is next.
-- The first card is highlighted, making it easy to see the next prompt the extension plans to send.
-
-### Visibility Controls
-
-- Hit **Hide** in the panel header to collapse the interface and leave only the dock button in the corner.
-- Click the dock button to reopen the full queue panel at any time.
-- Use the browser's extension icon (or extensions dropdown) to toggle the dock button entirely when you want the UI off the page.
-
-## Persistence and Data
-
-The queue and the running state are saved to `chrome.storage.local`. No data is sent anywhere else. Review the terms of service for the sites you automate before using the extension.
+All queue content, attachments, and the paused/collapsed state live in `chrome.storage.local`. Nothing leaves the browser, so you can refresh or navigate without losing your run. As always, review the terms of service for any site you automate before unleashing a queue.
 
 ## Development
 
 Project structure:
 
-- `chatgpt-queue/manifest.json` – Extension manifest and permissions.
-- `chatgpt-queue/bg.js` – Service worker relaying keyboard commands to the active tab.
-- `chatgpt-queue/content.js` – Queue logic, UI, and interaction with the ChatGPT composer.
-- `chatgpt-queue/styles.css` – Styling for the floating control panel.
+- `chatgpt-queue/manifest.json` - MV3 manifest and permissions.
+- `chatgpt-queue/bg.js` - Background service worker relaying keyboard commands and toolbar clicks.
+- `chatgpt-queue/content.js` - Queue UI, automation logic, attachment handling, and model selection.
+- `chatgpt-queue/bridge.js` - ProseMirror helper that reliably replaces the ChatGPT composer content.
+- `chatgpt-queue/styles.css` - Styling for the floating queue and inline buttons.
 
-To iterate locally, make changes, reload the extension from `chrome://extensions`, and refresh your ChatGPT tab.
+Workflow:
+
+1. Make your edits inside the `chatgpt-queue/` directory.
+2. Visit `chrome://extensions`, click **Reload** on the unpacked entry, and refresh your ChatGPT tab.
+3. Watch DevTools for selector warnings if the ChatGPT UI changes; update `SEL.*` in `content.js` whenever necessary.
 
 ## Troubleshooting
 
-- If the panel appears but nothing sends, inspect the page with DevTools and confirm the selectors in `content.js` match the current ChatGPT DOM. Update `SEL.editor`, `SEL.send`, or `SEL.stop` as needed.
-- If text fails to insert, another extension may block the `beforeinput` event. The fallback uses `document.execCommand('insertText')`, but you may need to disable conflicting extensions.
-- During ChatGPT single-page app route changes, the mutation observer and URL watcher rescan automatically. Give the page a moment after navigation before sending the next prompt.
+- **Panel never shows up** - queue at least one follow-up first; the UI stays hidden when the queue is empty.
+- **Send button never fires** - inspect the page, verify the selectors in `SEL.editor`, `SEL.send`, and `SEL.stop`, and adjust them to match ChatGPT's current markup.
+- **Attachments reappear in the composer** - another extension may intercept `beforeinput` events. Disable conflicting extensions or rely on the fallback `execCommand('insertText')` path.
+- **Model won't change** - open the ChatGPT model picker once so the queue can parse the latest menu entries. Reload the extension afterward if needed.
+- **Unpacked extension disappears** - ensure Developer mode is still toggled on in `chrome://extensions`; Chromium browsers now disable unpacked extensions when that toggle is off.
 
 ## License
 
