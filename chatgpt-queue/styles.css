@@ -545,16 +545,14 @@
   width: auto;
   height: auto;
   padding: 4px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--interactive-bg-primary-default);
-  color: var(--icon-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease,
-    border-color 0.15s ease, opacity 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 #cq-ui .cq-icon-btn svg {
@@ -562,13 +560,11 @@
 }
 
 #cq-ui .cq-icon-btn:hover {
-  background: var(--interactive-bg-primary-hover);
-  color: var(--icon-accent);
+  color: var(--text-primary);
 }
 
 #cq-ui .cq-icon-btn:active {
-  background: var(--interactive-bg-primary-press);
-  opacity: 1;
+  opacity: 0.75;
 }
 
 #cq-ui .cq-icon-btn:focus-visible {
@@ -576,18 +572,16 @@
 }
 
 #cq-ui .cq-icon-btn[disabled] {
-  opacity: 0.5;
+  opacity: 0.3;
   cursor: not-allowed;
-  background: var(--interactive-bg-primary-inactive);
-  color: var(--icon-tertiary);
 }
 
 #cq-ui .cq-icon-btn--send:hover {
-  color: var(--icon-accent);
+  color: var(--text-primary);
 }
 
 #cq-ui .cq-icon-btn--delete:hover {
-  color: var(--icon-status-error);
+  color: var(--danger);
 }
 
 #cq-ui .cq-row-media {
