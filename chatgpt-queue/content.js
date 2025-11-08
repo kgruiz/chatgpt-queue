@@ -1206,8 +1206,9 @@
     }
 
     function autoSize(textarea) {
+        if (!(textarea instanceof HTMLTextAreaElement)) return;
         textarea.style.height = "auto";
-        const height = Math.min(200, textarea.scrollHeight + 4);
+        const height = Math.min(200, textarea.scrollHeight || 24);
         textarea.style.height = `${height}px`;
     }
 
