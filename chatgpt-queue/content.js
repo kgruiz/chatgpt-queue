@@ -143,6 +143,19 @@
         return wrapper;
     }
 
+    function widenShortcutPopover(list) {
+        if (!(list instanceof HTMLDListElement)) return;
+        const popover = list.closest(".popover");
+        if (!(popover instanceof HTMLElement)) return;
+        if (popover.dataset.cqShortcutWide === "true") return;
+        const available = Math.max(320, window.innerWidth - 24);
+        if (available < 420) return;
+        popover.dataset.cqShortcutWide = "true";
+        const widthExpr = "min(640px, calc(100vw - 24px))";
+        popover.style.maxWidth = widthExpr;
+        popover.style.width = widthExpr;
+    }
+
     function injectQueueShortcutsIntoList(list) {
         if (!(list instanceof HTMLDListElement)) return;
         if (list.querySelector('[data-cq-shortcut-origin="queue"]')) return;
@@ -152,6 +165,7 @@
             keys: resolveShortcutKeys(entry),
         })).filter((entry) => entry.keys.length > 0);
         if (!shortcuts.length) return;
+        widenShortcutPopover(list);
         const fragment = document.createDocumentFragment();
         const heading = document.createElement("dt");
         heading.className =
@@ -168,7 +182,7 @@
         const grid = document.createElement("div");
         grid.dataset.cqShortcutOrigin = "queue";
         grid.style.display = "grid";
-        grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(220px, 1fr))";
+        grid.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
         grid.style.gap = "8px 16px";
         grid.style.marginTop = "4px";
         grid.style.width = "100%";
