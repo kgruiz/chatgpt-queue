@@ -2108,6 +2108,18 @@
         return event.ctrlKey && !event.metaKey;
     };
 
+    const matchesHoldShortcut = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (event.key !== "Enter") return false;
+        const hasAlt = event.altKey;
+        const hasMeta = event.metaKey;
+        const hasCtrl = event.ctrlKey;
+        if (isApplePlatform) {
+            return hasAlt && hasMeta && !hasCtrl;
+        }
+        return hasAlt && hasCtrl && !hasMeta;
+    };
+
     document.addEventListener(
         "keydown",
         (event) => {
@@ -2122,6 +2134,11 @@
     document.addEventListener(
         "keydown",
         (event) => {
+            if (matchesHoldShortcut(event)) {
+                event.preventDefault();
+                queueFromComposer({ hold: true });
+                return;
+            }
             if (event.key !== "Enter") return;
             const altOnly =
                 event.altKey &&
