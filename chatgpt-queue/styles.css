@@ -614,6 +614,10 @@
   color: var(--text-primary);
 }
 
+#cq-ui .cq-icon-btn--delete:hover {
+  background: #e02e2a23;
+}
+
 #cq-ui .cq-icon-btn:active {
   opacity: 0.65;
 }
