@@ -29,9 +29,9 @@
             : "";
     const isApplePlatform = /mac|iphone|ipad|ipod/i.test(navPlatform);
     const PAUSE_SHORTCUT_LABEL = isApplePlatform
-        ? "Cmd+Shift+P"
+        ? "Command+Shift+P"
         : "Ctrl+Shift+P";
-    const PAUSE_SHORTCUT_DISPLAY = PAUSE_SHORTCUT_LABEL;
+    const PAUSE_SHORTCUT_DISPLAY = isApplePlatform ? "⌘⇧P" : "Ctrl+Shift+P";
 
     const makeId = () =>
         `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -654,7 +654,6 @@
             </span>
             <span class="cq-label">Follow-ups</span>
           </button>
-          <span id="cq-count" class="cq-count" aria-live="polite">0</span>
           <span id="cq-state" class="cq-state" aria-live="polite">Idle</span>
         </div>
         <div class="cq-inline-actions">
@@ -676,7 +675,6 @@
     </div>`;
 
     const $ = (selector) => ui.querySelector(selector);
-    const elCount = $("#cq-count");
     const elState = $("#cq-state");
     const list = $("#cq-list");
     const collapseToggle = $("#cq-collapse-toggle");
@@ -918,9 +916,6 @@
                 ? generatingOverride
                 : isGenerating();
         const manualSendEnabled = STATE.queue.length > 0 && !STATE.busy;
-        if (elCount) {
-            elCount.textContent = String(STATE.queue.length);
-        }
         if (elState) {
             let status = "Idle";
             if (STATE.paused) {
@@ -1553,9 +1548,72 @@
                 row.classList.add("cq-row--next");
             row.draggable = true;
 
-            const indicator = document.createElement("span");
+            const indicator = document.createElement("input");
+            indicator.type = "text";
+            indicator.inputMode = "numeric";
+            indicator.enterKeyHint = "done";
+            indicator.autocomplete = "off";
+            indicator.spellcheck = false;
             indicator.className = "cq-row-indicator";
-            indicator.textContent = String(index + 1);
+            indicator.value = String(index + 1);
+            indicator.setAttribute(
+                "aria-label",
+                "Move follow-up to new position",
+            );
+            indicator.title = "Reorder follow-up";
+            indicator.draggable = false;
+
+            let indicatorCommitLocked = false;
+            const resetIndicator = () => {
+                indicator.value = String(index + 1);
+            };
+            const commitIndicatorValue = () => {
+                if (indicatorCommitLocked) return;
+                indicatorCommitLocked = true;
+                const numericValue = Number.parseInt(
+                    indicator.value.trim(),
+                    10,
+                );
+                const total = STATE.queue.length;
+                if (!Number.isInteger(numericValue) || total === 0) {
+                    resetIndicator();
+                    return;
+                }
+                let targetIndex = numericValue - 1;
+                if (targetIndex < 0) targetIndex = 0;
+                if (targetIndex >= total) targetIndex = total - 1;
+                if (targetIndex === index) {
+                    resetIndicator();
+                    return;
+                }
+                moveItem(index, targetIndex);
+            };
+            indicator.addEventListener("focus", () => {
+                indicatorCommitLocked = false;
+                indicator.select();
+            });
+            indicator.addEventListener("blur", () => {
+                commitIndicatorValue();
+            });
+            indicator.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitIndicatorValue();
+                    indicator.blur();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    resetIndicator();
+                    indicator.blur();
+                }
+            });
+            indicator.addEventListener("dragstart", (event) => {
+                event.preventDefault();
+            });
+            ["pointerdown", "mousedown", "touchstart"].forEach((eventName) => {
+                indicator.addEventListener(eventName, (event) => {
+                    event.stopPropagation();
+                });
+            });
             row.appendChild(indicator);
 
             const body = document.createElement("div");
