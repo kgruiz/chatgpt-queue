@@ -369,15 +369,6 @@
   display: none !important;
 }
 
-#cq-ui .cq-empty {
-  padding: 14px 18px;
-  border-radius: var(--radius-lg);
-  border: 1px dashed rgba(217, 217, 227, 0.18);
-  background: rgba(40, 41, 45, 0.55);
-  color: var(--text-tertiary);
-  text-align: center;
-}
-
 #cq-ui .cq-row {
   position: relative;
   display: flex;
