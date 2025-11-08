@@ -461,6 +461,7 @@
   box-sizing: border-box;
   color: #fff;
   color-scheme: dark;
+  flex: none;
   cursor: text;
   font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
