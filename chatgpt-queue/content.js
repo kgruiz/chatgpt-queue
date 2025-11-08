@@ -1398,14 +1398,23 @@
             pauseBtn.type = "button";
             pauseBtn.id = "cq-composer-hold-btn";
             pauseBtn.className = "cq-composer-hold-btn";
-            pauseBtn.setAttribute("aria-label", "Add to queue and pause queue");
+            pauseBtn.setAttribute(
+                "aria-label",
+                "Add to queue and pause queue",
+            );
+            pauseBtn.title = "Add to queue and pause";
             pauseBtn.innerHTML = `
         <span class="cq-composer-hold-btn__icon" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" focusable="false">
-            <path d="M5 3.25C4.58579 3.25 4.25 3.58579 4.25 4V12C4.25 12.4142 4.58579 12.75 5 12.75H6.5C6.91421 12.75 7.25 12.4142 7.25 12V4C7.25 3.58579 6.91421 3.25 6.5 3.25H5ZM9.5 3.25C9.08579 3.25 8.75 3.58579 8.75 4V12C8.75 12.4142 9.08579 12.75 9.5 12.75H11C11.4142 12.75 11.75 12.4142 11.75 12V4C11.75 3.58579 11.4142 3.25 11 3.25H9.5Z"></path>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="6" width="12" height="2" rx="1"></rect>
+            <rect x="3" y="11" width="14" height="2" rx="1"></rect>
+            <rect x="3" y="16" width="10" height="2" rx="1"></rect>
+            <rect x="18" y="13" width="2" height="8" rx="1"></rect>
+            <rect x="15" y="16" width="8" height="2" rx="1"></rect>
+            <rect x="16" y="2" width="2" height="7" rx="1"></rect>
+            <rect x="20" y="2" width="2" height="7" rx="1"></rect>
           </svg>
-        </span>
-        <span class="cq-composer-hold-btn__label">Add & hold</span>`;
+        </span>`;
             pauseBtn.addEventListener("click", (event) => {
                 event.preventDefault();
                 queueFromComposer({ hold: true });

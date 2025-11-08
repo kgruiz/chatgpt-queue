@@ -272,13 +272,13 @@
   transform: scale(0.95);
 }
 
+
 .cq-composer-hold-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding-inline: 12px;
   min-height: 36px;
-  gap: 6px;
 }
 
 .cq-composer-hold-btn__icon {
@@ -289,12 +289,7 @@
   height: 18px;
 }
 
-.cq-composer-hold-btn__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
+
 
 #cq-ui .cq-composer-queue-btn__icon {
   display: inline-flex;
