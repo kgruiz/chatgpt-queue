@@ -481,8 +481,6 @@
 
 #cq-ui .cq-row--next {
   border-color: rgba(255, 255, 255, 0.26);
-  --cq-row-shadow-accent: 0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 18px 36px -24px rgba(16, 163, 127, 0.45);
 }
 
 #cq-ui .cq-row--dragging {
