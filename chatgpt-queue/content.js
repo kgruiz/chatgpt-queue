@@ -866,14 +866,25 @@
             const title = "Delete follow-up?";
             const preview = entryPreviewText(entry, index);
             const previousActive = document.activeElement;
+
+            const modalRoot = document.createElement("div");
+            modalRoot.dataset.cqModal = "true";
+            modalRoot.className = "absolute inset-0";
+
             const overlay = document.createElement("div");
-            overlay.dataset.cqModal = "true";
+            overlay.dataset.state = "open";
+            overlay.dataset.modalLayer = "overlay";
             overlay.className =
-                "fixed inset-0 z-[2147483647] flex items-center justify-center bg-token-main-surface-secondary/70 backdrop-blur-sm";
+                "fixed inset-0 z-[2147483647] before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] before:transition before:duration-250 dark:before:bg-black/50 before:starting:opacity-0";
+
+            const grid = document.createElement("div");
+            grid.className =
+                "z-50 h-full w-full overflow-y-auto grid grid-cols-[10px_1fr_10px] grid-rows-[minmax(10px,1fr)_auto_minmax(10px,1fr)] md:grid-rows-[minmax(20px,0.8fr)_auto_minmax(20px,1fr)]";
 
             const dialog = document.createElement("div");
             dialog.setAttribute("role", "dialog");
             dialog.setAttribute("aria-modal", "true");
+            dialog.dataset.modalLayer = "content";
             dialog.className =
                 "popover bg-token-bg-primary relative col-auto col-start-2 row-auto row-start-2 h-full w-full text-start start-1/2 ltr:-translate-x-1/2 rtl:translate-x-1/2 rounded-2xl shadow-long flex flex-col focus:outline-hidden max-w-md overflow-hidden";
             dialog.tabIndex = -1;
@@ -927,10 +938,12 @@
             footer.appendChild(footerInner);
 
             dialog.append(header, body, footer);
-            overlay.appendChild(dialog);
+            grid.appendChild(dialog);
+            overlay.appendChild(grid);
+            modalRoot.appendChild(overlay);
 
             const cleanup = (result) => {
-                overlay.remove();
+                modalRoot.remove();
                 document.removeEventListener("keydown", onKeyDown, true);
                 previousActive?.focus?.({ preventScroll: true });
                 resolve(result);
@@ -948,11 +961,16 @@
                     cleanup(false);
                 }
             });
+            grid.addEventListener("click", (event) => {
+                if (event.target === grid) {
+                    cleanup(false);
+                }
+            });
             cancelBtn.addEventListener("click", () => cleanup(false));
             confirmBtn.addEventListener("click", () => cleanup(true));
 
             document.addEventListener("keydown", onKeyDown, true);
-            document.body.appendChild(overlay);
+            document.body.appendChild(modalRoot);
             requestAnimationFrame(() => {
                 confirmBtn.focus();
             });
