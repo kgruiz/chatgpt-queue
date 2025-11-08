@@ -670,18 +670,21 @@
         </div>
       </div>
       <div id="cq-list" class="cq-queue" aria-label="Queued prompts"></div>
+      <div id="cq-empty" class="cq-empty" aria-live="polite" hidden>No follow-ups queued yet.</div>
     </div>`;
 
     const $ = (selector) => ui.querySelector(selector);
     const elCount = $("#cq-count");
     const elState = $("#cq-state");
     const list = $("#cq-list");
+    const emptyState = $("#cq-empty");
     const collapseToggle = $("#cq-collapse-toggle");
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
     const pauseShortcut = $("#cq-pause-shortcut");
     const pauseMeta = $("#cq-pause-meta");
     if (pauseMeta) pauseMeta.hidden = true;
+    if (emptyState) emptyState.hidden = true;
     ui.setAttribute("aria-hidden", "true");
 
     let saveTimer;
@@ -935,6 +938,14 @@
             pauseMeta.textContent = metaText;
             pauseMeta.hidden = !STATE.paused || !metaText;
         }
+        if (emptyState) {
+            const pausedMessage = `Queue paused. Press ${PAUSE_SHORTCUT_LABEL} to resume.`;
+            const idleMessage = "No follow-ups queued yet.";
+            const nextMessage = STATE.paused ? pausedMessage : idleMessage;
+            if (emptyState.textContent !== nextMessage) {
+                emptyState.textContent = nextMessage;
+            }
+        }
         if (!composerQueueButton || !composerQueueButton.isConnected) {
             composerQueueButton = null;
             ensureComposerQueueButton();
@@ -991,7 +1002,7 @@
 
     function refreshVisibility() {
         ensureMounted();
-        const shouldShow = hydrated && STATE.queue.length > 0;
+        const shouldShow = hydrated;
         ui.style.display = shouldShow ? "flex" : "none";
         ui.setAttribute("aria-hidden", shouldShow ? "false" : "true");
         if (collapseToggle) {
@@ -1005,7 +1016,13 @@
             );
         }
         if (list) {
-            list.style.display = STATE.collapsed ? "none" : "flex";
+            const showList = STATE.queue.length > 0 && !STATE.collapsed;
+            list.style.display = showList ? "flex" : "none";
+            list.setAttribute("aria-hidden", showList ? "false" : "true");
+        }
+        if (emptyState) {
+            const showEmpty = STATE.queue.length === 0 && !STATE.collapsed;
+            emptyState.hidden = !showEmpty;
         }
     }
 
@@ -1510,10 +1527,6 @@
         const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
         list.textContent = "";
         if (STATE.queue.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "cq-empty";
-            empty.textContent = "No follow-ups queued.";
-            list.appendChild(empty);
             return;
         }
 
