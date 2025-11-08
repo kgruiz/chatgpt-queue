@@ -118,7 +118,7 @@
   justify-content: space-between;
   gap: 12px;
   background: var(--bg-body);
-  padding: 0;
+  padding: 2px 0 0;
   margin-bottom: 0;
   position: sticky;
   top: 0;
