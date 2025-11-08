@@ -531,6 +531,7 @@
   user-select: none;
   transition: border-color 0.15s ease, background 0.15s ease,
     box-shadow 0.15s ease;
+  align-self: end;
 }
 
 #cq-ui .cq-row-indicator[data-prefill="true"] {
@@ -592,6 +593,7 @@
   gap: 0.25rem;
   align-items: center;
   justify-content: center;
+  align-self: end;
 }
 
 #cq-ui .cq-row-actions .cq-icon-btn {
