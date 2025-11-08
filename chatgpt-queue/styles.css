@@ -570,16 +570,23 @@
 
 #cq-ui .cq-icon-btn {
   width: 36px;
+  min-width: 36px;
   height: 36px;
   padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
+  border: 0 solid rgba(255, 255, 255, 0.05);
+  border-radius: 16777216px;
+  background: transparent;
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica,
+    "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
+  color-scheme: dark;
+  user-select: none;
   transition: opacity 0.15s ease, color 0.15s ease;
 }
 
