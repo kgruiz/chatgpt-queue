@@ -70,8 +70,8 @@
         control: { glyph: "Ctrl", aria: "Control" },
         ctrl: { glyph: "Ctrl", aria: "Control" },
         alt: { glyph: "Alt", aria: "Alt" },
-        enter: { glyph: "↩", aria: "Enter" },
-        return: { glyph: "↩", aria: "Return" },
+        enter: { glyph: "⏎", aria: "Enter" },
+        return: { glyph: "⏎", aria: "Return" },
         p: { glyph: "P", aria: "P" },
         period: { glyph: ".", aria: "Period" },
     };
