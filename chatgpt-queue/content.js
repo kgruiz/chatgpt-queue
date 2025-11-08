@@ -1382,8 +1382,8 @@
             <rect x="3" y="6" width="14" height="2" rx="1"></rect>
             <rect x="3" y="11" width="14" height="2" rx="1"></rect>
             <rect x="3" y="16" width="10" height="2" rx="1"></rect>
-            <rect x="16" y="14" width="2" height="6" rx="1"></rect>
-            <rect x="14" y="16" width="6" height="2" rx="1"></rect>
+            <rect x="18" y="13" width="2" height="8" rx="1"></rect>
+            <rect x="15" y="16" width="8" height="2" rx="1"></rect>
           </svg>
         </span>`;
             queueBtn.addEventListener("click", (event) => {
