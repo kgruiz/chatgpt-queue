@@ -425,7 +425,7 @@
 #cq-ui .cq-queue {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   width: 100%;
   max-height: 220px;
   overflow-y: auto;
@@ -440,22 +440,16 @@
 #cq-ui .cq-row {
   position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 120px;
+  grid-template-columns: auto 1fr auto;
   grid-template-areas: "leading primary trailing";
   align-items: center;
   width: 100%;
-  gap: 12px;
-  padding: 10px;
+  gap: 0.5rem;
+  padding: 0.625rem;
   border-radius: 28px;
-  border: 0 solid rgba(255, 255, 255, 0.05);
-  background: #303030;
-  background-clip: padding-box;
-  box-shadow: rgba(0, 0, 0, 0) 0 0 0 0,
-    rgba(0, 0, 0, 0) 0 0 0 0,
-    rgba(0, 0, 0, 0) 0 0 0 0,
-    rgba(0, 0, 0, 0) 0 0 0 0,
-    rgba(0, 0, 0, 0.1) 0 4px 12px 0,
-    rgba(255, 255, 255, 0.2) 0 0 1px 0 inset;
+  background-color: #303030;
+  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.1),
+    inset 0px 0px 1px 0px rgba(255, 255, 255, 0.2);
   box-sizing: border-box;
   color: #fff;
   color-scheme: dark;
@@ -467,6 +461,8 @@
   line-height: 24px;
   contain: inline-size;
   pointer-events: auto;
+  margin-bottom: 12px;
+  min-height: 56px;
 }
 
 #cq-ui .cq-row--next {
@@ -500,23 +496,27 @@
 }
 
 #cq-ui .cq-row-indicator {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid rgba(217, 217, 227, 0.22);
-  background: rgba(26, 27, 32, 0.92);
+  grid-area: leading;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-secondary);
   font-weight: 600;
   font-size: 12px;
-  color: var(--text-secondary);
+  border-radius: 50%;
+  transition: background-color 0.1s linear;
 }
 
-#cq-ui .cq-row-indicator {
-  grid-area: leading;
-  justify-self: center;
+@media (hover: hover) {
+  #cq-ui .cq-row:hover .cq-row-indicator {
+    background-color: var(
+      --interactive-bg-secondary-hover,
+      rgba(255, 255, 255, 0.08)
+    );
+  }
 }
 
 #cq-ui .cq-row-body {
@@ -558,10 +558,24 @@
 #cq-ui .cq-row-actions {
   grid-area: trailing;
   display: flex;
-  flex-direction: row;
-  gap: 8px;
+  gap: 0.25rem;
   align-items: center;
   justify-content: center;
+}
+
+#cq-ui .cq-row-actions .cq-icon-btn {
+  color: var(--text-secondary);
+  background-color: transparent;
+  transition: background-color 0.1s linear;
+}
+
+@media (hover: hover) {
+  #cq-ui .cq-row .cq-row-actions .cq-icon-btn:hover {
+    background-color: var(
+      --interactive-bg-secondary-hover,
+      rgba(255, 255, 255, 0.08)
+    );
+  }
 }
 
 #cq-ui .cq-icon-btn {
