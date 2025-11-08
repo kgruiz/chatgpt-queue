@@ -1673,7 +1673,7 @@
 
             row.appendChild(actions);
             list.appendChild(row);
-            autoSize(textarea);
+            queueMicrotask(() => autoSize(textarea));
         });
     }
 
