@@ -1594,13 +1594,35 @@
                 }
                 moveItem(index, targetIndex);
             };
+            const clearPrefill = () => {
+                delete indicator.dataset.prefill;
+            };
+
             indicator.addEventListener("focus", () => {
                 indicatorCommitLocked = false;
+                indicator.dataset.prefill = "true";
             });
             indicator.addEventListener("blur", () => {
+                clearPrefill();
                 commitIndicatorValue();
             });
             indicator.addEventListener("keydown", (event) => {
+                if (indicator.dataset.prefill === "true") {
+                    if (/^\d$/.test(event.key)) {
+                        event.preventDefault();
+                        indicator.value = event.key;
+                        const pos = indicator.value.length;
+                        indicator.setSelectionRange(pos, pos);
+                        clearPrefill();
+                        return;
+                    }
+                    if (event.key === "Backspace" || event.key === "Delete") {
+                        event.preventDefault();
+                        indicator.value = "";
+                        clearPrefill();
+                        return;
+                    }
+                }
                 if (event.key === "Enter") {
                     event.preventDefault();
                     commitIndicatorValue();
@@ -1608,8 +1630,21 @@
                 } else if (event.key === "Escape") {
                     event.preventDefault();
                     resetIndicator();
+                    clearPrefill();
                     indicator.blur();
                 }
+            });
+            indicator.addEventListener("paste", (event) => {
+                if (indicator.dataset.prefill !== "true") return;
+                const text = event.clipboardData?.getData("text") || "";
+                if (!text) return;
+                const digits = text.replace(/[^0-9]/g, "");
+                if (!digits) return;
+                event.preventDefault();
+                indicator.value = digits;
+                const pos = indicator.value.length;
+                indicator.setSelectionRange(pos, pos);
+                clearPrefill();
             });
             indicator.addEventListener("dragstart", (event) => {
                 event.preventDefault();
