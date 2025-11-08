@@ -869,13 +869,15 @@
 
             const modalRoot = document.createElement("div");
             modalRoot.dataset.cqModal = "true";
+            modalRoot.dataset.testid = "cq-delete-followup";
             modalRoot.className = "absolute inset-0";
 
             const overlay = document.createElement("div");
             overlay.dataset.state = "open";
             overlay.dataset.modalLayer = "overlay";
+            overlay.style.pointerEvents = "auto";
             overlay.className =
-                "fixed inset-0 z-[2147483647] before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] before:transition before:duration-250 dark:before:bg-black/50 before:starting:opacity-0";
+                "fixed inset-0 z-50 before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] before:transition before:duration-250 dark:before:bg-black/50 before:starting:opacity-0";
 
             const grid = document.createElement("div");
             grid.className =
@@ -885,6 +887,8 @@
             dialog.setAttribute("role", "dialog");
             dialog.setAttribute("aria-modal", "true");
             dialog.dataset.modalLayer = "content";
+            dialog.dataset.state = "open";
+            dialog.style.pointerEvents = "auto";
             dialog.className =
                 "popover bg-token-bg-primary relative col-auto col-start-2 row-auto row-start-2 h-full w-full text-start start-1/2 ltr:-translate-x-1/2 rtl:translate-x-1/2 rounded-2xl shadow-long flex flex-col focus:outline-hidden max-w-md overflow-hidden";
             dialog.tabIndex = -1;
@@ -902,7 +906,9 @@
             headerTextWrap.appendChild(h2);
             headerWrap.appendChild(headerTextWrap);
             header.appendChild(headerWrap);
-            header.appendChild(document.createElement("div"));
+            const headerActions = document.createElement("div");
+            headerActions.className = "flex h-[max-content] items-center gap-2";
+            header.appendChild(headerActions);
 
             const body = document.createElement("div");
             body.className = "grow overflow-y-auto p-4 pt-1";
@@ -957,12 +963,7 @@
             };
 
             overlay.addEventListener("click", (event) => {
-                if (event.target === overlay) {
-                    cleanup(false);
-                }
-            });
-            grid.addEventListener("click", (event) => {
-                if (event.target === grid) {
+                if (event.target === overlay || event.target === grid) {
                     cleanup(false);
                 }
             });
