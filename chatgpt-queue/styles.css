@@ -228,9 +228,9 @@
 
 #cq-ui .cq-pause-toggle:hover,
 #cq-ui .cq-pause-toggle:focus-visible {
-  color: var(--text-primary);
-  border-color: rgba(217, 217, 227, 0.65);
-  background: rgba(217, 217, 227, 0.32);
+  color: var(--danger);
+  border-color: rgba(255, 133, 131, 0.65);
+  background: #e02e2a23;
   outline: none;
 }
 
