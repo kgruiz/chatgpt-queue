@@ -156,9 +156,10 @@
 
 #cq-ui .cq-collapse-toggle:hover {
   color: var(--text-primary);
-  background: rgba(217, 217, 227, 0.14);
-  border-color: rgba(217, 217, 227, 0.35);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  background: rgba(217, 217, 227, 0.18);
+  border-color: rgba(217, 217, 227, 0.45);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
 }
 
 #cq-ui .cq-collapse-toggle:focus-visible {
@@ -542,11 +543,6 @@
 
 #cq-ui .cq-row-indicator[data-prefill="true"] {
   caret-color: transparent;
-}
-
-#cq-ui .cq-row-indicator:focus,
-#cq-ui .cq-row-indicator:active {
-  user-select: text;
 }
 
 #cq-ui .cq-row-indicator:focus-visible {
