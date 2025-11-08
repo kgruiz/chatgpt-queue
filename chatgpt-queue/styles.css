@@ -208,9 +208,9 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--interactive-bg-primary-default);
-  color: var(--text-inverted);
+  border: 1px solid rgba(217, 217, 227, 0.2);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -229,14 +229,16 @@
 
 #cq-ui .cq-pause-toggle:hover,
 #cq-ui .cq-pause-toggle:focus-visible {
-  background: var(--interactive-bg-primary-hover);
-  color: var(--text-inverted);
+  color: var(--text-primary);
+  border-color: rgba(217, 217, 227, 0.3);
+  background: rgba(217, 217, 227, 0.1);
   outline: none;
 }
 
 #cq-ui .cq-pause-toggle[data-state="paused"] {
-  border-color: rgba(255, 133, 131, 0.6);
-  color: var(--text-status-error);
+  background: rgba(255, 133, 131, 0.18);
+  border-color: rgba(255, 133, 131, 0.45);
+  color: var(--danger);
 }
 
 #cq-ui .cq-pause-toggle__icon {
@@ -283,29 +285,20 @@
   justify-content: center;
   padding-inline: 12px;
   min-height: 36px;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--interactive-bg-primary-default);
-  color: var(--text-inverted);
-  transition: background 0.15s ease, color 0.15s ease,
-    border-color 0.15s ease, transform 0.1s ease;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  transition: opacity 0.15s ease;
 }
 
 #cq-ui .cq-composer-queue-btn:hover,
 .cq-composer-hold-btn:hover {
-  background: var(--interactive-bg-primary-hover);
-}
-
-#cq-ui .cq-composer-queue-btn:active,
-.cq-composer-hold-btn:active {
-  background: var(--interactive-bg-primary-press);
+  opacity: 1;
 }
 
 #cq-ui .cq-composer-queue-btn:disabled,
 .cq-composer-hold-btn:disabled {
-  background: var(--interactive-bg-primary-inactive);
   color: var(--text-tertiary);
-  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .cq-composer-controls {
@@ -346,9 +339,9 @@
   height: 32px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--interactive-bg-primary-default);
-  color: var(--icon-primary);
+  border: 1px solid rgba(217, 217, 227, 0.16);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,13 +351,9 @@
 
 #cq-ui .cq-icon-button:hover,
 #cq-ui .cq-icon-button[aria-expanded="true"] {
-  background: var(--interactive-bg-primary-hover);
-  color: var(--icon-accent);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-#cq-ui .cq-icon-button:active {
-  background: var(--interactive-bg-primary-press);
+  color: var(--text-primary);
+  border-color: rgba(217, 217, 227, 0.3);
+  background: rgba(217, 217, 227, 0.1);
 }
 
 #cq-ui .cq-icon-button:focus-visible {
