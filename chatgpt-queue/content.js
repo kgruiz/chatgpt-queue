@@ -151,7 +151,7 @@
         const available = Math.max(320, window.innerWidth - 24);
         if (available < 420) return;
         popover.dataset.cqShortcutWide = "true";
-        const widthExpr = "min(1180px, calc(100vw - 32px))";
+        const widthExpr = "min(1060px, calc(100vw - 32px))";
         popover.style.maxWidth = widthExpr;
         popover.style.width = widthExpr;
     }
@@ -166,7 +166,7 @@
             wrapper.dataset.cqShortcutWrapper = "true";
             wrapper.style.display = "grid";
             wrapper.style.gridTemplateColumns =
-                "minmax(0, 1fr) minmax(0, 2.6fr)";
+                "minmax(0, 1fr) minmax(0, 2.2fr)";
             wrapper.style.gap = "0 24px";
             wrapper.style.width = "100%";
             wrapper.style.alignItems = "start";
