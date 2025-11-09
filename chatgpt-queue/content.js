@@ -185,9 +185,9 @@
         if (!queueColumn) {
             queueColumn = document.createElement("div");
             queueColumn.dataset.cqQueueColumn = "true";
-            queueColumn.style.gridColumn = "2 / 3";
-            queueColumn.style.width = "100%";
-            queueColumn.style.alignSelf = "start";
+        queueColumn.style.gridColumn = "2 / 3";
+        queueColumn.style.width = "100%";
+        queueColumn.style.alignSelf = "end";
             queueColumn.style.display = "flex";
             queueColumn.style.flexDirection = "column";
             queueColumn.style.gap = "12px";
