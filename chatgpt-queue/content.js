@@ -185,12 +185,14 @@
         if (!queueColumn) {
             queueColumn = document.createElement("div");
             queueColumn.dataset.cqQueueColumn = "true";
-        queueColumn.style.gridColumn = "2 / 3";
-        queueColumn.style.width = "100%";
-        queueColumn.style.alignSelf = "end";
+            queueColumn.style.gridColumn = "2 / 3";
+            queueColumn.style.width = "100%";
+            queueColumn.style.alignSelf = "end";
             queueColumn.style.display = "flex";
             queueColumn.style.flexDirection = "column";
             queueColumn.style.gap = "12px";
+            queueColumn.style.paddingRight = "10px";
+            queueColumn.style.paddingBottom = "8px";
             wrapper.appendChild(queueColumn);
         }
         return queueColumn;
