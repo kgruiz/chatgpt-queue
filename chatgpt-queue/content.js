@@ -928,6 +928,66 @@
     const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
 
+    const THREAD_LAYOUT_VARS = [
+        "--thread-content-margin",
+        "--thread-content-max-width",
+    ];
+    let threadLayoutSignature = "";
+    let threadLayoutRaf = 0;
+    let threadLayoutObserver = null;
+    let observedLayoutNode = null;
+
+    const applyThreadLayoutVars = (source) => {
+        if (!(source instanceof HTMLElement)) return;
+        const computed = window.getComputedStyle(source);
+        const values = THREAD_LAYOUT_VARS.map((token) =>
+            (computed.getPropertyValue(token) || "").trim(),
+        );
+        const signature = values.join("|");
+        if (signature === threadLayoutSignature) return;
+        threadLayoutSignature = signature;
+        THREAD_LAYOUT_VARS.forEach((token, index) => {
+            const value = values[index];
+            if (value) {
+                ui.style.setProperty(token, value);
+            } else {
+                ui.style.removeProperty(token);
+            }
+        });
+    };
+
+    const scheduleThreadLayoutSync = (source) => {
+        const target = source || observedLayoutNode || composer();
+        if (!(target instanceof HTMLElement)) return;
+        if (threadLayoutRaf) cancelAnimationFrame(threadLayoutRaf);
+        threadLayoutRaf = requestAnimationFrame(() => {
+            threadLayoutRaf = 0;
+            applyThreadLayoutVars(target);
+        });
+    };
+
+    const observeThreadLayoutSource = (node) => {
+        if (!(node instanceof HTMLElement)) return;
+        if (observedLayoutNode === node) {
+            scheduleThreadLayoutSync(node);
+            return;
+        }
+        observedLayoutNode = node;
+        if (typeof ResizeObserver === "function") {
+            if (!threadLayoutObserver) {
+                threadLayoutObserver = new ResizeObserver(() =>
+                    scheduleThreadLayoutSync(observedLayoutNode),
+                );
+            } else {
+                threadLayoutObserver.disconnect();
+            }
+            threadLayoutObserver.observe(node);
+        }
+        scheduleThreadLayoutSync(node);
+    };
+
+    window.addEventListener("resize", () => scheduleThreadLayoutSync());
+
     const locateCanvasPanel = () => {
         const marked = document.querySelector("[data-cq-canvas-panel='true']");
         if (marked) return marked;
@@ -1648,6 +1708,7 @@
         if (!root) return;
         ensureComposerControls(root);
         ensureComposerInputListeners(root);
+        observeThreadLayoutSource(root);
         let container = root.closest("#thread-bottom-container");
         if (!container) {
             // walk up until we hit something that looks like the prompt container
