@@ -6,7 +6,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 
 | Collapsed queue | Expanded queue |
 | --- | --- |
-| ![Collapsed queue screenshot showing inline status](queue-collapsed.png) | ![Expanded queue screenshot with attachments and controls](queue-expanded.png) |
+| ![Collapsed queue screenshot showing inline status](docs/queue-collapsed.png) | ![Expanded queue screenshot with attachments and controls](docs/queue-expanded.png) |
 
 ## What It Does
 
