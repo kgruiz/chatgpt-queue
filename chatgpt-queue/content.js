@@ -86,7 +86,7 @@
         },
         {
             id: "queue-delete-focused-skip",
-            label: "Delete focused follow-up (without confirmation)",
+            label: "Delete focused follow-up (no confirmation)",
             macKeys: ["option", "shift", "delete"],
             otherKeys: ["alt", "shift", "delete"],
         },
