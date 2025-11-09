@@ -142,16 +142,20 @@
 }
 
 #cq-ui.cq-canvas-mode .cq-inline-header {
-  gap: 4px;
+  gap: 2px;
 }
 
 #cq-ui.cq-canvas-mode .cq-inline-actions {
-  gap: 2px;
-  margin-left: 4px;
+  gap: 1px;
+  margin-left: 2px;
 }
 
 #cq-ui.cq-canvas-mode .cq-inline-meta {
-  gap: 2px;
+  gap: 1px;
+}
+
+#cq-ui.cq-canvas-mode .cq-collapse-toggle {
+  padding: 2px 8px;
 }
 
 #cq-ui.cq-canvas-mode {
