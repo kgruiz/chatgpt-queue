@@ -2,6 +2,12 @@
 
 Queue prompts for ChatGPT and let them auto-send as soon as the previous reply finishes. The extension keeps long follow-up chains moving without babysitting the UI.
 
+## Visual Preview
+
+| Collapsed queue | Expanded queue |
+| --- | --- |
+| ![Collapsed queue screenshot showing inline status](queue-collapsed.png) | ![Expanded queue screenshot with attachments and controls](queue-expanded.png) |
+
 ## What It Does
 
 - **Inline queue controls** - two buttons live next to the ChatGPT composer: *Add to queue* captures the current draft, while *Hold & queue* captures it and pauses the automation until you resume.
