@@ -221,8 +221,7 @@
         const grid = document.createElement("div");
         grid.dataset.cqShortcutOrigin = "queue";
         grid.style.display = "grid";
-        grid.style.gridTemplateColumns =
-            "minmax(0, 1fr) max-content minmax(0, 1fr) max-content";
+        grid.style.gridTemplateColumns = "minmax(0, 1fr) max-content";
         grid.style.columnGap = "16px";
         grid.style.rowGap = "8px";
         grid.style.width = "100%";
