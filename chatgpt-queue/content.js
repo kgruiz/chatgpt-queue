@@ -1708,7 +1708,6 @@
         if (!root) return;
         ensureComposerControls(root);
         ensureComposerInputListeners(root);
-        observeThreadLayoutSource(root);
         let container = root.closest("#thread-bottom-container");
         if (!container) {
             // walk up until we hit something that looks like the prompt container
@@ -1753,7 +1752,7 @@
         if (
             !anchor ||
             !container.contains(anchor) ||
-            anchor.parentElement !== container
+                anchor.parentElement !== container
         ) {
             if (ui.parentElement !== container) {
                 try {
@@ -1762,22 +1761,38 @@
                     /* noop */
                 }
             }
+            observeThreadLayoutSource(container);
             return;
         }
+        const layoutHost = anchor.querySelector(
+            ":scope > [class*='thread-content']",
+        );
+        const desiredParent =
+            (layoutHost instanceof HTMLElement ? layoutHost : null) ||
+            container;
+        const desiredBefore =
+            layoutHost instanceof HTMLElement
+                ? Array.from(layoutHost.childNodes).find((node) => node !== ui)
+                : anchor;
         if (
-            ui.parentElement !== container ||
-            ui.nextElementSibling !== anchor
+            ui.parentElement !== desiredParent ||
+            ui.nextSibling !== desiredBefore
         ) {
             try {
-                container.insertBefore(ui, anchor);
+                desiredParent.insertBefore(ui, desiredBefore || null);
             } catch (_) {
                 try {
-                    container.appendChild(ui);
+                    container.insertBefore(ui, anchor);
                 } catch (_) {
-                    /* noop */
+                    try {
+                        container.appendChild(ui);
+                    } catch (_) {
+                        /* noop */
+                    }
                 }
             }
         }
+        observeThreadLayoutSource(layoutHost || anchor || container);
     }
 
     function deriveQueueButtonClasses(sendButton) {
