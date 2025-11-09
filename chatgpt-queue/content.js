@@ -156,9 +156,47 @@
         popover.style.width = widthExpr;
     }
 
+    function ensureShortcutColumns(list) {
+        if (!(list instanceof HTMLDListElement)) return null;
+        const popover = list.closest(".popover");
+        if (!(popover instanceof HTMLElement)) return null;
+        let wrapper = popover.querySelector("[data-cq-shortcut-wrapper]");
+        if (!wrapper) {
+            wrapper = document.createElement("div");
+            wrapper.dataset.cqShortcutWrapper = "true";
+            wrapper.style.display = "grid";
+            wrapper.style.gridTemplateColumns = "minmax(0, 1fr) minmax(0, 1fr)";
+            wrapper.style.gap = "0 24px";
+            wrapper.style.width = "100%";
+            wrapper.style.alignItems = "start";
+            const parent = list.parentElement;
+            if (parent) {
+                parent.insertBefore(wrapper, list);
+            }
+            wrapper.appendChild(list);
+        } else if (list.parentElement !== wrapper) {
+            wrapper.appendChild(list);
+        }
+        list.style.gridColumn = "1 / 2";
+        list.style.width = "100%";
+        list.style.margin = "0";
+        let queueColumn = wrapper.querySelector("[data-cq-queue-column]");
+        if (!queueColumn) {
+            queueColumn = document.createElement("div");
+            queueColumn.dataset.cqQueueColumn = "true";
+            queueColumn.style.gridColumn = "2 / 3";
+            queueColumn.style.width = "100%";
+            queueColumn.style.alignSelf = "start";
+            queueColumn.style.display = "flex";
+            queueColumn.style.flexDirection = "column";
+            queueColumn.style.gap = "12px";
+            wrapper.appendChild(queueColumn);
+        }
+        return queueColumn;
+    }
+
     function injectQueueShortcutsIntoList(list) {
         if (!(list instanceof HTMLDListElement)) return;
-        if (list.querySelector('[data-cq-shortcut-origin="queue"]')) return;
         const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
             id: entry.id,
             label: entry.label,
@@ -166,19 +204,19 @@
         })).filter((entry) => entry.keys.length > 0);
         if (!shortcuts.length) return;
         widenShortcutPopover(list);
-        const fragment = document.createDocumentFragment();
-        const heading = document.createElement("dt");
-        heading.className =
-            "text-token-text-tertiary col-span-2 mt-2 empty:hidden";
+        const queueColumn = ensureShortcutColumns(list);
+        if (!queueColumn) return;
+        if (queueColumn.dataset.cqShortcutPopulated === "true") return;
+        queueColumn.dataset.cqShortcutPopulated = "true";
+        queueColumn.textContent = "";
+        const heading = document.createElement("div");
         heading.dataset.cqShortcutOrigin = "queue";
         heading.textContent = KEYBOARD_SHORTCUT_SECTION_LABEL;
-        heading.style.gridColumn = "1 / -1";
-        fragment.appendChild(heading);
-        const container = document.createElement("dd");
-        container.dataset.cqShortcutOrigin = "queue";
-        container.style.gridColumn = "1 / -1";
-        container.style.margin = "0";
-        container.style.padding = "0";
+        heading.className = "text-token-text-tertiary uppercase text-xs";
+        heading.style.letterSpacing = "0.08em";
+        heading.style.marginTop = "8px";
+        heading.style.marginBottom = "8px";
+        queueColumn.appendChild(heading);
         const grid = document.createElement("div");
         grid.dataset.cqShortcutOrigin = "queue";
         grid.style.display = "grid";
@@ -186,7 +224,6 @@
             "minmax(0, 1fr) max-content minmax(0, 1fr) max-content";
         grid.style.columnGap = "16px";
         grid.style.rowGap = "8px";
-        grid.style.marginTop = "4px";
         grid.style.width = "100%";
         shortcuts.forEach((shortcut) => {
             const label = document.createElement("span");
@@ -202,9 +239,7 @@
             keys.style.justifySelf = "end";
             grid.appendChild(keys);
         });
-        container.appendChild(grid);
-        fragment.appendChild(container);
-        list.appendChild(fragment);
+        queueColumn.appendChild(grid);
     }
 
     function findShortcutListFromHeading(heading) {
