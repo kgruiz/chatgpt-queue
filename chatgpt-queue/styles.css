@@ -151,11 +151,12 @@
 }
 
 #cq-ui.cq-canvas-mode .cq-inline-meta {
-  gap: 0px;
+  gap: 4px;
 }
 
 #cq-ui.cq-canvas-mode .cq-collapse-toggle {
   padding: 1px 6px;
+  gap: 4px;
 }
 
 #cq-ui.cq-canvas-mode {
