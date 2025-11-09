@@ -70,7 +70,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 | Navigate queue items | Option+Up / Option+Down | Alt+Up / Alt+Down |
 | Send focused follow-up | Enter | Enter |
 | Delete focused follow-up (confirm) | Shift+Delete | Shift+Delete |
-| Delete focused follow-up (skip confirm) | Option+Shift+Delete | Alt+Shift+Delete |
+| Delete focused follow-up (without confirmation) | Option+Shift+Delete | Alt+Shift+Delete |
 | Collapse/expand queue list | Shift+Cmd+. | Shift+Ctrl+. |
 | Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
 
