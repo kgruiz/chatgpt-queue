@@ -59,8 +59,9 @@
   width: 100%;
   max-width: 100%;
   margin: 0 0 12px;
-  padding-left: var(--thread-content-margin, 0);
-  padding-right: var(--thread-content-margin, 0);
+  --cq-inline-gutter: max(0px, calc(var(--thread-content-margin, 0) - 12px));
+  padding-left: var(--cq-inline-gutter);
+  padding-right: var(--cq-inline-gutter);
   display: flex;
   flex-direction: column;
   gap: 12px;
