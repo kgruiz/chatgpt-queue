@@ -959,6 +959,7 @@
         const next = isCanvasWorkspaceOpen();
         if (!force && next === canvasModeActive) return;
         canvasModeActive = next;
+        ui.classList.toggle("cq-canvas-mode", canvasModeActive);
         refreshPauseLabel();
     };
 

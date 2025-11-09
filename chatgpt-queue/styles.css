@@ -139,6 +139,14 @@
   gap: 8px;
 }
 
+#cq-ui.cq-canvas-mode .cq-inline-header {
+  gap: 6px;
+}
+
+#cq-ui.cq-canvas-mode .cq-inline-actions {
+  gap: 4px;
+}
+
 #cq-ui .cq-collapse-toggle {
   width: auto;
   min-height: 32px;
