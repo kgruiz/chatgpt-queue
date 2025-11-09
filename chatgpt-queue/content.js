@@ -102,7 +102,7 @@
         alt: { glyph: "Alt", aria: "Alt" },
         enter: { glyph: "⏎", aria: "Enter" },
         return: { glyph: "⏎", aria: "Return" },
-        delete: { glyph: "Del", aria: "Delete" },
+        delete: { glyph: "⌫", aria: "Delete" },
         p: { glyph: "P", aria: "P" },
         period: { glyph: ".", aria: "Period" },
         arrowup: { glyph: "↑", aria: "Arrow Up" },
