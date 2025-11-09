@@ -165,7 +165,8 @@
             wrapper = document.createElement("div");
             wrapper.dataset.cqShortcutWrapper = "true";
             wrapper.style.display = "grid";
-            wrapper.style.gridTemplateColumns = "minmax(0, 1fr) minmax(0, 1fr)";
+            wrapper.style.gridTemplateColumns =
+                "minmax(0, 1fr) minmax(0, 1.4fr)";
             wrapper.style.gap = "0 24px";
             wrapper.style.width = "100%";
             wrapper.style.alignItems = "start";
