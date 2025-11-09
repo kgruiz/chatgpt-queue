@@ -174,20 +174,36 @@
         heading.textContent = KEYBOARD_SHORTCUT_SECTION_LABEL;
         heading.style.gridColumn = "1 / -1";
         fragment.appendChild(heading);
+        const container = document.createElement("dd");
+        container.dataset.cqShortcutOrigin = "queue";
+        container.style.gridColumn = "1 / -1";
+        container.style.margin = "0";
+        container.style.padding = "0";
+        const grid = document.createElement("div");
+        grid.dataset.cqShortcutOrigin = "queue";
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns =
+            "minmax(0, 1fr) max-content minmax(0, 1fr) max-content";
+        grid.style.columnGap = "16px";
+        grid.style.rowGap = "8px";
+        grid.style.marginTop = "4px";
+        grid.style.width = "100%";
         shortcuts.forEach((shortcut) => {
-            const dt = document.createElement("dt");
-            dt.dataset.cqShortcutOrigin = "queue";
-            dt.textContent = shortcut.label;
-            dt.style.gridColumn = "2 / 3";
-            dt.style.justifySelf = "start";
-            fragment.appendChild(dt);
-            const dd = document.createElement("dd");
-            dd.dataset.cqShortcutOrigin = "queue";
-            dd.className = "text-token-text-secondary justify-self-end";
-            dd.style.gridColumn = "2 / 3";
-            dd.appendChild(buildShortcutKeyGroup(shortcut.keys));
-            fragment.appendChild(dd);
+            const label = document.createElement("span");
+            label.dataset.cqShortcutOrigin = "queue";
+            label.textContent = shortcut.label;
+            label.style.fontSize = "0.9rem";
+            label.style.lineHeight = "1.2";
+            label.style.alignSelf = "center";
+            grid.appendChild(label);
+            const keys = buildShortcutKeyGroup(shortcut.keys);
+            keys.dataset.cqShortcutOrigin = "queue";
+            keys.classList.add("text-token-text-secondary");
+            keys.style.justifySelf = "end";
+            grid.appendChild(keys);
         });
+        container.appendChild(grid);
+        fragment.appendChild(container);
         list.appendChild(fragment);
     }
 
