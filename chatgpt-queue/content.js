@@ -1021,7 +1021,7 @@
         canvasModeActive = next;
         ui.classList.toggle("cq-canvas-mode", canvasModeActive);
         refreshPauseLabel();
-        ensureMounted();
+        queueMicrotask(() => ensureMounted());
     };
 
     syncCanvasMode(true);
