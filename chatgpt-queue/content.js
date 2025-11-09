@@ -1703,6 +1703,39 @@
         }
         void sendFromQueue(index, { allowWhilePaused });
     }
+    const THREAD_HOST_SELECTOR = "[class*='thread-content']";
+
+    const findThreadContentHost = (rootNode, container, anchor) => {
+        if (rootNode instanceof HTMLElement) {
+            const closestHost = rootNode.closest(THREAD_HOST_SELECTOR);
+            if (closestHost) return closestHost;
+        }
+        const scopes = [];
+        if (anchor instanceof HTMLElement) scopes.push(anchor);
+        if (container instanceof HTMLElement) scopes.push(container);
+        for (const scope of scopes) {
+            const direct = scope.querySelector(
+                `:scope > ${THREAD_HOST_SELECTOR}`,
+            );
+            if (direct instanceof HTMLElement) return direct;
+        }
+        for (const scope of scopes) {
+            const any = scope.querySelector(THREAD_HOST_SELECTOR);
+            if (any instanceof HTMLElement) return any;
+        }
+        return null;
+    };
+
+    const firstNonQueueChild = (parent) => {
+        if (!parent) return null;
+        let child = parent.firstChild;
+        while (child) {
+            if (child !== ui) return child;
+            child = child.nextSibling;
+        }
+        return null;
+    };
+
     function ensureMounted() {
         const root = composer();
         if (!root) return;
@@ -1764,15 +1797,11 @@
             observeThreadLayoutSource(container);
             return;
         }
-        const layoutHost = anchor.querySelector(
-            ":scope > [class*='thread-content']",
-        );
-        const desiredParent =
-            (layoutHost instanceof HTMLElement ? layoutHost : null) ||
-            container;
+        const layoutHost = findThreadContentHost(root, container, anchor);
+        const desiredParent = layoutHost || container;
         const desiredBefore =
             layoutHost instanceof HTMLElement
-                ? Array.from(layoutHost.childNodes).find((node) => node !== ui)
+                ? firstNonQueueChild(layoutHost)
                 : anchor;
         if (
             ui.parentElement !== desiredParent ||
