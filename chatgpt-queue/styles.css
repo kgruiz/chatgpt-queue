@@ -59,9 +59,8 @@
   width: 100%;
   max-width: 100%;
   margin: 0 0 12px;
-  --cq-inline-gutter: max(0px, calc(var(--thread-content-margin, 0) - 12px));
-  padding-left: var(--cq-inline-gutter);
-  padding-right: var(--cq-inline-gutter);
+  padding-left: var(--thread-content-margin, 0);
+  padding-right: var(--thread-content-margin, 0);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -153,6 +152,12 @@
 
 #cq-ui.cq-canvas-mode .cq-inline-meta {
   gap: 2px;
+}
+
+#cq-ui.cq-canvas-mode {
+  --cq-inline-gutter: max(0px, calc(var(--thread-content-margin, 0) - 12px));
+  padding-left: var(--cq-inline-gutter);
+  padding-right: var(--cq-inline-gutter);
 }
 
 #cq-ui .cq-collapse-toggle {
