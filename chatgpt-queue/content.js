@@ -1021,6 +1021,7 @@
         canvasModeActive = next;
         ui.classList.toggle("cq-canvas-mode", canvasModeActive);
         refreshPauseLabel();
+        ensureMounted();
     };
 
     syncCanvasMode(true);
@@ -1798,11 +1799,11 @@
             return;
         }
         const layoutHost = findThreadContentHost(root, container, anchor);
-        const desiredParent = layoutHost || container;
-        const desiredBefore =
-            layoutHost instanceof HTMLElement
-                ? firstNonQueueChild(layoutHost)
-                : anchor;
+        const useThreadHost = !!(canvasModeActive && layoutHost);
+        const desiredParent = useThreadHost ? layoutHost : container;
+        const desiredBefore = useThreadHost
+            ? firstNonQueueChild(layoutHost)
+            : anchor;
         if (
             ui.parentElement !== desiredParent ||
             ui.nextSibling !== desiredBefore
@@ -1821,7 +1822,10 @@
                 }
             }
         }
-        observeThreadLayoutSource(layoutHost || anchor || container);
+        const layoutSource = useThreadHost
+            ? layoutHost
+            : anchor || container;
+        observeThreadLayoutSource(layoutSource || container);
     }
 
     function deriveQueueButtonClasses(sendButton) {
