@@ -222,8 +222,8 @@
         grid.dataset.cqShortcutOrigin = "queue";
         grid.style.display = "grid";
         grid.style.gridTemplateColumns = "minmax(0, 1fr) max-content";
-        grid.style.columnGap = "16px";
-        grid.style.rowGap = "8px";
+        grid.style.columnGap = "24px";
+        grid.style.rowGap = "12px";
         grid.style.width = "100%";
         shortcuts.forEach((shortcut) => {
             const label = document.createElement("span");
