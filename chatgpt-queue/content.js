@@ -924,8 +924,52 @@
     const inlineHeader = $(".cq-inline-header");
     const pauseToggle = $("#cq-pause-toggle");
     const pauseLabel = $("#cq-pause-label");
+    let canvasModeActive = false;
     const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
+
+    const locateCanvasPanel = () => {
+        const marked = document.querySelector("[data-cq-canvas-panel='true']");
+        if (marked) return marked;
+        const candidate = document.querySelector(
+            'div.bg-token-bg-primary.absolute.start-0.z-20.h-full.overflow-hidden[style*="calc("][style*="translateX"]',
+        );
+        if (candidate && candidate.querySelector("section.popover")) {
+            candidate.dataset.cqCanvasPanel = "true";
+            return candidate;
+        }
+        return null;
+    };
+
+    const isCanvasWorkspaceOpen = () => !!locateCanvasPanel();
+
+    const getPauseLabelText = () => {
+        if (!pauseLabel) return "";
+        const basePaused = STATE.paused ? "Resume queue" : "Pause queue";
+        if (!canvasModeActive) return basePaused;
+        return STATE.paused ? "Resume" : "Pause";
+    };
+
+    const refreshPauseLabel = () => {
+        if (!pauseLabel) return;
+        pauseLabel.textContent = getPauseLabelText();
+    };
+
+    const syncCanvasMode = (force = false) => {
+        const next = isCanvasWorkspaceOpen();
+        if (!force && next === canvasModeActive) return;
+        canvasModeActive = next;
+        refreshPauseLabel();
+    };
+
+    syncCanvasMode(true);
+    const canvasObserver = new MutationObserver(() => syncCanvasMode());
+    if (document.body) {
+        canvasObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    }
 
     const formatFollowUpLabel = (count) =>
         `${count} follow-up${count === 1 ? "" : "s"}`;
@@ -1392,11 +1436,7 @@
             );
             pauseToggle.title = `${STATE.paused ? "Resume" : "Pause"} queue (${PAUSE_SHORTCUT_LABEL})`;
         }
-        if (pauseLabel) {
-            pauseLabel.textContent = STATE.paused
-                ? "Resume queue"
-                : "Pause queue";
-        }
+        refreshPauseLabel();
         ui.classList.toggle("is-busy", STATE.busy);
         ui.classList.toggle("is-paused", STATE.paused);
         if (list) {
