@@ -2933,16 +2933,25 @@
         );
         const leading = root.querySelector('[grid-area="leading"]');
         let mountTarget = null;
+        let insertBeforeNode = null;
         if (leading instanceof HTMLElement) {
             mountTarget = leading;
+            insertBeforeNode = null;
         } else if (toolbar instanceof HTMLElement) {
             mountTarget = toolbar;
+            insertBeforeNode = toolbar.querySelector(
+                '[data-testid="composer-speech-button-container"], button[data-testid="composer-speech-button"], .composer-btn',
+            );
         }
         if (composerModelLabelButton && mountTarget instanceof HTMLElement) {
-            if (mountTarget !== composerModelLabelButton.parentElement) {
+            const needsMove =
+                mountTarget !== composerModelLabelButton.parentElement ||
+                (insertBeforeNode &&
+                    insertBeforeNode !== composerModelLabelButton.nextSibling);
+            if (needsMove) {
                 mountTarget.insertBefore(
                     composerModelLabelButton,
-                    mountTarget.firstChild || null,
+                    insertBeforeNode || null,
                 );
             }
         }
