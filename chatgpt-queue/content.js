@@ -1708,7 +1708,7 @@
             const label = getModelNodeLabel(item) || targetModelId;
             activateModelMenuItem(item);
             await sleep(120);
-            markModelSelected(targetModelId, label);
+            markModelSelected(modelId, label);
             return true;
         });
         return !!result;
