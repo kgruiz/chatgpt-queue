@@ -749,27 +749,38 @@
 
     const dispatchPointerAndMousePress = (target) => {
         if (!(target instanceof HTMLElement)) return false;
+        const rect = target.getBoundingClientRect();
+        const clientX = rect.left + rect.width / 2;
+        const clientY = rect.top + rect.height / 2;
+        const screenX = (window.screenX || 0) + clientX;
+        const screenY = (window.screenY || 0) + clientY;
+        const pageX = clientX + (window.scrollX || window.pageXOffset || 0);
+        const pageY = clientY + (window.scrollY || window.pageYOffset || 0);
+        const pointerInit = {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            clientX,
+            clientY,
+            screenX,
+            screenY,
+            pageX,
+            pageY,
+        };
         try {
             if (typeof PointerEvent === "function") {
                 target.dispatchEvent(
                     new PointerEvent("pointerdown", {
-                        bubbles: true,
-                        cancelable: true,
-                        pointerId: 1,
-                        pointerType: "mouse",
-                        isPrimary: true,
-                        button: 0,
-                        buttons: 1,
+                        ...pointerInit,
                     }),
                 );
                 target.dispatchEvent(
                     new PointerEvent("pointerup", {
-                        bubbles: true,
-                        cancelable: true,
-                        pointerId: 1,
-                        pointerType: "mouse",
-                        isPrimary: true,
-                        button: 0,
+                        ...pointerInit,
                         buttons: 0,
                     }),
                 );
@@ -782,17 +793,29 @@
             cancelable: true,
             button: 0,
             buttons: 1,
+            clientX,
+            clientY,
+            screenX,
+            screenY,
         });
         const mouseUp = new MouseEvent("mouseup", {
             bubbles: true,
             cancelable: true,
             button: 0,
             buttons: 0,
+            clientX,
+            clientY,
+            screenX,
+            screenY,
         });
         const mouseClick = new MouseEvent("click", {
             bubbles: true,
             cancelable: true,
             button: 0,
+            clientX,
+            clientY,
+            screenX,
+            screenY,
         });
         target.dispatchEvent(mouseDown);
         target.dispatchEvent(mouseUp);
