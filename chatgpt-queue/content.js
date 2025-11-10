@@ -21,7 +21,7 @@
     };
     const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
     const QUEUE_COLLAPSE_DURATION_MS = 350;
-    const QUEUE_COLLAPSE_BOUNCE = 0.1;
+    const QUEUE_COLLAPSE_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
     const QUEUE_CONTENT_FADE_DURATION_MS = 150;
     const CAN_USE_WEB_ANIMATIONS =
         typeof Element !== "undefined" &&
@@ -1065,30 +1065,6 @@
         }
     }
 
-    function createSpringHeightKeyframes(startHeight, endHeight) {
-        const start = Number.isFinite(startHeight) ? startHeight : 0;
-        const end = Number.isFinite(endHeight) ? endHeight : 0;
-        if (QUEUE_COLLAPSE_BOUNCE <= 0 || Math.abs(end - start) < 0.5) {
-            return [
-                { maxHeight: `${start}px` },
-                { maxHeight: `${end}px` },
-            ];
-        }
-        const delta = end - start;
-        const overshoot = delta * QUEUE_COLLAPSE_BOUNCE;
-        const overshootTarget = Math.max(0, end + overshoot);
-        const midOffset = delta > 0 ? 0.82 : 0.18;
-        return [
-            { maxHeight: `${start}px`, offset: 0 },
-            {
-                maxHeight: `${overshootTarget}px`,
-                offset: midOffset,
-                easing: "ease-out",
-            },
-            { maxHeight: `${end}px`, offset: 1, easing: "ease-in" },
-        ];
-    }
-
     function animateQueueContainer(targetCollapsed) {
         if (!(list instanceof HTMLElement)) return;
         flushQueueHeightSync();
@@ -1118,12 +1094,17 @@
         cancelQueueAnimation();
         list.style.maxHeight = `${startHeight}px`;
         setQueueAnimationState(targetCollapsed ? "collapsing" : "expanding");
-        const keyframes = createSpringHeightKeyframes(startHeight, endHeight);
-        queueCollapseAnimation = list.animate(keyframes, {
-            duration: QUEUE_COLLAPSE_DURATION_MS,
-            easing: "linear",
-            fill: "forwards",
-        });
+        queueCollapseAnimation = list.animate(
+            [
+                { maxHeight: `${startHeight}px` },
+                { maxHeight: `${endHeight}px` },
+            ],
+            {
+                duration: QUEUE_COLLAPSE_DURATION_MS,
+                easing: QUEUE_COLLAPSE_EASING,
+                fill: "forwards",
+            },
+        );
         queueCollapseAnimation.onfinish = () => {
             list.style.removeProperty("max-height");
             list.classList.toggle("is-collapsed", targetCollapsed);
