@@ -43,6 +43,7 @@
         ? "⌘⇧H"
         : "Ctrl+Shift+H";
     const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
+    const MODEL_DROPDOWN_ID = "cq-model-dropdown";
 
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
@@ -637,6 +638,9 @@
     let composerHoldButton = null;
     let composerModelLabelButton = null;
     let composerModelLabelButtonValue = null;
+    let composerModelDropdown = null;
+    let composerModelDropdownAnchor = null;
+    let composerModelDropdownCleanup = [];
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -710,6 +714,7 @@
     };
 
     const openModelSwitcherDropdown = () => {
+        closeComposerModelDropdown();
         const button = document.querySelector(
             'button[data-testid="model-switcher-dropdown-button"]',
         );
@@ -746,6 +751,43 @@
         return fallback || id;
     };
 
+    const MODEL_DESCRIPTION_MAP = {
+        auto: "Decides how long to think",
+        instant: "Answers right away",
+        "t-mini": "Thinks quickly",
+        mini: "Thinks quickly",
+        thinking: "Thinks longer for better answers",
+        pro: "Research-grade intelligence",
+    };
+
+    const describeModel = (model) => {
+        const slug = String(model?.id || "").toLowerCase();
+        if (!slug) return "";
+        for (const key of Object.keys(MODEL_DESCRIPTION_MAP)) {
+            if (slug.includes(key)) {
+                return MODEL_DESCRIPTION_MAP[key];
+            }
+        }
+        return slug;
+    };
+
+    const resolveModelDropdownHeading = () => {
+        const slugCandidate =
+            currentModelId ||
+            STATE.models.find((model) => model.selected)?.id ||
+            STATE.models[0]?.id ||
+            "";
+        if (!slugCandidate) return "Models";
+        const normalized = slugCandidate.toLowerCase();
+        if (normalized.startsWith("gpt-")) {
+            const [, family] = normalized.split("-");
+            if (family) {
+                return `GPT-${family.toUpperCase()}`;
+            }
+        }
+        return slugCandidate.toUpperCase();
+    };
+
     const resolveCurrentModelButtonValue = () => {
         const directLabel =
             (currentModelId &&
@@ -768,6 +810,218 @@
             );
         }
         return MODEL_BUTTON_FALLBACK_LABEL;
+    };
+
+    const registerComposerModelDropdownCleanup = (target, event, handler, options) => {
+        if (!target || typeof target.addEventListener !== "function") return;
+        target.addEventListener(event, handler, options);
+        composerModelDropdownCleanup.push(() => {
+            target.removeEventListener(event, handler, options);
+        });
+    };
+
+    const closeComposerModelDropdown = () => {
+        composerModelDropdownCleanup.forEach((cleanup) => {
+            try {
+                cleanup();
+            } catch (_) {
+                /* noop */
+            }
+        });
+        composerModelDropdownCleanup = [];
+        if (composerModelDropdown?.parentNode) {
+            composerModelDropdown.parentNode.removeChild(composerModelDropdown);
+        }
+        composerModelDropdown = null;
+        composerModelDropdownAnchor = null;
+    };
+
+    const positionComposerModelDropdown = () => {
+        if (
+            !composerModelDropdown ||
+            !composerModelDropdownAnchor ||
+            !document.body.contains(composerModelDropdownAnchor)
+        )
+            return;
+        const rect = composerModelDropdownAnchor.getBoundingClientRect();
+        if (!rect.width && !rect.height) return;
+        const dropdownRect = composerModelDropdown.getBoundingClientRect();
+        const offset = 6;
+        let top = rect.bottom + offset;
+        let side = "bottom";
+        if (top + dropdownRect.height > window.innerHeight - 8) {
+            top = Math.max(8, rect.top - dropdownRect.height - offset);
+            side = "top";
+        }
+        let left = rect.left;
+        const maxLeft = window.innerWidth - dropdownRect.width - 8;
+        if (left > maxLeft) left = Math.max(8, maxLeft);
+        if (left < 8) left = 8;
+        composerModelDropdown.style.transform = `translate(${Math.round(
+            left,
+        )}px, ${Math.round(top)}px)`;
+        const menu = composerModelDropdown.querySelector(
+            "[data-radix-menu-content]",
+        );
+        if (menu instanceof HTMLElement) {
+            menu.dataset.side = side;
+        }
+    };
+
+    const createComposerModelDropdownItem = (model) => {
+        const item = document.createElement("div");
+        item.className = "group __menu-item";
+        item.setAttribute("role", "menuitem");
+        item.tabIndex = 0;
+        item.dataset.orientation = "vertical";
+        item.dataset.radixCollectionItem = "";
+        if (model?.id) {
+            item.dataset.testid = `model-switcher-${model.id}`;
+        }
+        const body = document.createElement("div");
+        body.className = "min-w-0";
+        const label = document.createElement("span");
+        label.className = "flex items-center gap-1";
+        label.textContent = model?.label || model?.id || "Unknown model";
+        const description = document.createElement("div");
+        description.className =
+            "not-group-data-disabled:text-token-text-tertiary leading-dense mb-0.5 text-xs group-data-sheet-item:mt-0.5 group-data-sheet-item:mb-0";
+        description.textContent = describeModel(model);
+        body.append(label, description);
+
+        const trailing = document.createElement("div");
+        trailing.className = "trailing";
+        if (model?.selected) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", "16");
+            svg.setAttribute("height", "16");
+            svg.setAttribute("viewBox", "0 0 16 16");
+            svg.setAttribute("fill", "currentColor");
+            svg.setAttribute("xmlns", svgNS);
+            svg.classList.add("icon-sm");
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute(
+                "d",
+                "M12.0961 2.91371C12.3297 2.68688 12.6984 2.64794 12.9779 2.83852C13.2571 3.02905 13.3554 3.38601 13.2299 3.68618L13.1615 3.81118L6.91152 12.9772C6.79412 13.1494 6.60631 13.2604 6.39882 13.2799C6.19137 13.2994 5.98565 13.226 5.83828 13.0788L2.08828 9.32875L1.99843 9.2184C1.81921 8.94677 1.84928 8.57767 2.08828 8.33852C2.3274 8.0994 2.69648 8.06947 2.96816 8.24868L3.07851 8.33852L6.23085 11.4909L12.0053 3.02211L12.0961 2.91371Z",
+            );
+            svg.appendChild(path);
+            trailing.appendChild(svg);
+        } else {
+            const span = document.createElement("span");
+            span.className = "icon";
+            trailing.appendChild(span);
+        }
+
+        item.append(body, trailing);
+        item.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        return item;
+    };
+
+    const buildComposerModelDropdown = (models) => {
+        const wrapper = document.createElement("div");
+        wrapper.id = MODEL_DROPDOWN_ID;
+        wrapper.dataset.radixPopperContentWrapper = "";
+        wrapper.style.position = "fixed";
+        wrapper.style.left = "0px";
+        wrapper.style.top = "0px";
+        wrapper.style.transform = "translate(0px, 0px)";
+        wrapper.style.minWidth = "max-content";
+        wrapper.style.zIndex = "2147480000";
+        wrapper.style.pointerEvents = "none";
+
+        const menu = document.createElement("div");
+        menu.dataset.radixMenuContent = "";
+        menu.dataset.side = "bottom";
+        menu.dataset.align = "start";
+        menu.dataset.orientation = "vertical";
+        menu.dataset.state = "open";
+        menu.setAttribute("role", "menu");
+        menu.tabIndex = -1;
+        menu.className =
+            "z-50 max-w-xs rounded-2xl popover bg-token-main-surface-primary dark:bg-[#353535] shadow-long will-change-[opacity,transform] py-1.5 min-w-[max(var(--trigger-width),min(125px,95vw))] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto select-none";
+        menu.style.pointerEvents = "auto";
+        const heading = document.createElement("div");
+        heading.className = "__menu-label mb-0";
+        heading.textContent = resolveModelDropdownHeading(models);
+        menu.appendChild(heading);
+        models.forEach((model) => {
+            menu.appendChild(createComposerModelDropdownItem(model));
+        });
+        wrapper.appendChild(menu);
+        return wrapper;
+    };
+
+    const openComposerModelDropdown = async () => {
+        try {
+            const models = await ensureModelOptions();
+            if (!Array.isArray(models) || !models.length) return;
+            if (!composerModelLabelButton) return;
+            if (
+                composerModelDropdown &&
+                composerModelDropdownAnchor === composerModelLabelButton
+            ) {
+                closeComposerModelDropdown();
+                return;
+            }
+            closeComposerModelDropdown();
+            composerModelDropdownAnchor = composerModelLabelButton;
+            composerModelDropdown = buildComposerModelDropdown(models);
+            document.body.appendChild(composerModelDropdown);
+            positionComposerModelDropdown();
+            const handleClickOutside = (event) => {
+                if (
+                    !composerModelDropdown ||
+                    composerModelDropdown.contains(event.target)
+                )
+                    return;
+                if (
+                    composerModelLabelButton &&
+                    composerModelLabelButton.contains(event.target)
+                )
+                    return;
+                closeComposerModelDropdown();
+            };
+            const handleEscape = (event) => {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    closeComposerModelDropdown();
+                    composerModelLabelButton?.focus?.();
+                }
+            };
+            const handleViewportChange = () => {
+                positionComposerModelDropdown();
+            };
+            registerComposerModelDropdownCleanup(
+                document,
+                "click",
+                handleClickOutside,
+                true,
+            );
+            registerComposerModelDropdownCleanup(
+                document,
+                "keydown",
+                handleEscape,
+                true,
+            );
+            registerComposerModelDropdownCleanup(
+                window,
+                "resize",
+                handleViewportChange,
+            );
+            registerComposerModelDropdownCleanup(
+                window,
+                "scroll",
+                handleViewportChange,
+                true,
+            );
+        } catch (error) {
+            console.warn("[cq] Failed to open model dropdown", error);
+            closeComposerModelDropdown();
+        }
     };
 
     const setCurrentModel = (id, label = "") => {
@@ -2026,6 +2280,7 @@
         ) {
             composerModelLabelButton = null;
             composerModelLabelButtonValue = null;
+            closeComposerModelDropdown();
         }
         ensureComposerControls();
         refreshComposerModelLabelButton();
@@ -2583,7 +2838,8 @@
             button.append(label, value, shortcut);
             button.addEventListener("click", (event) => {
                 event.preventDefault();
-                void listModelsForDebug();
+                event.stopPropagation();
+                void openComposerModelDropdown();
             });
             composerModelLabelButton = button;
             composerModelLabelButtonValue = value;
