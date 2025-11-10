@@ -2414,8 +2414,8 @@
                 : isGenerating();
         const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
         list.textContent = "";
-        scheduleQueueHeightSync();
         if (STATE.queue.length === 0) {
+            scheduleQueueHeightSync();
             return;
         }
 
@@ -2678,10 +2678,14 @@
             row.appendChild(actions);
             list.appendChild(row);
         });
+        const scheduleMeasureAfterAutosize = () => scheduleQueueHeightSync();
         if (textareasToSize.length) {
             requestAnimationFrame(() => {
                 textareasToSize.forEach((area) => autoSize(area));
+                scheduleMeasureAfterAutosize();
             });
+        } else {
+            scheduleMeasureAfterAutosize();
         }
     }
 
