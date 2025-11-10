@@ -452,11 +452,13 @@
 
 #cq-ui .cq-queue {
   --queue-shadow-bleed-padding: var(--queue-shadow-bleed);
+  --cq-queue-expanded-height: 220px;
+  --cq-queue-max-height: var(--cq-queue-expanded-height);
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-height: 220px;
+  max-height: var(--cq-queue-max-height);
   overflow-y: auto;
   overflow-x: hidden;
   opacity: 1;
@@ -473,7 +475,7 @@
 
 #cq-ui .cq-queue.is-collapsed {
   --queue-shadow-bleed-padding: 0px;
-  max-height: 0;
+  --cq-queue-max-height: 0px;
   opacity: 0;
   overflow: hidden;
   pointer-events: none;

@@ -19,6 +19,7 @@
         composer:
             'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
     };
+    const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
 
     const navPlatform =
         typeof navigator === "object"
@@ -966,6 +967,36 @@
     const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
 
+    let queueHeightRaf = 0;
+    let lastQueueExpandedHeight = "";
+
+    function setQueueExpandedHeight(value) {
+        if (!(list instanceof HTMLElement)) return;
+        if (lastQueueExpandedHeight === value) return;
+        lastQueueExpandedHeight = value;
+        list.style.setProperty("--cq-queue-expanded-height", value);
+    }
+
+    function measureQueueExpandedHeight() {
+        if (!(list instanceof HTMLElement)) return;
+        const scrollHeight = list.scrollHeight || 0;
+        const bounded = Math.min(
+            Math.max(scrollHeight, 0),
+            QUEUE_VIEWPORT_MAX_HEIGHT,
+        );
+        setQueueExpandedHeight(`${bounded}px`);
+    }
+
+    function scheduleQueueHeightSync() {
+        if (queueHeightRaf) return;
+        queueHeightRaf = requestAnimationFrame(() => {
+            queueHeightRaf = 0;
+            measureQueueExpandedHeight();
+        });
+    }
+
+    measureQueueExpandedHeight();
+
     const THREAD_LAYOUT_VARS = [
         "--thread-content-margin",
         "--thread-content-max-width",
@@ -1639,6 +1670,7 @@
                 STATE.collapsed ? "true" : "false",
             );
         }
+        scheduleQueueHeightSync();
     }
 
     function setCollapsed(collapsed, persist = true) {
@@ -1693,6 +1725,7 @@
         textarea.style.height = "auto";
         const height = Math.min(200, textarea.scrollHeight || 24);
         textarea.style.height = `${height}px`;
+        scheduleQueueHeightSync();
     }
 
     function insertTextAtCursor(textarea, text) {
@@ -2190,6 +2223,9 @@
         thumb.src = attachment.dataUrl;
         thumb.alt = attachment.name || "Image attachment";
         thumb.loading = "lazy";
+        const notifyQueueSizeChange = () => scheduleQueueHeightSync();
+        thumb.addEventListener("load", notifyQueueSizeChange);
+        thumb.addEventListener("error", notifyQueueSizeChange);
         wrapper.appendChild(thumb);
 
         const meta = document.createElement("div");
@@ -2236,6 +2272,7 @@
                 : isGenerating();
         const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
         list.textContent = "";
+        scheduleQueueHeightSync();
         if (STATE.queue.length === 0) {
             return;
         }
