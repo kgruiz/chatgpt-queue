@@ -3152,6 +3152,8 @@
         if (!root) return;
         const sendButton = findSendButton(root);
         const voiceButton = q(SEL.voice, root);
+        const SPEECH_BUTTON_CONTAINER_SELECTOR =
+            '[data-testid="composer-speech-button-container"]';
 
         const resolveAnchor = (node) => {
             if (!(node instanceof HTMLElement)) {
@@ -3182,17 +3184,26 @@
         if (!parent) {
             ({ anchor, parent } = resolveAnchor(voiceButton));
         }
-        if (
-            parent instanceof HTMLElement &&
-            parent.getAttribute("data-testid") ===
-                "composer-speech-button-container"
-        ) {
-            anchor = parent;
-            parent = parent.parentElement;
-        }
+
+        const promoteSpeechContainerParent = () => {
+            const speechContainer =
+                (anchor instanceof HTMLElement &&
+                    anchor.closest(SPEECH_BUTTON_CONTAINER_SELECTOR)) ||
+                (parent instanceof HTMLElement &&
+                    parent.closest(SPEECH_BUTTON_CONTAINER_SELECTOR));
+            if (
+                speechContainer instanceof HTMLElement &&
+                speechContainer.parentElement instanceof HTMLElement
+            ) {
+                anchor = speechContainer;
+                parent = speechContainer.parentElement;
+            }
+        };
+
+        promoteSpeechContainerParent();
         if (!parent) {
             const candidate = root.querySelector(
-                '[data-testid="composer-speech-button-container"], [data-testid="composer-actions"], [data-testid="composer-toolbar"], [data-testid="composer-bottom-buttons"], [data-testid="composer-controls"]',
+                `${SPEECH_BUTTON_CONTAINER_SELECTOR}, [data-testid="composer-actions"], [data-testid="composer-toolbar"], [data-testid="composer-bottom-buttons"], [data-testid="composer-controls"]`,
             );
             if (candidate instanceof HTMLElement) {
                 parent = candidate;
@@ -3202,6 +3213,9 @@
                     ) || null;
             }
         }
+
+        promoteSpeechContainerParent();
+
         if (!(parent instanceof HTMLElement)) return;
         if (!composerControlGroup || !composerControlGroup.isConnected) {
             composerControlGroup = document.createElement("div");
