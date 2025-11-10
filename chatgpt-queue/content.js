@@ -627,6 +627,10 @@
     let currentModelId = null;
     let currentModelLabel = "";
     let modelsPromise = null;
+    let sourceModelCache = null;
+    const USE_MODEL_API = !1; // disabled per request
+    const modelDebugLog = (...args) => console.debug("[cq:model]", ...args);
+    const MODEL_API_ENDPOINT = "/backend-api/models";
     let composerControlGroup = null;
     let composerQueueButton = null;
     let composerHoldButton = null;
@@ -817,20 +821,226 @@
         return Array.from(map.values());
     };
 
-    const fetchModelOptions = async () => {
+    const buildModelOptionsFromApiPayload = (payload) => {
+        if (!payload || typeof payload !== "object") return [];
+        const list = Array.isArray(payload.models) ? payload.models : [];
+        const defaultSlug = normalizeModelId(
+            payload.default_model_slug || payload.defaultModelSlug || "",
+        );
+        const normalizedCurrent = currentModelId
+            ? normalizeModelId(currentModelId)
+            : "";
+        const options = list
+            .map((model) => {
+                const slug = model?.slug || model?.id || "";
+                if (!slug) return null;
+                const normalized = normalizeModelId(slug);
+                const selected = normalizedCurrent
+                    ? normalized === normalizedCurrent
+                    : defaultSlug && normalized === defaultSlug;
+                return {
+                    id: slug,
+                    label: model?.title || slug,
+                    selected,
+                };
+            })
+            .filter(Boolean);
+        if (!options.some((option) => option.selected) && options.length) {
+            options[0].selected = true;
+        }
+        return mergeModelOptions(options);
+    };
+
+    const fetchModelOptionsFromApi = async () => {
+        modelDebugLog("Attempting API fetch for models");
+        const origin =
+            typeof location === "object" && typeof location.origin === "string"
+                ? location.origin
+                : null;
+        if (!origin) {
+            modelDebugLog("Missing location.origin; cannot call API");
+            return [];
+        }
+        const endpoint = `${origin}${MODEL_API_ENDPOINT}`;
+        const fetchFn =
+            typeof window === "object" && typeof window.fetch === "function"
+                ? window.fetch.bind(window)
+                : fetch;
+        try {
+            const response = await fetchFn(endpoint, {
+                credentials: "include",
+                headers: {
+                    accept: "application/json",
+                },
+                cache: "no-cache",
+                mode: "same-origin",
+            });
+            if (!response?.ok) {
+                modelDebugLog("API response not ok", response?.status);
+                throw new Error(
+                    `Model endpoint responded with ${response?.status ?? "unknown"}`,
+                );
+            }
+            const payload = await response.json();
+            modelDebugLog("API payload size", Array.isArray(payload?.models) ? payload.models.length : 0);
+            return buildModelOptionsFromApiPayload(payload);
+        } catch (error) {
+            console.warn("[cq] Failed to fetch /backend-api/models", error);
+            return [];
+        }
+    };
+
+    const fetchModelOptionsFromMenu = async () => {
+        modelDebugLog("Falling back to menu scrape for models");
         const result = await useModelMenu(async (menu) =>
             parseModelItems(menu),
         );
         if (!Array.isArray(result)) return [];
+        modelDebugLog("Menu scrape produced options", result.length);
         return mergeModelOptions(result);
+    };
+
+    const findModelChunkUrls = () => {
+        modelDebugLog("Looking for chunk scripts to scrape models");
+        if (typeof document === "undefined") return [];
+        const chunkSelector =
+            'link[rel="modulepreload"][href$=".js"], link[rel="modulepreload"][href*=".js?"], link[rel="preload"][as="script"][href$=".js"], link[rel="preload"][as="script"][href*=".js?"], script[src$=".js"], script[src*=".js?"]';
+        const candidates = Array.from(document.querySelectorAll(chunkSelector));
+        modelDebugLog(
+            "Chunk candidate nodes discovered",
+            candidates.length,
+            chunkSelector,
+        );
+        const urls = [];
+        const skipStats = {
+            missingSrc: 0,
+            notChunk: 0,
+            duplicate: 0,
+            invalid: 0,
+        };
+        const chunkHints = [
+            "/_next/static/",
+            "cdn.oaistatic.com/",
+            "/assets/",
+        ];
+        const looksLikeChunk = (value) =>
+            typeof value === "string" &&
+            chunkHints.some((hint) => value.includes(hint));
+        candidates.forEach((node) => {
+            const raw =
+                node.tagName === "LINK"
+                    ? node.getAttribute("href")
+                    : node.getAttribute("src");
+            if (!raw) {
+                skipStats.missingSrc += 1;
+                return;
+            }
+            if (!looksLikeChunk(raw)) {
+                skipStats.notChunk += 1;
+                return;
+            }
+            let absolute;
+            try {
+                absolute = new URL(
+                    raw,
+                    typeof location === "object" && location?.origin
+                        ? location.origin
+                        : document.baseURI || undefined,
+                ).href;
+            } catch {
+                skipStats.invalid += 1;
+                return;
+            }
+            if (urls.includes(absolute)) {
+                skipStats.duplicate += 1;
+                return;
+            }
+            urls.push(absolute);
+        });
+        modelDebugLog("Chunk candidate skip stats", skipStats);
+        modelDebugLog("Chunk URLs found", urls);
+        return urls;
+    };
+
+    const parseModelsFromSourceText = (text) => {
+        if (typeof text !== "string" || !text) return [];
+        const MODEL_SOURCE_REGEX = /id:"([a-z0-9_.:-]+)"[\s\S]{0,200}?title:"([^"\\]+)"/gi;
+        const allowedPrefix = /^(gpt-|o[0-9]|auto)/i;
+        const map = new Map();
+        let match;
+        while ((match = MODEL_SOURCE_REGEX.exec(text))) {
+            const slug = match[1];
+            const label = match[2];
+            if (!allowedPrefix.test(slug)) continue;
+            if (!map.has(slug)) {
+                map.set(slug, {
+                    id: slug,
+                    label,
+                    selected: !1,
+                });
+            }
+        }
+        modelDebugLog("Models extracted from source chunk", map.size);
+        return Array.from(map.values());
+    };
+
+    const fetchModelOptionsFromSource = async () => {
+        if (Array.isArray(sourceModelCache) && sourceModelCache.length) {
+            modelDebugLog("Using cached source models", sourceModelCache.length);
+            return sourceModelCache;
+        }
+        const urls = findModelChunkUrls();
+        if (!urls.length) {
+            modelDebugLog("No chunk URLs available; cannot scrape models");
+            return [];
+        }
+        for (const url of urls) {
+            try {
+                modelDebugLog("Fetching chunk", url);
+                const response = await fetch(url, {
+                    cache: "force-cache",
+                    mode: "cors",
+                });
+                if (!response?.ok) continue;
+                const text = await response.text();
+                if (!text || !text.includes("gpt-")) {
+                    modelDebugLog("Chunk missing gpt markers", url);
+                    continue;
+                }
+                const models = parseModelsFromSourceText(text);
+                if (models.length) {
+                    modelDebugLog("Source scrape succeeded", models.length, url);
+                    sourceModelCache = models;
+                    return models;
+                }
+            } catch (error) {
+                console.warn("[cq] Failed reading chunk", url, error);
+            }
+        }
+        modelDebugLog("Source scrape failed to find any models");
+        return [];
     };
 
     const ensureModelOptions = async (options = {}) => {
         if (!options.force && STATE.models.length) return STATE.models;
         if (modelsPromise) return modelsPromise;
         modelsPromise = (async () => {
-            const models = await fetchModelOptions();
+            modelDebugLog("ensureModelOptions start", options);
+            let models = [];
+            if (USE_MODEL_API) {
+                modelDebugLog("API fetch enabled; attempting to load models");
+                models = await fetchModelOptionsFromApi();
+            } else {
+                modelDebugLog("API fetch disabled; skipping network call");
+            }
+            if (!models.length) {
+                models = await fetchModelOptionsFromMenu();
+            }
+            if (!models.length) {
+                models = await fetchModelOptionsFromSource();
+            }
             modelsPromise = null;
+            modelDebugLog("ensureModelOptions final size", models.length);
             if (!models.length) return STATE.models;
             const previousSignature = JSON.stringify(
                 STATE.models.map((model) => ({
@@ -909,6 +1119,133 @@
             return true;
         });
         return !!result;
+    };
+
+    const closeModelDebugPopup = () => {
+        document.getElementById("cq-model-debug")?.remove();
+    };
+
+    const showModelDebugPopup = (models) => {
+        closeModelDebugPopup();
+        const overlay = document.createElement("div");
+        overlay.id = "cq-model-debug";
+        overlay.style.position = "fixed";
+        overlay.style.inset = "0";
+        overlay.style.zIndex = "2147483647";
+        overlay.style.background = "rgba(15,15,20,0.45)";
+        overlay.style.backdropFilter = "blur(2px)";
+        overlay.style.display = "flex";
+        overlay.style.alignItems = "center";
+        overlay.style.justifyContent = "center";
+
+        const panel = document.createElement("div");
+        panel.style.maxWidth = "520px";
+        panel.style.width = "min(90vw, 520px)";
+        panel.style.maxHeight = "80vh";
+        panel.style.background = "#fff";
+        panel.style.borderRadius = "16px";
+        panel.style.boxShadow = "0 20px 45px rgba(0,0,0,0.25)";
+        panel.style.padding = "20px";
+        panel.style.color = "#111";
+        panel.style.fontFamily = '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        panel.style.display = "flex";
+        panel.style.flexDirection = "column";
+        panel.style.gap = "12px";
+
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.justifyContent = "space-between";
+        header.style.alignItems = "center";
+
+        const title = document.createElement("h2");
+        title.textContent = "Available models";
+        title.style.fontSize = "18px";
+        title.style.margin = "0";
+
+        const closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.textContent = "Close";
+        closeBtn.style.border = "none";
+        closeBtn.style.background = "#efefef";
+        closeBtn.style.borderRadius = "8px";
+        closeBtn.style.padding = "6px 14px";
+        closeBtn.style.cursor = "pointer";
+        closeBtn.addEventListener("click", () => closeModelDebugPopup());
+
+        header.append(title, closeBtn);
+
+        const list = document.createElement("div");
+        list.style.overflowY = "auto";
+        list.style.maxHeight = "60vh";
+        list.style.padding = "4px";
+        list.style.border = "1px solid rgba(17,17,17,0.1)";
+        list.style.borderRadius = "12px";
+
+        if (!models.length) {
+            const empty = document.createElement("p");
+            empty.textContent = "No models available.";
+            list.appendChild(empty);
+        } else {
+            models.forEach((model) => {
+                const row = document.createElement("div");
+                row.style.display = "flex";
+                row.style.justifyContent = "space-between";
+                row.style.gap = "12px";
+                row.style.padding = "8px 4px";
+                row.style.borderBottom = "1px solid rgba(17,17,17,0.08)";
+                const left = document.createElement("div");
+                left.textContent = model.label || model.id;
+                left.style.fontWeight = model.selected ? "600" : "500";
+                const right = document.createElement("div");
+                right.textContent = model.id;
+                right.style.fontFamily = "monospace";
+                right.style.fontSize = "12px";
+                row.append(left, right);
+                list.appendChild(row);
+            });
+        }
+
+        panel.append(header, list);
+        overlay.appendChild(panel);
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) closeModelDebugPopup();
+        });
+        document.addEventListener(
+            "keydown",
+            function onKey(event) {
+                if (event.key === "Escape") {
+                    document.removeEventListener("keydown", onKey, true);
+                    closeModelDebugPopup();
+                }
+            },
+            { once: true, capture: true },
+        );
+        document.body.appendChild(overlay);
+        closeBtn.focus({ preventScroll: true });
+    };
+
+    const listModelsForDebug = async ({ force = true } = {}) => {
+        try {
+            const models = await ensureModelOptions({ force });
+            if (!models.length) {
+                console.info("[cq] No models available to list yet.");
+                showModelDebugPopup([]);
+                return;
+            }
+            const printable = models.map((model) => ({
+                id: model.id,
+                label: model.label,
+                selected: !!model.selected,
+            }));
+            if (typeof console.table === "function") {
+                console.table(printable);
+            } else {
+                console.log("[cq] Models:", printable);
+            }
+            showModelDebugPopup(printable);
+        } catch (error) {
+            console.warn("[cq] Failed to list models", error);
+        }
     };
 
     function injectBridge() {
@@ -3177,6 +3514,17 @@
         return event.key === "ArrowDown" || event.key === "ArrowUp";
     };
 
+    const matchesModelListingShortcut = (event) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (!event.shiftKey || event.altKey) return false;
+        const normalized =
+            event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (normalized !== "h") return false;
+        const metaOnly = event.metaKey && !event.ctrlKey;
+        const ctrlOnly = event.ctrlKey && !event.metaKey;
+        return metaOnly || ctrlOnly;
+    };
+
     document.addEventListener(
         "keydown",
         (event) => {
@@ -3188,6 +3536,10 @@
             if (matchesQueueToggleShortcut(event)) {
                 event.preventDefault();
                 setCollapsed(!STATE.collapsed);
+            }
+            if (matchesModelListingShortcut(event)) {
+                event.preventDefault();
+                void listModelsForDebug();
             }
         },
         true,
