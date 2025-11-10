@@ -48,6 +48,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 - Drag cards to reorder, or type a new position number into the left-hand index field.
 - Use the arrow button on any card to send it immediately, even if the rest of the queue is paused.
 - Shift+Delete removes the focused card with a confirmation, and Option/Alt+Shift+Delete removes it instantly.
+- Prefer clicks? Hold Option/Alt while pressing a card's delete button to remove it without a confirmation dialog.
 
 ### Attachments
 
