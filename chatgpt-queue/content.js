@@ -2931,27 +2931,55 @@
         const toolbar = root.querySelector(
             '[data-testid="composer-toolbar"], [data-testid="composer-footer-actions"]',
         );
-        const leading = root.querySelector('[grid-area="leading"]');
-        let mountTarget = null;
-        let insertBeforeNode = null;
-        if (leading instanceof HTMLElement) {
-            mountTarget = leading;
-            insertBeforeNode = null;
-        } else if (toolbar instanceof HTMLElement) {
-            mountTarget = toolbar;
-            insertBeforeNode = toolbar.querySelector(
-                '[data-testid="composer-speech-button-container"], button[data-testid="composer-speech-button"], .composer-btn',
+        const composerExpanded = root?.hasAttribute("data-expanded");
+        if (composerModelLabelButton) {
+            composerModelLabelButton.classList.toggle(
+                "cq-composer-models-btn--leading",
+                !!composerExpanded,
             );
         }
-        if (composerModelLabelButton && mountTarget instanceof HTMLElement) {
-            const needsMove =
-                mountTarget !== composerModelLabelButton.parentElement ||
-                (insertBeforeNode &&
-                    insertBeforeNode !== composerModelLabelButton.nextSibling);
-            if (needsMove) {
-                mountTarget.insertBefore(
+        if (composerExpanded) {
+            const footerActions = root.querySelector(
+                '[data-testid="composer-footer-actions"]',
+            );
+            const footerContent =
+                footerActions?.querySelector('.flex') || footerActions;
+            const leadingArea = root.querySelector('[grid-area="leading"]');
+            let mountTarget = null;
+            let insertAfter = null;
+            if (leadingArea instanceof HTMLElement) {
+                mountTarget = leadingArea;
+                insertAfter = leadingArea.querySelector(
+                    'button[data-testid="composer-plus-btn"]',
+                )?.parentElement;
+            } else if (footerContent instanceof HTMLElement) {
+                mountTarget = footerContent;
+                insertAfter = footerContent.firstElementChild;
+            }
+            if (composerModelLabelButton && mountTarget instanceof HTMLElement) {
+                if (insertAfter instanceof HTMLElement) {
+                    insertAfter.insertAdjacentElement(
+                        "afterend",
+                        composerModelLabelButton,
+                    );
+                } else {
+                    mountTarget.insertBefore(
+                        composerModelLabelButton,
+                        mountTarget.firstChild || null,
+                    );
+                }
+            }
+        } else if (
+            composerModelLabelButton &&
+            composerControlGroup instanceof HTMLElement
+        ) {
+            if (
+                composerModelLabelButton.parentElement !==
+                composerControlGroup
+            ) {
+                composerControlGroup.insertBefore(
                     composerModelLabelButton,
-                    insertBeforeNode || null,
+                    composerControlGroup.firstChild || null,
                 );
             }
         }
