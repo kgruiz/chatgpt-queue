@@ -894,6 +894,11 @@
     const normalizeModelLabelText = (value) =>
         String(value || "")
             .trim()
+            .replace(/chatgpt/gi, "")
+            .replace(/gpt[\s-]*/gi, "")
+            .replace(/^-+/, "")
+            .replace(/-+$/, "")
+            .trim()
             .toLowerCase()
             .replace(/\s+/g, " ");
 
