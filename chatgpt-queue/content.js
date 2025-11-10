@@ -20,6 +20,12 @@
             'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
     };
     const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
+    const QUEUE_COLLAPSE_DURATION_MS = 350;
+    const QUEUE_COLLAPSE_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    const QUEUE_CONTENT_FADE_DURATION_MS = 150;
+    const CAN_USE_WEB_ANIMATIONS =
+        typeof Element !== "undefined" &&
+        typeof Element.prototype?.animate === "function";
 
     const navPlatform =
         typeof navigator === "object"
@@ -966,9 +972,17 @@
     let canvasModeActive = false;
     const queueLabel = $("#cq-label");
     ui.setAttribute("aria-hidden", "true");
+    if (list) {
+        list.style.setProperty(
+            "--cq-queue-content-fade-duration",
+            `${QUEUE_CONTENT_FADE_DURATION_MS}ms`,
+        );
+    }
 
     let queueHeightRaf = 0;
     let lastQueueExpandedHeight = "";
+    let queueCollapseAnimation = null;
+    let lastRenderedCollapsed = null;
 
     function setQueueExpandedHeight(value) {
         if (!(list instanceof HTMLElement)) return;
@@ -993,6 +1007,92 @@
             queueHeightRaf = 0;
             measureQueueExpandedHeight();
         });
+    }
+
+    const parsePxValue = (value) => {
+        if (typeof value !== "string") return 0;
+        const numeric = Number.parseFloat(value.replace(/[^0-9.\-]/g, ""));
+        return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    function getQueueExpandedHeightValue() {
+        if (!(list instanceof HTMLElement)) return 0;
+        const computed = window.getComputedStyle(list);
+        const declared =
+            computed.getPropertyValue("--cq-queue-expanded-height") ||
+            computed.getPropertyValue("--cq-queue-max-height") ||
+            "";
+        const numeric = parsePxValue(declared);
+        if (numeric > 0) return numeric;
+        return list.scrollHeight || 0;
+    }
+
+    function setQueueAnimationState(state) {
+        if (!(list instanceof HTMLElement)) return;
+        if (state) {
+            list.dataset.cqAnimState = state;
+        } else {
+            delete list.dataset.cqAnimState;
+        }
+    }
+
+    function cancelQueueAnimation() {
+        if (queueCollapseAnimation) {
+            queueCollapseAnimation.cancel();
+            queueCollapseAnimation = null;
+        }
+        setQueueAnimationState("");
+        if (list) {
+            list.style.removeProperty("max-height");
+        }
+    }
+
+    function animateQueueContainer(targetCollapsed) {
+        if (!(list instanceof HTMLElement)) return;
+        if (!CAN_USE_WEB_ANIMATIONS) {
+            list.classList.toggle("is-collapsed", targetCollapsed);
+            setQueueAnimationState("");
+            return;
+        }
+        const expandedHeight = getQueueExpandedHeightValue();
+        const currentRect = list.getBoundingClientRect();
+        const startHeight =
+            currentRect?.height && Number.isFinite(currentRect.height)
+                ? currentRect.height
+                : targetCollapsed
+                  ? expandedHeight
+                  : 0;
+        const endHeight = targetCollapsed ? 0 : expandedHeight;
+        if (Math.abs(startHeight - endHeight) < 0.5) {
+            list.classList.toggle("is-collapsed", targetCollapsed);
+            setQueueAnimationState("");
+            return;
+        }
+        cancelQueueAnimation();
+        list.style.maxHeight = `${startHeight}px`;
+        setQueueAnimationState(targetCollapsed ? "collapsing" : "expanding");
+        queueCollapseAnimation = list.animate(
+            [
+                { maxHeight: `${startHeight}px` },
+                { maxHeight: `${endHeight}px` },
+            ],
+            {
+                duration: QUEUE_COLLAPSE_DURATION_MS,
+                easing: QUEUE_COLLAPSE_EASING,
+                fill: "forwards",
+            },
+        );
+        queueCollapseAnimation.onfinish = () => {
+            list.style.removeProperty("max-height");
+            list.classList.toggle("is-collapsed", targetCollapsed);
+            setQueueAnimationState("");
+            queueCollapseAnimation = null;
+        };
+        queueCollapseAnimation.oncancel = () => {
+            list.style.removeProperty("max-height");
+            setQueueAnimationState("");
+            queueCollapseAnimation = null;
+        };
     }
 
     measureQueueExpandedHeight();
@@ -1664,11 +1764,27 @@
             }
         }
         if (list) {
-            list.classList.toggle("is-collapsed", STATE.collapsed);
-            list.setAttribute(
-                "aria-hidden",
-                STATE.collapsed ? "true" : "false",
-            );
+            if (!shouldShow) {
+                cancelQueueAnimation();
+                list.classList.toggle("is-collapsed", false);
+                list.setAttribute("aria-hidden", "true");
+                lastRenderedCollapsed = null;
+            } else {
+                const hasRenderedState = lastRenderedCollapsed !== null;
+                const collapseChanged =
+                    hasRenderedState &&
+                    lastRenderedCollapsed !== STATE.collapsed;
+                if (collapseChanged) {
+                    animateQueueContainer(STATE.collapsed);
+                } else if (!queueCollapseAnimation) {
+                    list.classList.toggle("is-collapsed", STATE.collapsed);
+                }
+                list.setAttribute(
+                    "aria-hidden",
+                    STATE.collapsed ? "true" : "false",
+                );
+                lastRenderedCollapsed = STATE.collapsed;
+            }
         }
         scheduleQueueHeightSync();
     }
@@ -1680,6 +1796,7 @@
             list instanceof HTMLElement &&
             document.activeElement instanceof HTMLElement &&
             list.contains(document.activeElement);
+        measureQueueExpandedHeight();
         STATE.collapsed = next;
         refreshVisibility();
         refreshControls();
