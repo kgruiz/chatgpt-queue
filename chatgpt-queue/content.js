@@ -995,6 +995,14 @@
         });
     }
 
+    function flushQueueHeightSync() {
+        if (queueHeightRaf) {
+            cancelAnimationFrame(queueHeightRaf);
+            queueHeightRaf = 0;
+        }
+        measureQueueExpandedHeight();
+    }
+
     measureQueueExpandedHeight();
 
     const THREAD_LAYOUT_VARS = [
@@ -1680,6 +1688,7 @@
             list instanceof HTMLElement &&
             document.activeElement instanceof HTMLElement &&
             list.contains(document.activeElement);
+        flushQueueHeightSync();
         STATE.collapsed = next;
         refreshVisibility();
         refreshControls();
