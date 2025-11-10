@@ -20,8 +20,8 @@
             'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
     };
     const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
-    const QUEUE_COLLAPSE_DURATION_MS = 520;
-    const QUEUE_COLLAPSE_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    const QUEUE_COLLAPSE_DURATION_MS = 620;
+    const QUEUE_COLLAPSE_EASING = "cubic-bezier(0.3, 1, 0.6, 1)";
     const QUEUE_CONTENT_FADE_DURATION_MS = 150;
     const CAN_USE_WEB_ANIMATIONS =
         typeof Element !== "undefined" &&
