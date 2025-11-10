@@ -117,6 +117,35 @@
   cursor: not-allowed;
 }
 
+.__menu-item {
+  --menu-item-highlighted: #0000000a;
+  --menu-item-active: #0000000f;
+  --menu-item-open: #00000006;
+  border-radius: 12px;
+  padding: 10px 16px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.dark .__menu-item {
+  --menu-item-highlighted: #ffffff1a;
+  --menu-item-active: #ffffff24;
+  --menu-item-open: #ffffff12;
+}
+
+@media (hover: hover) {
+  .__menu-item.hoverable:hover {
+    background-color: var(--menu-item-highlighted);
+  }
+}
+
+.__menu-item.hoverable:active {
+  background-color: var(--menu-item-active);
+}
+
+.__menu-item.hoverable[data-state="open"] {
+  background-color: var(--menu-item-open);
+}
+
 #cq-ui .cq-inline-header {
   display: flex;
   align-items: center;

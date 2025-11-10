@@ -1194,7 +1194,7 @@
 
     const createComposerModelDropdownItem = (model, selected = false) => {
         const item = document.createElement("div");
-        item.className = "group __menu-item";
+        item.className = "group __menu-item hoverable";
         item.setAttribute("role", "menuitem");
         item.tabIndex = 0;
         item.dataset.orientation = "vertical";
