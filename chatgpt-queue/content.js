@@ -891,7 +891,13 @@
         }
     };
 
-    const createComposerModelDropdownItem = (model) => {
+    const normalizeModelLabelText = (value) =>
+        String(value || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, " ");
+
+    const createComposerModelDropdownItem = (model, forcedSelected = false) => {
         const item = document.createElement("div");
         item.className = "group __menu-item";
         item.setAttribute("role", "menuitem");
@@ -914,7 +920,8 @@
 
         const trailing = document.createElement("div");
         trailing.className = "trailing";
-        if (model?.selected) {
+        const isSelected = forcedSelected || !!model?.selected;
+        if (isSelected) {
             const svgNS = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(svgNS, "svg");
             svg.setAttribute("width", "16");
@@ -971,8 +978,27 @@
         heading.className = "__menu-label mb-0";
         heading.textContent = resolveModelDropdownHeading(models);
         menu.appendChild(heading);
+        const headerLabel = readCurrentModelLabelFromHeader();
+        const normalizedHeaderLabel = normalizeModelLabelText(headerLabel);
+        const normalizedHeaderSlug = headerLabel
+            ? normalizeModelId(headerLabel)
+            : "";
         models.forEach((model) => {
-            menu.appendChild(createComposerModelDropdownItem(model));
+            const displayValue = model?.label || model?.id || "";
+            const normalizedDisplay = normalizeModelLabelText(displayValue);
+            const normalizedId = normalizeModelId(model?.id || "");
+            const headerMatchesLabel =
+                normalizedHeaderLabel &&
+                normalizedHeaderLabel.length > 0 &&
+                normalizedDisplay === normalizedHeaderLabel;
+            const headerMatchesId =
+                normalizedHeaderSlug &&
+                normalizedHeaderSlug.length > 0 &&
+                normalizedHeaderSlug === normalizedId;
+            const forcedSelected = headerMatchesLabel || headerMatchesId;
+            menu.appendChild(
+                createComposerModelDropdownItem(model, forcedSelected),
+            );
         });
         wrapper.appendChild(menu);
         return wrapper;
