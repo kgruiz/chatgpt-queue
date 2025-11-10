@@ -1253,7 +1253,38 @@
         return item;
     };
 
+    const dedupeModelsForDisplay = (models) => {
+        const map = new Map();
+        models.forEach((model) => {
+            if (!model?.id) return;
+            const canonicalKey = normalizeModelId(applyModelIdAlias(model.id));
+            if (!canonicalKey) return;
+            const existing = map.get(canonicalKey);
+            if (!existing) {
+                map.set(canonicalKey, model);
+                return;
+            }
+            const existingIsAlias =
+                normalizeModelId(existing.id) !== canonicalKey;
+            const currentIsAlias =
+                normalizeModelId(model.id) !== canonicalKey;
+            let preferCurrent = false;
+            if (currentIsAlias && !existingIsAlias) {
+                preferCurrent = true;
+            } else if (currentIsAlias === existingIsAlias) {
+                if (!!model.selected && !existing.selected) {
+                    preferCurrent = true;
+                }
+            }
+            if (preferCurrent) {
+                map.set(canonicalKey, model);
+            }
+        });
+        return Array.from(map.values());
+    };
+
     const buildComposerModelDropdown = (models) => {
+        const displayModels = dedupeModelsForDisplay(models);
         const wrapper = document.createElement("div");
         wrapper.id = MODEL_DROPDOWN_ID;
         wrapper.dataset.radixPopperContentWrapper = "";
@@ -1304,7 +1335,7 @@
         const hasHeaderMatch = normalizedHeaderLabel
             ? models.some((model) => matchesHeader(model))
             : false;
-        models.forEach((model) => {
+        displayModels.forEach((model) => {
             const selected = hasHeaderMatch
                 ? matchesHeader(model)
                 : !!model?.selected;
