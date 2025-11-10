@@ -692,24 +692,25 @@
             'button[data-testid="model-switcher-dropdown-button"]',
         );
         if (!button) return null;
-        const wasOpen =
-            button.getAttribute("aria-expanded") === "true" ||
-            button.dataset.state === "open";
-        if (!wasOpen) button.click();
+        const wasOpen = isModelSwitcherOpen(button);
+        let openedByUs = false;
+        if (!wasOpen) {
+            openedByUs = setModelSwitcherOpenState(button, true);
+            if (!openedByUs) return null;
+        }
         const menu = await waitForModelMenu();
         if (!menu) {
-            if (!wasOpen) button.click();
+            if (!wasOpen && openedByUs) {
+                setModelSwitcherOpenState(button, false);
+            }
             return null;
         }
         let result;
         try {
             result = await operation(menu, button);
         } finally {
-            if (!wasOpen) {
-                const stillOpen =
-                    button.getAttribute("aria-expanded") === "true" ||
-                    button.dataset.state === "open";
-                if (stillOpen) button.click();
+            if (!wasOpen && openedByUs) {
+                setModelSwitcherOpenState(button, false);
             }
         }
         return result;
@@ -787,27 +788,28 @@
         return true;
     };
 
+    const setModelSwitcherOpenState = (button, shouldOpen = true) => {
+        if (!(button instanceof HTMLElement)) return false;
+        const desired = !!shouldOpen;
+        const currentlyOpen = isModelSwitcherOpen(button);
+        if (desired === currentlyOpen) return true;
+        button.focus?.({ preventScroll: true });
+        dispatchPointerAndMousePress(button);
+        if (isModelSwitcherOpen(button) === desired) return true;
+        dispatchKeyboardEnterPress(button);
+        if (isModelSwitcherOpen(button) === desired) return true;
+        button.click();
+        return isModelSwitcherOpen(button) === desired;
+    };
+
     const openModelSwitcherDropdown = () => {
         closeComposerModelDropdown();
         const button = document.querySelector(
             'button[data-testid="model-switcher-dropdown-button"]',
         );
         if (!(button instanceof HTMLElement)) return false;
-        button.focus?.({ preventScroll: true });
-        let isOpen = isModelSwitcherOpen(button);
-        if (!isOpen) {
-            dispatchPointerAndMousePress(button);
-            isOpen = isModelSwitcherOpen(button);
-        }
-        if (!isOpen) {
-            dispatchKeyboardEnterPress(button);
-            isOpen = isModelSwitcherOpen(button);
-        }
-        if (!isOpen) {
-            button.click();
-            isOpen = isModelSwitcherOpen(button);
-        }
-        if (!isOpen) return false;
+        const opened = setModelSwitcherOpenState(button, true);
+        if (!opened) return false;
         button.focus?.({ preventScroll: false });
         return true;
     };
