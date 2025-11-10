@@ -714,18 +714,67 @@
         return result;
     };
 
+    const isModelSwitcherOpen = (button) =>
+        button?.getAttribute("aria-expanded") === "true" ||
+        button?.dataset.state === "open";
+
+    const triggerModelSwitcherPointerPress = (button) => {
+        if (!(button instanceof HTMLElement)) return false;
+        const pointerOpts = {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+        };
+        try {
+            if (typeof PointerEvent === "function") {
+                button.dispatchEvent(new PointerEvent("pointerdown", pointerOpts));
+                button.dispatchEvent(new PointerEvent("pointerup", pointerOpts));
+            }
+        } catch (_) {
+            /* Some browsers may not support PointerEvent constructors */
+        }
+        const mouseOpts = { bubbles: true, cancelable: true, button: 0 };
+        button.dispatchEvent(new MouseEvent("mousedown", mouseOpts));
+        button.dispatchEvent(new MouseEvent("mouseup", mouseOpts));
+        button.dispatchEvent(new MouseEvent("click", mouseOpts));
+        return isModelSwitcherOpen(button);
+    };
+
+    const triggerModelSwitcherKeyboardPress = (button) => {
+        if (!(button instanceof HTMLElement)) return false;
+        const keyOpts = {
+            bubbles: true,
+            cancelable: true,
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+        };
+        button.dispatchEvent(new KeyboardEvent("keydown", keyOpts));
+        button.dispatchEvent(new KeyboardEvent("keyup", keyOpts));
+        return isModelSwitcherOpen(button);
+    };
+
     const openModelSwitcherDropdown = () => {
         closeComposerModelDropdown();
         const button = document.querySelector(
             'button[data-testid="model-switcher-dropdown-button"]',
         );
         if (!(button instanceof HTMLElement)) return false;
-        const isOpen =
-            button.getAttribute("aria-expanded") === "true" ||
-            button.dataset.state === "open";
+        let isOpen = isModelSwitcherOpen(button);
+        if (!isOpen) {
+            isOpen =
+                triggerModelSwitcherPointerPress(button) ||
+                triggerModelSwitcherKeyboardPress(button);
+        }
         if (!isOpen) {
             button.click();
+            isOpen = isModelSwitcherOpen(button);
         }
+        if (!isOpen) return false;
         button.focus?.({ preventScroll: false });
         return true;
     };
