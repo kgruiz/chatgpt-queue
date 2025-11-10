@@ -1441,10 +1441,11 @@
 
     const markModelSelected = (id, label = "") => {
         if (!id) return;
-        const normalized = normalizeModelId(id);
+        const canonicalId = applyModelIdAlias(id);
+        const targetNormalized = normalizeModelId(canonicalId);
         let found = false;
         STATE.models = STATE.models.map((model) => {
-            const match = normalizeModelId(model.id) === normalized;
+            const match = normalizeModelId(model.id) === targetNormalized;
             if (match) {
                 found = true;
                 return {
@@ -1459,9 +1460,13 @@
             return model;
         });
         if (!found) {
-            STATE.models.push({ id, label: label || id, selected: true });
+            STATE.models.push({
+                id: canonicalId,
+                label: label || canonicalId,
+                selected: true,
+            });
         }
-        setCurrentModel(id, labelForModel(id, label));
+        setCurrentModel(canonicalId, labelForModel(canonicalId, label));
     };
 
     const applyDefaultModelToQueueIfMissing = () => {
