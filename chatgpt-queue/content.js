@@ -902,7 +902,7 @@
             .toLowerCase()
             .replace(/\s+/g, " ");
 
-    const createComposerModelDropdownItem = (model, forcedSelected = false) => {
+    const createComposerModelDropdownItem = (model, selected = false) => {
         const item = document.createElement("div");
         item.className = "group __menu-item";
         item.setAttribute("role", "menuitem");
@@ -925,8 +925,7 @@
 
         const trailing = document.createElement("div");
         trailing.className = "trailing";
-        const isSelected = forcedSelected || !!model?.selected;
-        if (isSelected) {
+        if (selected) {
             const svgNS = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(svgNS, "svg");
             svg.setAttribute("width", "16");
@@ -988,7 +987,7 @@
         const normalizedHeaderSlug = headerLabel
             ? normalizeModelId(headerLabel)
             : "";
-        models.forEach((model) => {
+        const matchesHeader = (model) => {
             const displayValue = model?.label || model?.id || "";
             const normalizedDisplay = normalizeModelLabelText(displayValue);
             const normalizedId = normalizeModelId(model?.id || "");
@@ -1000,10 +999,16 @@
                 normalizedHeaderSlug &&
                 normalizedHeaderSlug.length > 0 &&
                 normalizedHeaderSlug === normalizedId;
-            const forcedSelected = headerMatchesLabel || headerMatchesId;
-            menu.appendChild(
-                createComposerModelDropdownItem(model, forcedSelected),
-            );
+            return headerMatchesLabel || headerMatchesId;
+        };
+        const hasHeaderMatch = normalizedHeaderLabel
+            ? models.some((model) => matchesHeader(model))
+            : false;
+        models.forEach((model) => {
+            const selected = hasHeaderMatch
+                ? matchesHeader(model)
+                : !!model?.selected;
+            menu.appendChild(createComposerModelDropdownItem(model, selected));
         });
         wrapper.appendChild(menu);
         return wrapper;
