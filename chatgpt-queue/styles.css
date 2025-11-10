@@ -377,20 +377,6 @@
   outline-offset: 2px;
 }
 
-.cq-composer-models-btn__shortcut {
-  font-size: 11px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: 1px 6px;
-  letter-spacing: 0.05em;
-  opacity: 0.8;
-}
-
-.cq-composer-models-btn__label {
-  font-weight: 500;
-  opacity: 0.75;
-}
-
 .cq-composer-models-btn__value {
   font-weight: 600;
 }

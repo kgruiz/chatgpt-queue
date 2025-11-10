@@ -2247,7 +2247,7 @@
         if (composerModelLabelButtonValue) {
             composerModelLabelButtonValue.textContent = label;
         }
-        const tooltip = `Show available models (${MODEL_LIST_SHORTCUT_LABEL}). Current: ${label}`;
+        const tooltip = `Show available models. Current: ${label}`;
         composerModelLabelButton.setAttribute("aria-label", tooltip);
         composerModelLabelButton.title = tooltip;
     }
@@ -2826,16 +2826,10 @@
             button.type = "button";
             button.id = "cq-composer-models-btn";
             button.className = "cq-composer-models-btn";
-            const label = document.createElement("span");
-            label.className = "cq-composer-models-btn__label";
-            label.textContent = "Model:";
             const value = document.createElement("span");
             value.className = "cq-composer-models-btn__value";
             value.textContent = resolveCurrentModelButtonValue();
-            const shortcut = document.createElement("span");
-            shortcut.className = "cq-composer-models-btn__shortcut";
-            shortcut.textContent = MODEL_LIST_SHORTCUT_LABEL;
-            button.append(label, value, shortcut);
+            button.append(value);
             button.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
