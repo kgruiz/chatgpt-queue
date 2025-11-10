@@ -2928,25 +2928,54 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
-        const footerActions = root.querySelector(
-            '[data-testid="composer-footer-actions"]',
+        const plusButton = root.querySelector(
+            'button[data-testid="composer-plus-btn"]',
         );
-        let footerMount = null;
-        if (footerActions instanceof HTMLElement) {
-            footerMount =
-                footerActions.querySelector(":scope > .flex") ||
-                footerActions.firstElementChild ||
-                footerActions;
+        let plusWrapper = null;
+        let modelLabelMount = null;
+        if (plusButton instanceof HTMLElement) {
+            plusWrapper =
+                plusButton.parentElement instanceof HTMLElement
+                    ? plusButton.parentElement
+                    : null;
+            const leadingArea =
+                plusWrapper?.parentElement instanceof HTMLElement &&
+                plusWrapper.parentElement.matches('[grid-area="leading"]')
+                    ? plusWrapper.parentElement
+                    : plusButton.closest('[grid-area="leading"]');
+            if (leadingArea instanceof HTMLElement) {
+                modelLabelMount = leadingArea;
+            }
+        }
+        if (!modelLabelMount) {
+            const footerActions = root.querySelector(
+                '[data-testid="composer-footer-actions"]',
+            );
+            if (footerActions instanceof HTMLElement) {
+                modelLabelMount = footerActions;
+            }
         }
         if (
             composerModelLabelButton &&
-            footerMount instanceof HTMLElement &&
-            composerModelLabelButton.parentElement !== footerMount
+            modelLabelMount instanceof HTMLElement
         ) {
-            footerMount.insertBefore(
-                composerModelLabelButton,
-                footerMount.firstChild || null,
-            );
+            const currentParent = composerModelLabelButton.parentElement;
+            if (currentParent !== modelLabelMount) {
+                if (
+                    plusWrapper instanceof HTMLElement &&
+                    plusWrapper.parentElement === modelLabelMount
+                ) {
+                    plusWrapper.insertAdjacentElement(
+                        "afterend",
+                        composerModelLabelButton,
+                    );
+                } else {
+                    modelLabelMount.insertBefore(
+                        composerModelLabelButton,
+                        modelLabelMount.firstChild || null,
+                    );
+                }
+            }
         }
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
