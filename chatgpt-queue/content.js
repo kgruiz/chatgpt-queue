@@ -1105,44 +1105,6 @@
         }
     };
 
-    const mountComposerModelLabelInLeading = (root) => {
-        if (!composerModelLabelButton) return false;
-        const leadingArea = root.querySelector('[grid-area="leading"]');
-        if (!(leadingArea instanceof HTMLElement)) return false;
-        const plusButton = leadingArea.querySelector(
-            'button[data-testid="composer-plus-btn"]',
-        );
-        const plusWrapper =
-            plusButton && plusButton.parentElement instanceof HTMLElement
-                ? plusButton.parentElement
-                : null;
-        if (
-            plusWrapper instanceof HTMLElement &&
-            plusWrapper.nextSibling === composerModelLabelButton
-        ) {
-            return true;
-        }
-        if (
-            composerModelLabelButton.parentElement === leadingArea &&
-            !plusWrapper &&
-            leadingArea.firstChild === composerModelLabelButton
-        ) {
-            return true;
-        }
-        if (plusWrapper instanceof HTMLElement) {
-            plusWrapper.insertAdjacentElement(
-                "afterend",
-                composerModelLabelButton,
-            );
-        } else {
-            leadingArea.insertBefore(
-                composerModelLabelButton,
-                leadingArea.firstChild || null,
-            );
-        }
-        return true;
-    };
-
     const mountComposerModelLabelInControls = () => {
         if (!composerModelLabelButton || !composerControlGroup) return false;
         let beforeNode = composerHoldButton || composerControlGroup.firstChild;
@@ -2992,31 +2954,9 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
-        const composerExpanded = root?.hasAttribute("data-expanded");
-        if (composerModelLabelButton) {
-            composerModelLabelButton.classList.toggle(
-                "cq-composer-models-btn--leading",
-                !!composerExpanded,
-            );
+        if (mountComposerModelLabelInControls()) {
+            composerModelLabelPlacement = "controls";
         }
-        let placementApplied = false;
-        let newPlacement = null;
-        if (composerExpanded) {
-            placementApplied = mountComposerModelLabelInLeading(root);
-            if (placementApplied) {
-                newPlacement = "leading";
-            } else if (mountComposerModelLabelInControls()) {
-                placementApplied = true;
-                newPlacement = "controls";
-            }
-        } else if (mountComposerModelLabelInControls()) {
-            placementApplied = true;
-            newPlacement = "controls";
-        }
-        if (!placementApplied) {
-            newPlacement = null;
-        }
-        composerModelLabelPlacement = newPlacement;
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
         }

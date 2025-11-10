@@ -360,9 +360,6 @@
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.cq-composer-models-btn--leading {
-  margin-left: 8px;
-}
 
 .cq-composer-models-btn:hover,
 .cq-composer-models-btn:focus-visible {
