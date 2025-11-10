@@ -22,7 +22,7 @@
     const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
     const QUEUE_COLLAPSE_DURATION_MS = 620;
     const QUEUE_COLLAPSE_EASING = "cubic-bezier(0.3, 1, 0.6, 1)";
-    const QUEUE_CONTENT_FADE_DURATION_MS = 150;
+    const QUEUE_CONTENT_FADE_DURATION_MS = 100;
     const CAN_USE_WEB_ANIMATIONS =
         typeof Element !== "undefined" &&
         typeof Element.prototype?.animate === "function";

@@ -513,7 +513,7 @@
   pointer-events: auto;
   min-height: 56px;
   opacity: 1;
-  transition: opacity var(--cq-queue-content-fade-duration, 150ms) linear;
+  transition: opacity var(--cq-queue-content-fade-duration, 100ms) linear;
 }
 
 #cq-ui .cq-row--next {
@@ -530,19 +530,19 @@
 
 #cq-ui .cq-queue.is-collapsed .cq-row {
   opacity: 0;
-  transition-duration: var(--cq-queue-content-fade-duration, 150ms);
+  transition-duration: var(--cq-queue-content-fade-duration, 100ms);
   transition-timing-function: steps(1, end);
 }
 
 #cq-ui .cq-queue[data-cq-anim-state="expanding"] .cq-row {
   opacity: 1;
-  transition-duration: var(--cq-queue-content-fade-duration, 150ms);
+  transition-duration: var(--cq-queue-content-fade-duration, 100ms);
   transition-timing-function: steps(1, start);
 }
 
 #cq-ui .cq-queue[data-cq-anim-state="collapsing"] .cq-row {
   opacity: 0;
-  transition-duration: var(--cq-queue-content-fade-duration, 150ms);
+  transition-duration: var(--cq-queue-content-fade-duration, 100ms);
   transition-timing-function: steps(1, end);
 }
 
