@@ -2854,13 +2854,24 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
+        const footerActions = root.querySelector(
+            '[data-testid="composer-footer-actions"]',
+        );
+        let footerMount = null;
+        if (footerActions instanceof HTMLElement) {
+            footerMount =
+                footerActions.querySelector(":scope > .flex") ||
+                footerActions.firstElementChild ||
+                footerActions;
+        }
         if (
             composerModelLabelButton &&
-            composerModelLabelButton.parentElement !== composerControlGroup
+            footerMount instanceof HTMLElement &&
+            composerModelLabelButton.parentElement !== footerMount
         ) {
-            composerControlGroup.insertBefore(
+            footerMount.insertBefore(
                 composerModelLabelButton,
-                composerControlGroup.firstChild,
+                footerMount.firstChild || null,
             );
         }
         if (!composerControlGroup.contains(composerHoldButton)) {
