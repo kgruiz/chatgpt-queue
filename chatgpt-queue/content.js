@@ -1107,24 +1107,22 @@
 
     const mountComposerModelLabelBeforeDictate = (root) => {
         if (!composerModelLabelButton) return false;
-        const trailingArea = root.querySelector('[grid-area="trailing"]');
-        if (!(trailingArea instanceof HTMLElement)) return false;
-        const trailingFlex = trailingArea.querySelector('.ms-auto.flex');
-        if (!(trailingFlex instanceof HTMLElement)) return false;
-        const dictateButton = trailingFlex.querySelector(
+        const dictateButton = root.querySelector(
             'button[aria-label="Dictate button"]',
         );
         if (!(dictateButton instanceof HTMLElement)) return false;
         const dictateWrapper =
             dictateButton.closest("span") || dictateButton;
         if (!(dictateWrapper instanceof HTMLElement)) return false;
+        const host = dictateWrapper.parentElement;
+        if (!(host instanceof HTMLElement)) return false;
         if (
-            composerModelLabelButton.parentElement === trailingFlex &&
+            composerModelLabelButton.parentElement === host &&
             composerModelLabelButton.nextSibling === dictateWrapper
         ) {
             return true;
         }
-        trailingFlex.insertBefore(composerModelLabelButton, dictateWrapper);
+        host.insertBefore(composerModelLabelButton, dictateWrapper);
         return true;
     };
 
