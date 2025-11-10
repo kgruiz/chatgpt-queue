@@ -788,7 +788,30 @@
         return slugCandidate.toUpperCase();
     };
 
+    const readCurrentModelLabelFromHeader = () => {
+        const button = document.querySelector(
+            'button[data-testid="model-switcher-dropdown-button"]',
+        );
+        if (!(button instanceof HTMLElement)) return "";
+        const aria = button.getAttribute("aria-label") || "";
+        const ariaMatch = aria.match(/current model is (.+)$/i);
+        if (ariaMatch && ariaMatch[1]) {
+            return ariaMatch[1].trim();
+        }
+        const highlight = button.querySelector(
+            ".text-token-text-tertiary, span[class*='text-token-text-tertiary']",
+        );
+        if (highlight && highlight.textContent) {
+            return highlight.textContent.trim();
+        }
+        const text = button.textContent || "";
+        const stripped = text.replace(/chatgpt/i, "").trim();
+        return stripped;
+    };
+
     const resolveCurrentModelButtonValue = () => {
+        const headerLabel = readCurrentModelLabelFromHeader();
+        if (headerLabel) return headerLabel;
         const directLabel =
             (currentModelId &&
                 labelForModel(
