@@ -109,6 +109,44 @@
         arrowdown: { glyph: "↓", aria: "Arrow Down" },
     };
 
+    const LEGACY_STORAGE_KEY = "cq";
+    const STORAGE_PREFIX = "cq:";
+    const CONVERSATION_ID_REGEX = /\/c\/([0-9a-f-]+)/i;
+
+    const hostToken = () => {
+        if (
+            typeof location === "object" &&
+            typeof location.host === "string" &&
+            location.host
+        ) {
+            return location.host.toLowerCase();
+        }
+        return "chatgpt.com";
+    };
+
+    const encodePathForStorage = (value) => {
+        if (typeof value !== "string" || value.length === 0) return "%2F";
+        return encodeURIComponent(value);
+    };
+
+    const resolveConversationIdentifier = () => {
+        const host = hostToken();
+        const pathname =
+            typeof location === "object" &&
+            typeof location.pathname === "string" &&
+            location.pathname.length
+                ? location.pathname
+                : "/";
+        const match = pathname.match(CONVERSATION_ID_REGEX);
+        if (match && match[1]) {
+            return `${host}::chat::${match[1].toLowerCase()}`;
+        }
+        return `${host}::path::${encodePathForStorage(pathname)}`;
+    };
+
+    const storageKeyForIdentifier = (identifier) =>
+        `${STORAGE_PREFIX}${identifier || "global"}`;
+
     const resolveShortcutKeys = (entry) => {
         const keys = isApplePlatform ? entry.macKeys : entry.otherKeys;
         return Array.isArray(keys) && keys.length ? [...keys] : [];
@@ -1224,11 +1262,32 @@
 
     let saveTimer;
     let hydrated = false; // gate UI visibility until persisted state is loaded
+    let legacyStateMigrated = false;
+    let activeConversationIdentifier = resolveConversationIdentifier();
     let dragIndex = null;
     let dragOverItem = null;
     let dragOverPosition = null;
 
     // Persist ------------------------------------------------------------------
+    const applyPersistedState = (snapshot) => {
+        const cq =
+            snapshot && typeof snapshot === "object" ? snapshot : null;
+        STATE.running = false; // Always queue mode, never auto-send
+        STATE.queue = Array.isArray(cq?.queue)
+            ? cq.queue.map((item) => normalizeEntry(item))
+            : [];
+        STATE.collapsed =
+            typeof cq?.collapsed === "boolean" ? cq.collapsed : false;
+        STATE.paused = typeof cq?.paused === "boolean" ? cq.paused : false;
+        STATE.pauseReason =
+            typeof cq?.pauseReason === "string" ? cq.pauseReason : "";
+        STATE.pausedAt =
+            typeof cq?.pausedAt === "number" ? cq.pausedAt : null;
+        refreshAll();
+        hydrated = true;
+        refreshVisibility();
+    };
+
     const persistable = () => ({
         running: STATE.running,
         queue: STATE.queue.map((entry) => cloneEntry(entry)),
@@ -1246,10 +1305,12 @@
         );
     };
 
-    const save = () => {
+    const save = (identifier = activeConversationIdentifier) => {
         if (!chrome.storage?.local?.set) return;
+        const storageKey = storageKeyForIdentifier(identifier);
+        const payload = persistable();
         try {
-            chrome.storage.local.set({ cq: persistable() }, () => {
+            chrome.storage.local.set({ [storageKey]: payload }, () => {
                 const error = chrome.runtime?.lastError;
                 if (error && !isContextInvalidatedError(error)) {
                     console.error("cq: failed to persist state", error);
@@ -1268,62 +1329,88 @@
         }, 150);
     };
 
-    const load = () =>
+    const persistActiveConversationState = () => {
+        if (!hydrated) return;
+        if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+        save(activeConversationIdentifier);
+    };
+
+    const load = (identifier = activeConversationIdentifier) =>
         new Promise((resolve) => {
-            const applyState = (cq) => {
-                if (cq) {
-                    STATE.running = false; // Always queue mode, never auto-send
-                    STATE.queue = Array.isArray(cq.queue)
-                        ? cq.queue.map((item) => normalizeEntry(item))
-                        : [];
-                    STATE.collapsed =
-                        typeof cq.collapsed === "boolean"
-                            ? cq.collapsed
-                            : false;
-                    STATE.paused =
-                        typeof cq.paused === "boolean" ? cq.paused : false;
-                    STATE.pauseReason =
-                        typeof cq.pauseReason === "string"
-                            ? cq.pauseReason
-                            : "";
-                    STATE.pausedAt =
-                        typeof cq.pausedAt === "number" ? cq.pausedAt : null;
-                }
-                refreshAll();
-                hydrated = true;
-                refreshVisibility();
+            const finish = (snapshot) => {
+                applyPersistedState(snapshot);
                 resolve();
             };
 
-            if (chrome.storage?.local?.get) {
-                try {
-                    chrome.storage.local.get(["cq"], ({ cq }) => {
-                        const error = chrome.runtime?.lastError;
-                        if (error) {
-                            if (!isContextInvalidatedError(error)) {
-                                console.error(
-                                    "cq: failed to load persisted state",
-                                    error,
+            if (!chrome.storage?.local?.get) {
+                finish(null);
+                return;
+            }
+
+            const storageKey = storageKeyForIdentifier(identifier);
+            const keys = legacyStateMigrated
+                ? [storageKey]
+                : [storageKey, LEGACY_STORAGE_KEY];
+
+            try {
+                chrome.storage.local.get(keys, (result = {}) => {
+                    const error = chrome.runtime?.lastError;
+                    if (error && !isContextInvalidatedError(error)) {
+                        console.error("cq: failed to load persisted state", error);
+                    }
+                    let snapshot = result[storageKey];
+                    if (!legacyStateMigrated) {
+                        const legacy = result[LEGACY_STORAGE_KEY];
+                        if (legacy !== undefined) {
+                            legacyStateMigrated = true;
+                            if (!snapshot && legacy) {
+                                snapshot = legacy;
+                                if (chrome.storage?.local?.set) {
+                                    try {
+                                        chrome.storage.local.set(
+                                            { [storageKey]: legacy },
+                                            () => {
+                                                chrome.storage?.local?.remove?.(
+                                                    LEGACY_STORAGE_KEY,
+                                                );
+                                            },
+                                        );
+                                    } catch (setError) {
+                                        if (
+                                            !isContextInvalidatedError(setError)
+                                        ) {
+                                            console.error(
+                                                "cq: failed to migrate legacy state",
+                                                setError,
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    chrome.storage?.local?.remove?.(
+                                        LEGACY_STORAGE_KEY,
+                                    );
+                                }
+                            } else {
+                                chrome.storage?.local?.remove?.(
+                                    LEGACY_STORAGE_KEY,
                                 );
                             }
-                            applyState(null);
-                            return;
+                        } else {
+                            legacyStateMigrated = true;
                         }
-                        applyState(cq);
-                    });
-                } catch (error) {
-                    if (isContextInvalidatedError(error)) {
-                        applyState(null);
-                    } else {
-                        console.error(
-                            "cq: failed to load persisted state",
-                            error,
-                        );
-                        applyState(null);
                     }
+                    finish(snapshot || null);
+                });
+            } catch (error) {
+                if (isContextInvalidatedError(error)) {
+                    finish(null);
+                } else {
+                    console.error("cq: failed to load persisted state", error);
+                    finish(null);
                 }
-            } else {
-                applyState(null);
             }
         });
 
@@ -1633,6 +1720,20 @@
 
     let autoDispatchTimer = null;
     let pendingManualSend = null;
+
+    const resetStateForNewConversation = () => {
+        cancelAutoDispatch();
+        pendingManualSend = null;
+        STATE.queue = [];
+        STATE.collapsed = false;
+        STATE.paused = false;
+        STATE.pauseReason = "";
+        STATE.pausedAt = null;
+        STATE.busy = false;
+        STATE.phase = "idle";
+        hydrated = false;
+        refreshAll();
+    };
 
     function shouldAutoDispatch() {
         if (pendingManualSend) return false;
@@ -2967,11 +3068,48 @@
         }
     });
 
+    const handleConversationChangeIfNeeded = () => {
+        const nextIdentifier = resolveConversationIdentifier();
+        if (nextIdentifier === activeConversationIdentifier) return;
+        persistActiveConversationState();
+        activeConversationIdentifier = nextIdentifier;
+        resetStateForNewConversation();
+        load(nextIdentifier)
+            .then(() => ensureModelOptions())
+            .catch(() => {});
+    };
+
+    const conversationChangeInterval = window.setInterval(
+        handleConversationChangeIfNeeded,
+        800,
+    );
+
+    window.addEventListener("popstate", handleConversationChangeIfNeeded);
+    window.addEventListener("hashchange", handleConversationChangeIfNeeded);
+
+    if (typeof history === "object" && history) {
+        ["pushState", "replaceState"].forEach((method) => {
+            const original = history[method];
+            if (typeof original !== "function") return;
+            history[method] = function cqPatchedHistoryMethod(...args) {
+                const result = original.apply(this, args);
+                handleConversationChangeIfNeeded();
+                return result;
+            };
+        });
+    }
+
+    window.addEventListener("beforeunload", () => {
+        clearInterval(conversationChangeInterval);
+        persistActiveConversationState();
+    });
+
     // Handle SPA changes and rerenders -----------------------------------------
     const rootObserver = new MutationObserver(() => {
         scheduleControlRefresh();
         ensureMounted();
         refreshKeyboardShortcutPopover();
+        handleConversationChangeIfNeeded();
     });
     rootObserver.observe(document.documentElement, {
         subtree: true,

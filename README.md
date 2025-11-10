@@ -14,7 +14,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 - **Attachment-aware entries** - when you queue something that contains pasted images or uploaded files, those attachments stay with the follow-up, display in the queue, and are re-applied before the item sends.
 - **Model locking** - each queued follow-up remembers the ChatGPT model that was selected when it was captured, so mixed runs (e.g., GPT-4o followed by GPT-4.1) are replayed on the right model automatically.
 - **Keyboard-first editing** - navigate with Option/Alt+Arrow keys, send with Enter, delete with Shift+Delete, or reorder via drag-and-drop or by typing a new queue position.
-- **Persistent, local state** - items, attachments, collapsed state, and pause reasons live in `chrome.storage.local`, so a refresh or navigation keeps your queue intact.
+- **Chat-scoped, persistent state** - every conversation gets its own queue snapshot (items, attachments, collapsed state, pause reasons) stored in `chrome.storage.local`, so switching threads swaps to their specific queues while staying fully local.
 - **Keyboard shortcut helper** - when you open ChatGPT's built-in `?` shortcut panel, the queue shortcuts are injected into that list for quick reference.
 
 ## Installation
@@ -84,7 +84,7 @@ Browser-level commands (set from `chrome://extensions/shortcuts`) include **Queu
 
 ## Persistence & data
 
-All queue content, attachments, and the paused/collapsed state live in `chrome.storage.local`. Nothing leaves the browser, so you can refresh or navigate without losing your run. As always, review the terms of service for any site you automate before unleashing a queue.
+All queue content, attachments, and the paused/collapsed state live in `chrome.storage.local`, keyed by the ChatGPT conversation ID (the `/c/<id>` portion of the URL). Nothing leaves the browser, and switching threads simply loads the matching queue snapshot. As always, review the terms of service for any site you automate before unleashing a queue.
 
 ## Development
 
