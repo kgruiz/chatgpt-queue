@@ -638,6 +638,7 @@
     let composerHoldButton = null;
     let composerModelLabelButton = null;
     let composerModelLabelButtonValue = null;
+    let composerModelLabelPlacement = null;
     let composerModelDropdown = null;
     let composerModelDropdownAnchor = null;
     let composerModelDropdownCleanup = [];
@@ -1102,6 +1103,63 @@
             console.warn("[cq] Failed to open model dropdown", error);
             closeComposerModelDropdown();
         }
+    };
+
+    const mountComposerModelLabelInLeading = (root) => {
+        if (!composerModelLabelButton) return false;
+        const leadingArea = root.querySelector('[grid-area="leading"]');
+        if (!(leadingArea instanceof HTMLElement)) return false;
+        const plusButton = leadingArea.querySelector(
+            'button[data-testid="composer-plus-btn"]',
+        );
+        const plusWrapper =
+            plusButton && plusButton.parentElement instanceof HTMLElement
+                ? plusButton.parentElement
+                : null;
+        if (
+            plusWrapper instanceof HTMLElement &&
+            plusWrapper.nextSibling === composerModelLabelButton
+        ) {
+            return true;
+        }
+        if (
+            composerModelLabelButton.parentElement === leadingArea &&
+            !plusWrapper &&
+            leadingArea.firstChild === composerModelLabelButton
+        ) {
+            return true;
+        }
+        if (plusWrapper instanceof HTMLElement) {
+            plusWrapper.insertAdjacentElement(
+                "afterend",
+                composerModelLabelButton,
+            );
+        } else {
+            leadingArea.insertBefore(
+                composerModelLabelButton,
+                leadingArea.firstChild || null,
+            );
+        }
+        return true;
+    };
+
+    const mountComposerModelLabelInControls = () => {
+        if (!composerModelLabelButton || !composerControlGroup) return false;
+        const beforeNode = composerHoldButton || composerControlGroup.firstChild;
+        if (
+            composerModelLabelButton.parentElement === composerControlGroup &&
+            ((beforeNode &&
+                composerModelLabelButton.nextSibling === beforeNode) ||
+                (!beforeNode &&
+                    composerModelLabelButton === composerControlGroup.firstChild))
+        ) {
+            return true;
+        }
+        composerControlGroup.insertBefore(
+            composerModelLabelButton,
+            beforeNode || null,
+        );
+        return true;
     };
 
     const setCurrentModel = (id, label = "") => {
@@ -2928,9 +2986,6 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
-        const toolbar = root.querySelector(
-            '[data-testid="composer-toolbar"], [data-testid="composer-footer-actions"]',
-        );
         const composerExpanded = root?.hasAttribute("data-expanded");
         if (composerModelLabelButton) {
             composerModelLabelButton.classList.toggle(
@@ -2938,51 +2993,24 @@
                 !!composerExpanded,
             );
         }
+        let placementApplied = false;
+        let newPlacement = null;
         if (composerExpanded) {
-            const footerActions = root.querySelector(
-                '[data-testid="composer-footer-actions"]',
-            );
-            const footerContent =
-                footerActions?.querySelector('.flex') || footerActions;
-            const leadingArea = root.querySelector('[grid-area="leading"]');
-            let mountTarget = null;
-            let insertAfter = null;
-            if (leadingArea instanceof HTMLElement) {
-                mountTarget = leadingArea;
-                insertAfter = leadingArea.querySelector(
-                    'button[data-testid="composer-plus-btn"]',
-                )?.parentElement;
-            } else if (footerContent instanceof HTMLElement) {
-                mountTarget = footerContent;
-                insertAfter = footerContent.firstElementChild;
+            placementApplied = mountComposerModelLabelInLeading(root);
+            if (placementApplied) {
+                newPlacement = "leading";
+            } else if (mountComposerModelLabelInControls()) {
+                placementApplied = true;
+                newPlacement = "controls";
             }
-            if (composerModelLabelButton && mountTarget instanceof HTMLElement) {
-                if (insertAfter instanceof HTMLElement) {
-                    insertAfter.insertAdjacentElement(
-                        "afterend",
-                        composerModelLabelButton,
-                    );
-                } else {
-                    mountTarget.insertBefore(
-                        composerModelLabelButton,
-                        mountTarget.firstChild || null,
-                    );
-                }
-            }
-        } else if (
-            composerModelLabelButton &&
-            composerControlGroup instanceof HTMLElement
-        ) {
-            if (
-                composerModelLabelButton.parentElement !==
-                composerControlGroup
-            ) {
-                composerControlGroup.insertBefore(
-                    composerModelLabelButton,
-                    composerControlGroup.firstChild || null,
-                );
-            }
+        } else if (mountComposerModelLabelInControls()) {
+            placementApplied = true;
+            newPlacement = "controls";
         }
+        if (!placementApplied) {
+            newPlacement = null;
+        }
+        composerModelLabelPlacement = newPlacement;
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
         }
