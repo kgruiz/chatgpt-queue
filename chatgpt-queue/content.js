@@ -1054,15 +1054,29 @@
         }
     }
 
-    function cancelQueueAnimation() {
+    function cancelQueueAnimation({ preserveVisualState = false } = {}) {
+        if (!(list instanceof HTMLElement)) {
+            queueCollapseAnimation = null;
+            return null;
+        }
+        let preservedHeight = null;
+        if (preserveVisualState) {
+            const rect = list.getBoundingClientRect();
+            if (rect && Number.isFinite(rect.height)) {
+                preservedHeight = rect.height;
+            }
+        }
         if (queueCollapseAnimation) {
             queueCollapseAnimation.cancel();
             queueCollapseAnimation = null;
         }
         setQueueAnimationState("");
-        if (list) {
+        if (preserveVisualState && preservedHeight !== null) {
+            list.style.setProperty("max-height", `${preservedHeight}px`);
+        } else {
             list.style.removeProperty("max-height");
         }
+        return preservedHeight;
     }
 
     function animateQueueContainer(targetCollapsed) {
@@ -1091,8 +1105,10 @@
             setQueueAnimationState("");
             return;
         }
-        cancelQueueAnimation();
-        list.style.maxHeight = `${startHeight}px`;
+        const preservedHeight = cancelQueueAnimation({ preserveVisualState: true });
+        const initialHeight =
+            preservedHeight !== null ? preservedHeight : startHeight;
+        list.style.maxHeight = `${initialHeight}px`;
         setQueueAnimationState(targetCollapsed ? "collapsing" : "expanding");
         queueCollapseAnimation = list.animate(
             [
