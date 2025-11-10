@@ -1105,6 +1105,28 @@
         }
     };
 
+    const mountComposerModelLabelBeforeDictate = (root) => {
+        if (!composerModelLabelButton) return false;
+        const trailingArea = root.querySelector('[grid-area="trailing"]');
+        if (!(trailingArea instanceof HTMLElement)) return false;
+        const dictateButton = trailingArea.querySelector(
+            'button[aria-label="Dictate button"]',
+        );
+        if (!(dictateButton instanceof HTMLElement)) return false;
+        const dictateWrapper =
+            dictateButton.closest("span") || dictateButton;
+        const flexHost = dictateWrapper.parentElement;
+        if (!(flexHost instanceof HTMLElement)) return false;
+        if (
+            composerModelLabelButton.parentElement === flexHost &&
+            composerModelLabelButton.nextSibling === dictateWrapper
+        ) {
+            return true;
+        }
+        flexHost.insertBefore(composerModelLabelButton, dictateWrapper);
+        return true;
+    };
+
     const mountComposerModelLabelInControls = () => {
         if (!composerModelLabelButton || !composerControlGroup) return false;
         let beforeNode = composerHoldButton || composerControlGroup.firstChild;
@@ -2954,7 +2976,10 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
-        if (mountComposerModelLabelInControls()) {
+        if (
+            !mountComposerModelLabelBeforeDictate(root) &&
+            mountComposerModelLabelInControls()
+        ) {
             composerModelLabelPlacement = "controls";
         }
         if (!composerControlGroup.contains(composerHoldButton)) {
