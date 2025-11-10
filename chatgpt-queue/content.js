@@ -716,6 +716,33 @@
         return result;
     };
 
+    const waitForModelMenuItem = (menu, modelId, timeoutMs = 1500) =>
+        new Promise((resolve) => {
+            const existing = findModelMenuItem(menu, modelId);
+            if (existing) {
+                resolve(existing);
+                return;
+            }
+            let done = false;
+            let observer;
+            let timer;
+            const finish = (value) => {
+                if (done) return;
+                done = true;
+                observer?.disconnect();
+                if (timer) clearTimeout(timer);
+                resolve(value);
+            };
+            timer = setTimeout(() => finish(null), timeoutMs);
+            observer = new MutationObserver(() => {
+                const candidate = findModelMenuItem(menu, modelId);
+                if (candidate) {
+                    finish(candidate);
+                }
+            });
+            observer.observe(menu, { childList: true, subtree: true });
+        });
+
     const isModelSwitcherOpen = (button) =>
         button?.getAttribute("aria-expanded") === "true" ||
         button?.dataset.state === "open";
@@ -1558,7 +1585,7 @@
         )
             return true;
         const result = await useModelMenu(async (menu) => {
-            const item = findModelMenuItem(menu, modelId);
+            const item = await waitForModelMenuItem(menu, modelId, 2000);
             if (!item) return false;
             const label = getModelNodeLabel(item) || modelId;
             activateModelMenuItem(item);
