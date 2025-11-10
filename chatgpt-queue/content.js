@@ -628,9 +628,6 @@
     let currentModelLabel = "";
     let modelsPromise = null;
     let sourceModelCache = null;
-    const USE_MODEL_API = !1; // disabled per request
-    const modelDebugLog = (...args) => console.debug("[cq:model]", ...args);
-    const MODEL_API_ENDPOINT = "/backend-api/models";
     let composerControlGroup = null;
     let composerQueueButton = null;
     let composerHoldButton = null;
@@ -821,103 +818,20 @@
         return Array.from(map.values());
     };
 
-    const buildModelOptionsFromApiPayload = (payload) => {
-        if (!payload || typeof payload !== "object") return [];
-        const list = Array.isArray(payload.models) ? payload.models : [];
-        const defaultSlug = normalizeModelId(
-            payload.default_model_slug || payload.defaultModelSlug || "",
-        );
-        const normalizedCurrent = currentModelId
-            ? normalizeModelId(currentModelId)
-            : "";
-        const options = list
-            .map((model) => {
-                const slug = model?.slug || model?.id || "";
-                if (!slug) return null;
-                const normalized = normalizeModelId(slug);
-                const selected = normalizedCurrent
-                    ? normalized === normalizedCurrent
-                    : defaultSlug && normalized === defaultSlug;
-                return {
-                    id: slug,
-                    label: model?.title || slug,
-                    selected,
-                };
-            })
-            .filter(Boolean);
-        if (!options.some((option) => option.selected) && options.length) {
-            options[0].selected = true;
-        }
-        return mergeModelOptions(options);
-    };
-
-    const fetchModelOptionsFromApi = async () => {
-        modelDebugLog("Attempting API fetch for models");
-        const origin =
-            typeof location === "object" && typeof location.origin === "string"
-                ? location.origin
-                : null;
-        if (!origin) {
-            modelDebugLog("Missing location.origin; cannot call API");
-            return [];
-        }
-        const endpoint = `${origin}${MODEL_API_ENDPOINT}`;
-        const fetchFn =
-            typeof window === "object" && typeof window.fetch === "function"
-                ? window.fetch.bind(window)
-                : fetch;
-        try {
-            const response = await fetchFn(endpoint, {
-                credentials: "include",
-                headers: {
-                    accept: "application/json",
-                },
-                cache: "no-cache",
-                mode: "same-origin",
-            });
-            if (!response?.ok) {
-                modelDebugLog("API response not ok", response?.status);
-                throw new Error(
-                    `Model endpoint responded with ${response?.status ?? "unknown"}`,
-                );
-            }
-            const payload = await response.json();
-            modelDebugLog("API payload size", Array.isArray(payload?.models) ? payload.models.length : 0);
-            return buildModelOptionsFromApiPayload(payload);
-        } catch (error) {
-            console.warn("[cq] Failed to fetch /backend-api/models", error);
-            return [];
-        }
-    };
-
     const fetchModelOptionsFromMenu = async () => {
-        modelDebugLog("Falling back to menu scrape for models");
         const result = await useModelMenu(async (menu) =>
             parseModelItems(menu),
         );
         if (!Array.isArray(result)) return [];
-        modelDebugLog("Menu scrape produced options", result.length);
         return mergeModelOptions(result);
     };
 
     const findModelChunkUrls = () => {
-        modelDebugLog("Looking for chunk scripts to scrape models");
         if (typeof document === "undefined") return [];
         const chunkSelector =
             'link[rel="modulepreload"][href$=".js"], link[rel="modulepreload"][href*=".js?"], link[rel="preload"][as="script"][href$=".js"], link[rel="preload"][as="script"][href*=".js?"], script[src$=".js"], script[src*=".js?"]';
         const candidates = Array.from(document.querySelectorAll(chunkSelector));
-        modelDebugLog(
-            "Chunk candidate nodes discovered",
-            candidates.length,
-            chunkSelector,
-        );
         const urls = [];
-        const skipStats = {
-            missingSrc: 0,
-            notChunk: 0,
-            duplicate: 0,
-            invalid: 0,
-        };
         const chunkHints = [
             "/_next/static/",
             "cdn.oaistatic.com/",
@@ -931,14 +845,8 @@
                 node.tagName === "LINK"
                     ? node.getAttribute("href")
                     : node.getAttribute("src");
-            if (!raw) {
-                skipStats.missingSrc += 1;
-                return;
-            }
-            if (!looksLikeChunk(raw)) {
-                skipStats.notChunk += 1;
-                return;
-            }
+            if (!raw) return;
+            if (!looksLikeChunk(raw)) return;
             let absolute;
             try {
                 absolute = new URL(
@@ -948,17 +856,12 @@
                         : document.baseURI || undefined,
                 ).href;
             } catch {
-                skipStats.invalid += 1;
                 return;
             }
-            if (urls.includes(absolute)) {
-                skipStats.duplicate += 1;
-                return;
+            if (!urls.includes(absolute)) {
+                urls.push(absolute);
             }
-            urls.push(absolute);
         });
-        modelDebugLog("Chunk candidate skip stats", skipStats);
-        modelDebugLog("Chunk URLs found", urls);
         return urls;
     };
 
@@ -980,23 +883,19 @@
                 });
             }
         }
-        modelDebugLog("Models extracted from source chunk", map.size);
         return Array.from(map.values());
     };
 
     const fetchModelOptionsFromSource = async () => {
         if (Array.isArray(sourceModelCache) && sourceModelCache.length) {
-            modelDebugLog("Using cached source models", sourceModelCache.length);
             return sourceModelCache;
         }
         const urls = findModelChunkUrls();
         if (!urls.length) {
-            modelDebugLog("No chunk URLs available; cannot scrape models");
             return [];
         }
         for (const url of urls) {
             try {
-                modelDebugLog("Fetching chunk", url);
                 const response = await fetch(url, {
                     cache: "force-cache",
                     mode: "cors",
@@ -1004,12 +903,10 @@
                 if (!response?.ok) continue;
                 const text = await response.text();
                 if (!text || !text.includes("gpt-")) {
-                    modelDebugLog("Chunk missing gpt markers", url);
                     continue;
                 }
                 const models = parseModelsFromSourceText(text);
                 if (models.length) {
-                    modelDebugLog("Source scrape succeeded", models.length, url);
                     sourceModelCache = models;
                     return models;
                 }
@@ -1017,7 +914,6 @@
                 console.warn("[cq] Failed reading chunk", url, error);
             }
         }
-        modelDebugLog("Source scrape failed to find any models");
         return [];
     };
 
@@ -1025,22 +921,11 @@
         if (!options.force && STATE.models.length) return STATE.models;
         if (modelsPromise) return modelsPromise;
         modelsPromise = (async () => {
-            modelDebugLog("ensureModelOptions start", options);
-            let models = [];
-            if (USE_MODEL_API) {
-                modelDebugLog("API fetch enabled; attempting to load models");
-                models = await fetchModelOptionsFromApi();
-            } else {
-                modelDebugLog("API fetch disabled; skipping network call");
-            }
-            if (!models.length) {
-                models = await fetchModelOptionsFromMenu();
-            }
+            let models = await fetchModelOptionsFromMenu();
             if (!models.length) {
                 models = await fetchModelOptionsFromSource();
             }
             modelsPromise = null;
-            modelDebugLog("ensureModelOptions final size", models.length);
             if (!models.length) return STATE.models;
             const previousSignature = JSON.stringify(
                 STATE.models.map((model) => ({
