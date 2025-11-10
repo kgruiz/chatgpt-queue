@@ -39,6 +39,10 @@
         ? "Command+Shift+P"
         : "Ctrl+Shift+P";
     const PAUSE_SHORTCUT_DISPLAY = isApplePlatform ? "⌘⇧P" : "Ctrl+Shift+P";
+    const MODEL_LIST_SHORTCUT_LABEL = isApplePlatform
+        ? "⌘⇧H"
+        : "Ctrl+Shift+H";
+    const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
 
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
@@ -631,6 +635,8 @@
     let composerControlGroup = null;
     let composerQueueButton = null;
     let composerHoldButton = null;
+    let composerModelLabelButton = null;
+    let composerModelLabelButtonValue = null;
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -723,6 +729,30 @@
         )
             return currentModelLabel;
         return fallback || id;
+    };
+
+    const resolveCurrentModelButtonValue = () => {
+        const directLabel =
+            (currentModelId &&
+                labelForModel(
+                    currentModelId,
+                    currentModelLabel || currentModelId,
+                )) ||
+            currentModelLabel ||
+            "";
+        if (directLabel) return directLabel;
+        if (currentModelId) return currentModelId;
+        const selected =
+            STATE.models.find((model) => model.selected) || STATE.models[0];
+        if (selected) {
+            return (
+                selected.label ||
+                selected.modelLabel ||
+                selected.id ||
+                MODEL_BUTTON_FALLBACK_LABEL
+            );
+        }
+        return MODEL_BUTTON_FALLBACK_LABEL;
     };
 
     const setCurrentModel = (id, label = "") => {
@@ -1930,6 +1960,29 @@
         }
     }
 
+    function refreshComposerModelLabelButton() {
+        if (!composerModelLabelButton) return;
+        if (
+            composerModelLabelButtonValue &&
+            !composerModelLabelButton.contains(composerModelLabelButtonValue)
+        ) {
+            composerModelLabelButtonValue = null;
+        }
+        if (!composerModelLabelButtonValue) {
+            composerModelLabelButtonValue =
+                composerModelLabelButton.querySelector(
+                    ".cq-composer-models-btn__value",
+                );
+        }
+        const label = resolveCurrentModelButtonValue();
+        if (composerModelLabelButtonValue) {
+            composerModelLabelButtonValue.textContent = label;
+        }
+        const tooltip = `Show available models (${MODEL_LIST_SHORTCUT_LABEL}). Current: ${label}`;
+        composerModelLabelButton.setAttribute("aria-label", tooltip);
+        composerModelLabelButton.title = tooltip;
+    }
+
     function refreshControls(generatingOverride) {
         const generating =
             typeof generatingOverride === "boolean"
@@ -1952,7 +2005,15 @@
         if (!composerHoldButton || !composerHoldButton.isConnected) {
             composerHoldButton = null;
         }
+        if (
+            composerModelLabelButton &&
+            !composerModelLabelButton.isConnected
+        ) {
+            composerModelLabelButton = null;
+            composerModelLabelButtonValue = null;
+        }
         ensureComposerControls();
+        refreshComposerModelLabelButton();
         const promptHasContent = hasComposerPrompt();
         const hasQueueItems = STATE.queue.length > 0;
         const showComposerGroup = !promptHasContent || !hasQueueItems;
@@ -2490,6 +2551,30 @@
             composerHoldButton = pauseBtn;
         }
 
+        if (!composerModelLabelButton) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.id = "cq-composer-models-btn";
+            button.className = "cq-composer-models-btn";
+            const label = document.createElement("span");
+            label.className = "cq-composer-models-btn__label";
+            label.textContent = "Model:";
+            const value = document.createElement("span");
+            value.className = "cq-composer-models-btn__value";
+            value.textContent = resolveCurrentModelButtonValue();
+            const shortcut = document.createElement("span");
+            shortcut.className = "cq-composer-models-btn__shortcut";
+            shortcut.textContent = MODEL_LIST_SHORTCUT_LABEL;
+            button.append(label, value, shortcut);
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                void listModelsForDebug();
+            });
+            composerModelLabelButton = button;
+            composerModelLabelButtonValue = value;
+            refreshComposerModelLabelButton();
+        }
+
         const classSource =
             (sendButton instanceof HTMLElement && sendButton) ||
             (voiceButton instanceof HTMLElement && voiceButton) ||
@@ -2498,6 +2583,15 @@
         composerQueueButton.className = sharedClasses;
         composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
 
+        if (
+            composerModelLabelButton &&
+            composerModelLabelButton.parentElement !== composerControlGroup
+        ) {
+            composerControlGroup.insertBefore(
+                composerModelLabelButton,
+                composerControlGroup.firstChild,
+            );
+        }
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
         }
