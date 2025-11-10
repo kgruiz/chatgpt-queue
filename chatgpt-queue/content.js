@@ -44,9 +44,23 @@
         : "Ctrl+Shift+H";
     const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
     const MODEL_DROPDOWN_ID = "cq-model-dropdown";
+    const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+    const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
 
-    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue";
+    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue & models";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
+    const MODEL_SHORTCUT_ENTRIES = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
+        const number = index === MODEL_SHORTCUT_KEY_ORDER.length - 1 ? 10 : index + 1;
+        const label = `Select model ${number}`;
+        const macKeys = ["command", "option", key];
+        const otherKeys = ["control", "alt", key];
+        return {
+            id: `model-select-${number}`,
+            label,
+            macKeys,
+            otherKeys,
+        };
+    });
     const KEYBOARD_SHORTCUT_ENTRIES = [
         {
             id: "queue-add",
@@ -102,6 +116,7 @@
             macKeys: ["option", "shift", "delete"],
             otherKeys: ["alt", "shift", "delete"],
         },
+        ...MODEL_SHORTCUT_ENTRIES,
     ];
 
     const KEY_DISPLAY_MAP = {
@@ -1281,6 +1296,49 @@
             }
         });
         return Array.from(map.values());
+    };
+
+    const resolveModelShortcutIndex = (event) => {
+        if (!event || typeof event.key !== "string") return null;
+        if (event.shiftKey) return null;
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (!MODEL_SHORTCUT_KEY_ORDER.includes(key)) return null;
+        const requiresMeta = isApplePlatform;
+        const hasMeta = event.metaKey;
+        const hasCtrl = event.ctrlKey;
+        const hasAlt = event.altKey;
+        if (requiresMeta) {
+            if (!hasMeta || !hasAlt || hasCtrl) return null;
+        } else {
+            if (!hasCtrl || !hasAlt || hasMeta) return null;
+        }
+        const index = MODEL_SHORTCUT_KEY_ORDER.indexOf(key);
+        if (index === -1) return null;
+        return index === MODEL_SHORTCUT_COUNT - 1 ? MODEL_SHORTCUT_COUNT : index + 1;
+    };
+
+    const getModelForShortcutIndex = (index, models = STATE.models) => {
+        if (!Number.isInteger(index)) return null;
+        if (index < 1 || index > MODEL_SHORTCUT_COUNT) return null;
+        const displayModels = dedupeModelsForDisplay(models);
+        if (!displayModels.length) return null;
+        return displayModels[index - 1] || null;
+    };
+
+    const handleModelShortcut = async (index) => {
+        if (!Number.isInteger(index)) return false;
+        try {
+            const models = await ensureModelOptions();
+            const model = getModelForShortcutIndex(index, models);
+            if (!model?.id) return false;
+            const matchesCurrent =
+                normalizeModelId(model.id) === normalizeModelId(currentModelId);
+            if (matchesCurrent) return true;
+            return await handleComposerModelSelection(model);
+        } catch (error) {
+            console.warn("[cq] Failed to apply model shortcut", error);
+            return false;
+        }
     };
 
     const buildComposerModelDropdown = (models) => {
@@ -4236,10 +4294,17 @@
             if (matchesQueueToggleShortcut(event)) {
                 event.preventDefault();
                 setCollapsed(!STATE.collapsed);
+                return;
             }
             if (matchesModelListingShortcut(event)) {
                 event.preventDefault();
                 openModelSwitcherDropdown();
+                return;
+            }
+            const modelShortcutIndex = resolveModelShortcutIndex(event);
+            if (modelShortcutIndex) {
+                event.preventDefault();
+                void handleModelShortcut(modelShortcutIndex);
             }
         },
         true,
