@@ -642,6 +642,7 @@
     let composerModelDropdown = null;
     let composerModelDropdownAnchor = null;
     let composerModelDropdownCleanup = [];
+    let composerModelSelectionPending = false;
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -820,6 +821,40 @@
         if (!item.isConnected) return true;
         item.click();
         return true;
+    };
+
+    const setComposerModelSelectionBusy = (isBusy) => {
+        if (!(composerModelLabelButton instanceof HTMLElement)) return;
+        if (isBusy) {
+            composerModelLabelButton.dataset.cqModelSelecting = "true";
+            composerModelLabelButton.setAttribute("aria-busy", "true");
+        } else {
+            delete composerModelLabelButton.dataset.cqModelSelecting;
+            composerModelLabelButton.removeAttribute("aria-busy");
+        }
+    };
+
+    const handleComposerModelSelection = async (model) => {
+        if (!model || !model.id || composerModelSelectionPending) return false;
+        composerModelSelectionPending = true;
+        closeComposerModelDropdown();
+        setComposerModelSelectionBusy(true);
+        try {
+            const applied = await ensureModel(model.id);
+            if (!applied) {
+                console.warn("[cq] Failed to switch model", model.id);
+                return false;
+            }
+            markModelSelected(model.id, model.label || model.id);
+            refreshControls();
+            return true;
+        } catch (error) {
+            console.warn("[cq] Model switch encountered an error", error);
+            return false;
+        } finally {
+            setComposerModelSelectionBusy(false);
+            composerModelSelectionPending = false;
+        }
     };
 
     const getModelById = (id) => {
@@ -1060,9 +1095,17 @@
         }
 
         item.append(body, trailing);
-        item.addEventListener("click", (event) => {
+        const triggerSelection = (event) => {
             event.preventDefault();
             event.stopPropagation();
+            void handleComposerModelSelection(model);
+        };
+        item.addEventListener("click", triggerSelection);
+        item.addEventListener("keydown", (event) => {
+            const key = event.key || "";
+            if (key === "Enter" || key === " " || key === "Spacebar") {
+                triggerSelection(event);
+            }
         });
         return item;
     };
