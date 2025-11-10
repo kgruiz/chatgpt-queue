@@ -788,6 +788,23 @@
         return slugCandidate.toUpperCase();
     };
 
+    const HEADER_LABEL_ALIASES = [
+        {
+            test: (value) => /^5$/i.test(value),
+            display: "Auto",
+        },
+    ];
+
+    const applyHeaderLabelAliases = (label) => {
+        const trimmed = String(label || "").trim();
+        if (!trimmed) return "";
+        const alias = HEADER_LABEL_ALIASES.find((entry) =>
+            entry.test(trimmed),
+        );
+        if (alias) return alias.display;
+        return trimmed;
+    };
+
     const readCurrentModelLabelFromHeader = () => {
         const button = document.querySelector(
             'button[data-testid="model-switcher-dropdown-button"]',
@@ -810,7 +827,9 @@
     };
 
     const resolveCurrentModelButtonValue = () => {
-        const headerLabel = readCurrentModelLabelFromHeader();
+        const headerLabel = applyHeaderLabelAliases(
+            readCurrentModelLabelFromHeader(),
+        );
         if (headerLabel) return headerLabel;
         const directLabel =
             (currentModelId &&
@@ -982,7 +1001,9 @@
         heading.className = "__menu-label mb-0";
         heading.textContent = resolveModelDropdownHeading(models);
         menu.appendChild(heading);
-        const headerLabel = readCurrentModelLabelFromHeader();
+        const headerLabel = applyHeaderLabelAliases(
+            readCurrentModelLabelFromHeader(),
+        );
         const normalizedHeaderLabel = normalizeModelLabelText(headerLabel);
         const normalizedHeaderSlug = headerLabel
             ? normalizeModelId(headerLabel)
