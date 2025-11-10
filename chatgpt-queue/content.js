@@ -718,33 +718,61 @@
         button?.getAttribute("aria-expanded") === "true" ||
         button?.dataset.state === "open";
 
-    const triggerModelSwitcherPointerPress = (button) => {
-        if (!(button instanceof HTMLElement)) return false;
-        const pointerOpts = {
-            bubbles: true,
-            cancelable: true,
-            buttons: 1,
-            pointerId: 1,
-            pointerType: "mouse",
-            isPrimary: true,
-        };
+    const dispatchPointerAndMousePress = (target) => {
+        if (!(target instanceof HTMLElement)) return false;
         try {
             if (typeof PointerEvent === "function") {
-                button.dispatchEvent(new PointerEvent("pointerdown", pointerOpts));
-                button.dispatchEvent(new PointerEvent("pointerup", pointerOpts));
+                target.dispatchEvent(
+                    new PointerEvent("pointerdown", {
+                        bubbles: true,
+                        cancelable: true,
+                        pointerId: 1,
+                        pointerType: "mouse",
+                        isPrimary: true,
+                        button: 0,
+                        buttons: 1,
+                    }),
+                );
+                target.dispatchEvent(
+                    new PointerEvent("pointerup", {
+                        bubbles: true,
+                        cancelable: true,
+                        pointerId: 1,
+                        pointerType: "mouse",
+                        isPrimary: true,
+                        button: 0,
+                        buttons: 0,
+                    }),
+                );
             }
         } catch (_) {
-            /* Some browsers may not support PointerEvent constructors */
+            /* PointerEvent may be unavailable */
         }
-        const mouseOpts = { bubbles: true, cancelable: true, button: 0 };
-        button.dispatchEvent(new MouseEvent("mousedown", mouseOpts));
-        button.dispatchEvent(new MouseEvent("mouseup", mouseOpts));
-        button.dispatchEvent(new MouseEvent("click", mouseOpts));
-        return isModelSwitcherOpen(button);
+        const mouseDown = new MouseEvent("mousedown", {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+        });
+        const mouseUp = new MouseEvent("mouseup", {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 0,
+        });
+        const mouseClick = new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        target.dispatchEvent(mouseDown);
+        target.dispatchEvent(mouseUp);
+        target.dispatchEvent(mouseClick);
+        return true;
     };
 
-    const triggerModelSwitcherKeyboardPress = (button) => {
-        if (!(button instanceof HTMLElement)) return false;
+    const dispatchKeyboardEnterPress = (target) => {
+        if (!(target instanceof HTMLElement)) return false;
         const keyOpts = {
             bubbles: true,
             cancelable: true,
@@ -753,9 +781,9 @@
             keyCode: 13,
             which: 13,
         };
-        button.dispatchEvent(new KeyboardEvent("keydown", keyOpts));
-        button.dispatchEvent(new KeyboardEvent("keyup", keyOpts));
-        return isModelSwitcherOpen(button);
+        target.dispatchEvent(new KeyboardEvent("keydown", keyOpts));
+        target.dispatchEvent(new KeyboardEvent("keyup", keyOpts));
+        return true;
     };
 
     const openModelSwitcherDropdown = () => {
@@ -764,11 +792,15 @@
             'button[data-testid="model-switcher-dropdown-button"]',
         );
         if (!(button instanceof HTMLElement)) return false;
+        button.focus?.({ preventScroll: true });
         let isOpen = isModelSwitcherOpen(button);
         if (!isOpen) {
-            isOpen =
-                triggerModelSwitcherPointerPress(button) ||
-                triggerModelSwitcherKeyboardPress(button);
+            dispatchPointerAndMousePress(button);
+            isOpen = isModelSwitcherOpen(button);
+        }
+        if (!isOpen) {
+            dispatchKeyboardEnterPress(button);
+            isOpen = isModelSwitcherOpen(button);
         }
         if (!isOpen) {
             button.click();
@@ -776,6 +808,17 @@
         }
         if (!isOpen) return false;
         button.focus?.({ preventScroll: false });
+        return true;
+    };
+
+    const activateModelMenuItem = (item) => {
+        if (!(item instanceof HTMLElement)) return false;
+        item.focus?.({ preventScroll: true });
+        dispatchPointerAndMousePress(item);
+        if (!item.isConnected) return true;
+        dispatchKeyboardEnterPress(item);
+        if (!item.isConnected) return true;
+        item.click();
         return true;
     };
 
@@ -1473,7 +1516,7 @@
             const item = findModelMenuItem(menu, modelId);
             if (!item) return false;
             const label = getModelNodeLabel(item) || modelId;
-            item.click();
+            activateModelMenuItem(item);
             await sleep(120);
             markModelSelected(modelId, label);
             return true;
