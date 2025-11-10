@@ -1145,7 +1145,13 @@
 
     const mountComposerModelLabelInControls = () => {
         if (!composerModelLabelButton || !composerControlGroup) return false;
-        const beforeNode = composerHoldButton || composerControlGroup.firstChild;
+        let beforeNode = composerHoldButton || composerControlGroup.firstChild;
+        if (
+            beforeNode &&
+            beforeNode.parentElement !== composerControlGroup
+        ) {
+            beforeNode = composerControlGroup.firstChild;
+        }
         if (
             composerModelLabelButton.parentElement === composerControlGroup &&
             ((beforeNode &&
