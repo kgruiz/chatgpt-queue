@@ -3019,7 +3019,8 @@
 
         const action = button.dataset.action;
         if (action === "delete") {
-            requestDeleteEntry(index);
+            const skipConfirm = !!event.altKey;
+            requestDeleteEntry(index, { skipConfirm });
         } else if (action === "send") {
             requestSend(index, { manual: true });
         }
