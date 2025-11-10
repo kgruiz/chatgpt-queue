@@ -629,6 +629,18 @@
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-");
 
+    const MODEL_ID_ALIASES = {
+        auto: "gpt-5",
+        "gpt5": "gpt-5",
+        "gpt-5-mini": "gpt-5-t-mini",
+        "gpt5-mini": "gpt-5-t-mini",
+    };
+
+    const applyModelIdAlias = (value) => {
+        const normalized = normalizeModelId(value);
+        return MODEL_ID_ALIASES[normalized] || value;
+    };
+
     let currentModelId = null;
     let currentModelLabel = "";
     let modelsPromise = null;
@@ -692,11 +704,11 @@
             'button[data-testid="model-switcher-dropdown-button"]',
         );
         if (!button) return null;
-        const wasOpen = isModelSwitcherOpen(button);
+        const wasOpen = isDropdownVisiblyOpen(button);
         let openedByUs = false;
         if (!wasOpen) {
-            openedByUs = setModelSwitcherOpenState(button, true);
-            if (!openedByUs) return null;
+            openedByUs = true;
+            setModelSwitcherOpenState(button, true);
         }
         const menu = await waitForModelMenu();
         if (!menu) {
@@ -716,32 +728,88 @@
         return result;
     };
 
-    const waitForModelMenuItem = (menu, modelId, timeoutMs = 1500) =>
+    const waitForElementById = (id, timeoutMs = 1000) =>
         new Promise((resolve) => {
-            const existing = findModelMenuItem(menu, modelId);
+            if (!id) {
+                resolve(null);
+                return;
+            }
+            const existing = document.getElementById(id);
             if (existing) {
                 resolve(existing);
                 return;
             }
             let done = false;
-            let observer;
-            let timer;
             const finish = (value) => {
                 if (done) return;
                 done = true;
-                observer?.disconnect();
-                if (timer) clearTimeout(timer);
+                observer.disconnect();
+                clearTimeout(timer);
                 resolve(value);
             };
-            timer = setTimeout(() => finish(null), timeoutMs);
-            observer = new MutationObserver(() => {
-                const candidate = findModelMenuItem(menu, modelId);
-                if (candidate) {
-                    finish(candidate);
-                }
+            const observer = new MutationObserver(() => {
+                const node = document.getElementById(id);
+                if (node) finish(node);
             });
-            observer.observe(menu, { childList: true, subtree: true });
+            observer.observe(document.body, { childList: true, subtree: true });
+            const timer = setTimeout(() => finish(null), timeoutMs);
         });
+
+    const lookupMenuItemAcrossRoots = (modelId) => {
+        const selector = `[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`;
+        for (const root of document.querySelectorAll("[data-radix-menu-content]")) {
+            const match = root.querySelector(selector);
+            if (match) return match;
+        }
+        return null;
+    };
+
+    const findClosedSubmenuTrigger = (visited) => {
+        const submenus = document.querySelectorAll(
+            '[role="menuitem"][data-testid$="-submenu"]',
+        );
+        for (const trigger of submenus) {
+            if (!(trigger instanceof HTMLElement)) continue;
+            if (trigger.getAttribute("aria-expanded") === "true") continue;
+            if (visited.has(trigger)) continue;
+            return trigger;
+        }
+        return null;
+    };
+
+    const openSubmenuTrigger = async (trigger) => {
+        if (!(trigger instanceof HTMLElement)) return false;
+        const alreadyOpen = trigger.getAttribute("aria-expanded") === "true";
+        const controlsId = trigger.getAttribute("aria-controls") || "";
+        if (!alreadyOpen) {
+            dispatchPointerAndMousePress(trigger);
+            await sleep(80);
+        }
+        if (trigger.getAttribute("aria-expanded") === "true") return true;
+        await waitForElementById(controlsId, 600);
+        return trigger.getAttribute("aria-expanded") === "true";
+    };
+
+    const waitForModelMenuItem = async (menu, modelId, timeoutMs = 2000) => {
+        const deadline = performance.now() + timeoutMs;
+        const visitedSubmenus = new Set();
+        while (performance.now() < deadline) {
+            const existing =
+                findModelMenuItem(menu, modelId) ||
+                lookupMenuItemAcrossRoots(modelId);
+            if (existing) {
+                return existing;
+            }
+            const submenuTrigger = findClosedSubmenuTrigger(visitedSubmenus);
+            if (submenuTrigger) {
+                visitedSubmenus.add(submenuTrigger);
+                const opened = await openSubmenuTrigger(submenuTrigger);
+                continue;
+            }
+            await sleep(80);
+        }
+        return null;
+    };
 
     const isModelSwitcherOpen = (button) =>
         button?.getAttribute("aria-expanded") === "true" ||
@@ -838,18 +906,41 @@
         return true;
     };
 
+    const isDropdownVisiblyOpen = (button) =>
+        isModelSwitcherOpen(button) || !!findModelMenuRoot();
+
     const setModelSwitcherOpenState = (button, shouldOpen = true) => {
         if (!(button instanceof HTMLElement)) return false;
         const desired = !!shouldOpen;
-        const currentlyOpen = isModelSwitcherOpen(button);
-        if (desired === currentlyOpen) return true;
+        if (desired === isDropdownVisiblyOpen(button)) {
+            return true;
+        }
         button.focus?.({ preventScroll: true });
-        dispatchPointerAndMousePress(button);
-        if (isModelSwitcherOpen(button) === desired) return true;
-        dispatchKeyboardEnterPress(button);
-        if (isModelSwitcherOpen(button) === desired) return true;
-        button.click();
-        return isModelSwitcherOpen(button) === desired;
+        const attempt = () => {
+            const state = isDropdownVisiblyOpen(button);
+            return state === desired;
+        };
+        const trySequence = () => {
+            dispatchPointerAndMousePress(button);
+            if (attempt()) return true;
+            dispatchKeyboardEnterPress(button);
+            if (attempt()) return true;
+            button.click();
+            return attempt();
+        };
+        let success = trySequence();
+        if (!success && !desired) {
+            document.dispatchEvent(
+                new KeyboardEvent("keydown", {
+                    bubbles: true,
+                    cancelable: true,
+                    key: "Escape",
+                    code: "Escape",
+                }),
+            );
+            success = attempt();
+        }
+        return success;
     };
 
     const openModelSwitcherDropdown = () => {
@@ -1600,20 +1691,24 @@
 
     const ensureModel = async (modelId) => {
         if (!modelId) return true;
+        const targetModelId = applyModelIdAlias(modelId);
         await ensureModelOptions();
-        const targetNormalized = normalizeModelId(modelId);
+        const targetNormalized = normalizeModelId(targetModelId);
         if (
             targetNormalized &&
             normalizeModelId(currentModelId) === targetNormalized
-        )
+        ) {
             return true;
+        }
         const result = await useModelMenu(async (menu) => {
-            const item = await waitForModelMenuItem(menu, modelId, 2000);
-            if (!item) return false;
-            const label = getModelNodeLabel(item) || modelId;
+            const item = await waitForModelMenuItem(menu, targetModelId, 3000);
+            if (!item) {
+                return false;
+            }
+            const label = getModelNodeLabel(item) || targetModelId;
             activateModelMenuItem(item);
             await sleep(120);
-            markModelSelected(modelId, label);
+            markModelSelected(targetModelId, label);
             return true;
         });
         return !!result;
