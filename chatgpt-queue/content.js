@@ -709,6 +709,21 @@
         return result;
     };
 
+    const openModelSwitcherDropdown = () => {
+        const button = document.querySelector(
+            'button[data-testid="model-switcher-dropdown-button"]',
+        );
+        if (!(button instanceof HTMLElement)) return false;
+        const isOpen =
+            button.getAttribute("aria-expanded") === "true" ||
+            button.dataset.state === "open";
+        if (!isOpen) {
+            button.click();
+        }
+        button.focus?.({ preventScroll: false });
+        return true;
+    };
+
     const getModelById = (id) => {
         if (!id) return null;
         const normalized = normalizeModelId(id);
@@ -3518,7 +3533,7 @@
             }
             if (matchesModelListingShortcut(event)) {
                 event.preventDefault();
-                void listModelsForDebug();
+                openModelSwitcherDropdown();
             }
         },
         true,
