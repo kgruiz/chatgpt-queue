@@ -994,8 +994,18 @@
     function measureQueueExpandedHeight() {
         if (!(list instanceof HTMLElement)) return;
         const scrollHeight = list.scrollHeight || 0;
+        const computed = window.getComputedStyle(list);
+        const expandedBleed = parsePxValue(
+            computed.getPropertyValue("--queue-shadow-bleed") || "0px",
+        );
+        const currentBleedPadding = parsePxValue(
+            computed.getPropertyValue("--queue-shadow-bleed-padding") ||
+                "0px",
+        );
+        const bleedDelta = Math.max(expandedBleed - currentBleedPadding, 0);
+        const totalHeight = scrollHeight + bleedDelta;
         const bounded = Math.min(
-            Math.max(scrollHeight, 0),
+            Math.max(totalHeight, 0),
             QUEUE_VIEWPORT_MAX_HEIGHT,
         );
         setQueueExpandedHeight(`${bounded}px`);
@@ -1007,6 +1017,14 @@
             queueHeightRaf = 0;
             measureQueueExpandedHeight();
         });
+    }
+
+    function flushQueueHeightSync() {
+        if (queueHeightRaf) {
+            cancelAnimationFrame(queueHeightRaf);
+            queueHeightRaf = 0;
+        }
+        measureQueueExpandedHeight();
     }
 
     const parsePxValue = (value) => {
@@ -1049,10 +1067,15 @@
 
     function animateQueueContainer(targetCollapsed) {
         if (!(list instanceof HTMLElement)) return;
+        flushQueueHeightSync();
         if (!CAN_USE_WEB_ANIMATIONS) {
             list.classList.toggle("is-collapsed", targetCollapsed);
             setQueueAnimationState("");
             return;
+        }
+        const wasCollapsedClass = list.classList.contains("is-collapsed");
+        if (!targetCollapsed && wasCollapsedClass) {
+            list.classList.remove("is-collapsed");
         }
         const expandedHeight = getQueueExpandedHeightValue();
         const currentRect = list.getBoundingClientRect();
@@ -1087,11 +1110,13 @@
             list.classList.toggle("is-collapsed", targetCollapsed);
             setQueueAnimationState("");
             queueCollapseAnimation = null;
+            scheduleQueueHeightSync();
         };
         queueCollapseAnimation.oncancel = () => {
             list.style.removeProperty("max-height");
             setQueueAnimationState("");
             queueCollapseAnimation = null;
+            scheduleQueueHeightSync();
         };
     }
 
@@ -1796,7 +1821,7 @@
             list instanceof HTMLElement &&
             document.activeElement instanceof HTMLElement &&
             list.contains(document.activeElement);
-        measureQueueExpandedHeight();
+        flushQueueHeightSync();
         STATE.collapsed = next;
         refreshVisibility();
         refreshControls();
