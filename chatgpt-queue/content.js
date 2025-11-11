@@ -851,13 +851,15 @@
         return MODEL_ID_ALIASES[normalized] || value;
     };
 
-    const supportsThinkingForModel = (modelId) => {
-        if (!modelId) return false;
-        const canonical = normalizeModelId(applyModelIdAlias(modelId));
-        if (!canonical) return false;
-        return (
-            canonical.startsWith("gpt-5") || canonical.includes("thinking")
-        );
+    const supportsThinkingForModel = (modelId, label = "") => {
+        const canonical = modelId
+            ? normalizeModelId(applyModelIdAlias(modelId))
+            : "";
+        const canonicalMatches = canonical.includes("thinking");
+        const labelMatches = typeof label === "string"
+            ? label.toLowerCase().includes("thinking")
+            : false;
+        return canonicalMatches || labelMatches;
     };
 
     let currentModelId = null;
@@ -2131,7 +2133,11 @@
     const openQueueEntryThinkingDropdown = (index, anchor) => {
         if (!(anchor instanceof HTMLElement)) return;
         const entry = STATE.queue[index];
-        if (!entry || !supportsThinkingForModel(entry.model)) return;
+        if (
+            !entry ||
+            !supportsThinkingForModel(entry.model, entry.modelLabel)
+        )
+            return;
         if (thinkingDropdown && thinkingDropdownAnchor === anchor) {
             closeThinkingDropdown();
             return;
@@ -2188,7 +2194,8 @@
     };
 
     const createQueueEntryThinkingPill = (entry, index) => {
-        if (!supportsThinkingForModel(entry?.model)) return null;
+        if (!supportsThinkingForModel(entry?.model, entry?.modelLabel))
+            return null;
         const container = document.createElement("div");
         container.className = "cq-row-thinking __composer-pill-composite group relative";
         container.dataset.entryIndex = String(index);
@@ -3328,7 +3335,7 @@
     const setEntryThinkingOption = (index, value) => {
         const entry = STATE.queue[index];
         if (!entry) return;
-        if (!supportsThinkingForModel(entry.model)) {
+        if (!supportsThinkingForModel(entry.model, entry.modelLabel)) {
             if (entry.thinking) {
                 entry.thinking = null;
                 scheduleSave();
@@ -3352,7 +3359,7 @@
         const canonicalId = applyModelIdAlias(model.id);
         entry.model = canonicalId;
         entry.modelLabel = model.label || canonicalId;
-        if (!supportsThinkingForModel(entry.model)) {
+        if (!supportsThinkingForModel(entry.model, entry.modelLabel)) {
             entry.thinking = null;
         }
         refreshAll();
@@ -4803,8 +4810,12 @@
             : [];
         const desiredModel = entry.model || null;
         const targetModelId = desiredModel || currentModelId;
+        const targetModelLabel = desiredModel
+            ? entry.modelLabel || labelForModel(desiredModel, desiredModel)
+            : labelForModel(currentModelId, currentModelLabel);
         const desiredThinking =
-            entry.thinking && supportsThinkingForModel(targetModelId)
+            entry.thinking &&
+            supportsThinkingForModel(targetModelId, targetModelLabel)
                 ? entry.thinking
                 : null;
 
@@ -4950,9 +4961,11 @@
         const modelLabel = modelId
             ? labelForModel(modelId, currentModelLabel)
             : null;
-        const thinking = modelId && supportsThinkingForModel(modelId)
-            ? getCurrentThinkingOption()
-            : null;
+        const thinking =
+            modelId &&
+            supportsThinkingForModel(modelId, modelLabel || currentModelLabel)
+                ? getCurrentThinkingOption()
+                : null;
         STATE.queue.push({
             text,
             attachments: attachments.map((attachment) =>
