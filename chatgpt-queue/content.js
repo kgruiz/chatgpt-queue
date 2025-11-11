@@ -517,22 +517,42 @@
         '[data-testid="attachment-preview"]',
     ];
 
-    const countComposerAttachments = (root) => {
-        if (!root) return 0;
-        for (const selector of ATTACHMENT_SELECTORS) {
-            const nodes = root.querySelectorAll(selector);
-            if (nodes.length) return nodes.length;
-        }
-        const fallback = root.querySelectorAll('img[src^="blob:"]');
-        return fallback.length;
-    };
-
     const ATTACHMENT_REMOVE_SELECTORS = [
         'button[data-testid="attachment-item-remove"]',
         'button[data-testid="composer-upload-item-remove"]',
         'button[aria-label^="Remove"]',
         'button[aria-label^="Delete"]',
     ];
+
+    const countFilesInInputs = (root) => {
+        if (!root) return 0;
+        return Array.from(root.querySelectorAll('input[type="file"]')).reduce(
+            (total, input) => {
+                if (!(input instanceof HTMLInputElement)) return total;
+                const count = input.files?.length || 0;
+                return total + count;
+            },
+            0,
+        );
+    };
+
+    const countComposerAttachments = (root) => {
+        if (!root) return 0;
+        for (const selector of ATTACHMENT_SELECTORS) {
+            const nodes = root.querySelectorAll(selector);
+            if (nodes.length) return nodes.length;
+        }
+        const removeQuery = ATTACHMENT_REMOVE_SELECTORS.join(',');
+        if (removeQuery) {
+            const removalNodes = root.querySelectorAll(removeQuery);
+            if (removalNodes.length) return removalNodes.length;
+        }
+        const fallback = root.querySelectorAll(
+            'img[src^="blob:"], img[src^="data:"]',
+        );
+        if (fallback.length) return fallback.length;
+        return countFilesInInputs(root);
+    };
 
     const gatherComposerAttachments = async (root) => {
         if (!root) return [];
@@ -4228,7 +4248,9 @@
 
     const composerHasAttachments = () => {
         const root = composer();
-        return countComposerAttachments(root) > 0;
+        if (!root) return false;
+        if (countComposerAttachments(root) > 0) return true;
+        return countFilesInInputs(root) > 0;
     };
 
     function hasComposerPrompt() {
@@ -4242,12 +4264,9 @@
         if (!root) return false;
         const text = getComposerPromptText();
         const attachmentCount = countComposerAttachments(root);
-        const hadAttachments = attachmentCount > 0;
-        const attachments = hadAttachments
-            ? await gatherComposerAttachments(root)
-            : [];
+        const attachments = await gatherComposerAttachments(root);
         if (!text && attachments.length === 0) return false;
-        if (hadAttachments && attachments.length === 0) {
+        if (attachmentCount > 0 && attachments.length === 0) {
             console.warn(
                 "[cq] Unable to capture composer attachments; queue aborted.",
             );
