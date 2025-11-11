@@ -59,16 +59,36 @@
     }, {});
     const DEFAULT_THINKING_BUTTON_LABEL = "Thinking level";
     const DEFAULT_THINKING_OPTION_LABEL = "Use current thinking";
-    const THINKING_OPTION_DESCRIPTION_MAP = {
-        light: "Quickest replies",
-        standard: "Balanced detail",
-        extended: "More thorough reasoning",
-        heavy: "Deepest analysis",
-    };
-
     const THINKING_OPTION_ID_SET = new Set(
         THINKING_TIME_OPTIONS.map((option) => option.id),
     );
+
+    const THINKING_OPTION_ICONS = {
+        light: `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.0837 0.00494385C12.4509 0.00511975 12.7488 0.302822 12.7488 0.669983C12.7488 1.03714 12.4509 1.33485 12.0837 1.33502H7.91675C7.54948 1.33502 7.25171 1.03725 7.25171 0.669983C7.25171 0.302714 7.54948 0.00494385 7.91675 0.00494385H12.0837Z"></path>
+          <path d="M10 2.08494C11.3849 2.08494 12.7458 2.44817 13.9463 3.13865C14.2646 3.32174 14.3744 3.72852 14.1914 4.04686C14.0083 4.36522 13.6016 4.47509 13.2832 4.29198C12.2844 3.71745 11.1523 3.41502 10 3.41502C9.63273 3.41502 9.33496 3.11725 9.33496 2.74998C9.33496 2.38271 9.63273 2.08494 10 2.08494Z"></path>
+          <path d="M11.2992 10.75C10.8849 11.4675 9.96756 11.7133 9.25012 11.2991C8.53268 10.8849 8.28687 9.96747 8.70108 9.25003C9.45108 7.95099 12.0671 5.4199 12.5001 5.6699C12.9331 5.9199 12.0492 9.45099 11.2992 10.75Z"></path>
+          <path opacity="0.2" d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+        </svg>`,
+        standard: `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 2.08496C14.3713 2.085 17.915 5.62869 17.915 10C17.915 11.2108 17.6427 12.3599 17.1553 13.3877C16.9979 13.7194 16.6013 13.8612 16.2695 13.7041C15.9378 13.5467 15.7959 13.1501 15.9531 12.8184C16.358 11.9648 16.585 11.0097 16.585 10C16.585 6.36323 13.6368 3.41508 10 3.41504C9.63276 3.415 9.33496 3.11725 9.33496 2.75C9.33496 2.38275 9.63276 2.085 10 2.08496Z"></path>
+          <path d="M8.70117 9.25C9.1154 8.5326 10.0326 8.28697 10.75 8.70117C12.049 9.45122 14.5799 12.0669 14.3301 12.5C14.0796 12.9328 10.549 12.0488 9.25 11.2988C8.53268 10.8846 8.28699 9.96739 8.70117 9.25Z"></path>
+          <path d="M12.084 0.00488281C12.451 0.00519055 12.749 0.302842 12.749 0.669922C12.749 1.037 12.451 1.33465 12.084 1.33496H7.91699C7.54972 1.33496 7.25195 1.03719 7.25195 0.669922C7.25195 0.302653 7.54972 0.00488281 7.91699 0.00488281H12.084Z"></path>
+          <path opacity="0.2" d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+        </svg>`,
+        extended: `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10.0007 2.08496C14.3717 2.08536 17.9158 5.62891 17.9158 10C17.9158 14.3711 14.3717 17.9146 10.0007 17.915C5.81265 17.915 2.38471 14.6622 2.10425 10.5449C2.07943 10.1786 2.35612 9.86191 2.72241 9.83691C3.08857 9.8123 3.40547 10.0889 3.43042 10.4551C3.66379 13.8792 6.51699 16.5849 10.0007 16.585C13.6372 16.5846 16.5857 13.6365 16.5857 10C16.5857 6.36345 13.6372 3.41544 10.0007 3.41504C9.6335 3.41499 9.33569 3.11724 9.33569 2.75C9.33569 2.38276 9.6335 2.08501 10.0007 2.08496ZM10.0007 8.5C10.8288 8.50042 11.5007 9.17183 11.5007 10C11.5007 10.8282 10.8288 11.4996 10.0007 11.5C8.50073 11.5 5.00073 10.5 5.00073 10C5.00073 9.5 8.50073 8.5 10.0007 8.5ZM12.0837 0.00488281C12.4508 0.00510456 12.7488 0.302789 12.7488 0.669922C12.7488 1.03705 12.4508 1.33474 12.0837 1.33496H7.91675C7.54948 1.33496 7.25171 1.03719 7.25171 0.669922C7.25171 0.302653 7.54948 0.00488281 7.91675 0.00488281H12.0837Z"></path>
+          <path opacity="0.2" d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+        </svg>`,
+        heavy: `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 7.24208 3.49633 4.81441 5.63281 3.39844C5.93895 3.19555 6.3518 3.27882 6.55469 3.58496C6.75745 3.89109 6.67328 4.30398 6.36719 4.50684C4.58671 5.68693 3.41504 7.70677 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C9.63273 3.41504 9.33496 3.11727 9.33496 2.75C9.33496 2.38273 9.63273 2.08496 10 2.08496ZM7.5 5.66992C7.93301 5.41993 10.5488 7.95095 11.2988 9.25C11.713 9.96741 11.4674 10.8846 10.75 11.2988C10.0326 11.713 9.11542 11.4673 8.70117 10.75C7.95118 9.45097 7.06701 5.91997 7.5 5.66992ZM12.084 0.00488281C12.451 0.00519055 12.749 0.302842 12.749 0.669922C12.749 1.037 12.451 1.33465 12.084 1.33496H7.91699C7.54972 1.33496 7.25195 1.03719 7.25195 0.669922C7.25195 0.302653 7.54972 0.00488281 7.91699 0.00488281H12.084Z"></path>
+          <path opacity="0.2" d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+        </svg>`,
+    };
 
     const normalizeThinkingOptionId = (value) => {
         if (typeof value !== "string") return null;
@@ -81,17 +101,6 @@
         const normalized = normalizeThinkingOptionId(id);
         if (!normalized) return fallback;
         return THINKING_OPTION_MAP[normalized]?.label || fallback;
-    };
-
-    const describeThinkingOption = (id) => {
-        const normalized = normalizeThinkingOptionId(id);
-        if (!normalized) {
-            return "Follow the composer’s current thinking level.";
-        }
-        return (
-            THINKING_OPTION_DESCRIPTION_MAP[normalized] ||
-            `${labelForThinkingOption(normalized)} mode`
-        );
     };
 
 
@@ -1973,78 +1982,44 @@
         if (left > maxLeft) left = Math.max(8, maxLeft);
         if (left < 8) left = 8;
         thinkingDropdown.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+        thinkingDropdown.style.setProperty(
+            "--radix-popper-transform-origin",
+            `${rect.width ? 0 : 0}% ${Math.round(rect.height / 2)}px`,
+        );
+        thinkingDropdown.style.setProperty(
+            "--radix-popper-anchor-width",
+            `${rect.width}px`,
+        );
+        thinkingDropdown.style.setProperty(
+            "--radix-popper-anchor-height",
+            `${rect.height}px`,
+        );
+        thinkingDropdown.style.setProperty(
+            "--radix-popper-available-width",
+            `${window.innerWidth}px`,
+        );
+        thinkingDropdown.style.setProperty(
+            "--radix-popper-available-height",
+            `${window.innerHeight}px`,
+        );
         const menu = thinkingDropdown.querySelector("[data-radix-menu-content]");
         if (menu instanceof HTMLElement) {
             menu.dataset.side = side;
         }
     };
 
-    const createThinkingDropdownItem = (option, selected, onSelect) => {
-        const item = document.createElement("div");
-        item.className = "group __menu-item hoverable";
-        item.setAttribute("role", "menuitemradio");
-        item.tabIndex = 0;
-        item.dataset.state = selected ? "checked" : "unchecked";
-        const body = document.createElement("div");
-        body.className = "min-w-0";
-        const label = document.createElement("span");
-        label.className = "flex items-center gap-1";
-        label.textContent = option.label;
-        const description = document.createElement("div");
-        description.className =
-            "not-group-data-disabled:text-token-text-tertiary leading-dense mb-0.5 text-xs group-data-sheet-item:mt-0.5 group-data-sheet-item:mb-0";
-        description.textContent = option.description || "";
-        body.append(label, description);
-        const trailing = document.createElement("div");
-        trailing.className = "trailing";
-        if (selected) {
-            const svgNS = "http://www.w3.org/2000/svg";
-            const svg = document.createElementNS(svgNS, "svg");
-            svg.setAttribute("width", "16");
-            svg.setAttribute("height", "16");
-            svg.setAttribute("viewBox", "0 0 16 16");
-            svg.setAttribute("fill", "currentColor");
-            svg.classList.add("icon-sm");
-            const path = document.createElementNS(svgNS, "path");
-            path.setAttribute(
-                "d",
-                "M12.0961 2.91371C12.3297 2.68688 12.6984 2.64794 12.9779 2.83852C13.2571 3.02905 13.3554 3.38601 13.2299 3.68618L13.1615 3.81118L6.91152 12.9772C6.79412 13.1494 6.60631 13.2604 6.39882 13.2799C6.19137 13.2994 5.98565 13.226 5.83828 13.0788L2.08828 9.32875L1.99843 9.2184C1.81921 8.94677 1.84928 8.57767 2.08828 8.33852C2.3274 8.0994 2.69648 8.06947 2.96816 8.24868L3.07851 8.33852L6.23085 11.4909L12.0053 3.02211L12.0961 2.91371Z",
-            );
-            svg.appendChild(path);
-            trailing.appendChild(svg);
-        } else {
-            const span = document.createElement("span");
-            span.className = "icon";
-            trailing.appendChild(span);
-        }
-        item.append(body, trailing);
-        const triggerSelection = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (typeof onSelect === "function") {
-                onSelect(option.id);
-            }
-        };
-        item.addEventListener("click", triggerSelection);
-        item.addEventListener("keydown", (event) => {
-            const key = event.key || "";
-            if (key === "Enter" || key === " " || key === "Spacebar") {
-                triggerSelection(event);
-            }
-        });
-        return item;
-    };
-
     const buildThinkingDropdown = ({ selectedId = null, onSelect } = {}) => {
         const wrapper = document.createElement("div");
         wrapper.id = THINKING_DROPDOWN_ID;
         wrapper.dataset.radixPopperContentWrapper = "";
+        wrapper.setAttribute("dir", "ltr");
         wrapper.style.position = "fixed";
         wrapper.style.left = "0px";
         wrapper.style.top = "0px";
         wrapper.style.transform = "translate(0px, 0px)";
         wrapper.style.minWidth = "max-content";
-        wrapper.style.zIndex = "2147480000";
+        wrapper.style.willChange = "transform";
+        wrapper.style.zIndex = "50";
         wrapper.style.pointerEvents = "none";
         const menu = document.createElement("div");
         menu.dataset.radixMenuContent = "";
@@ -2052,42 +2027,103 @@
         menu.dataset.align = "start";
         menu.dataset.orientation = "vertical";
         menu.dataset.state = "open";
-        menu.setAttribute("role", "menu");
-        menu.tabIndex = -1;
         menu.className =
-            "z-50 max-w-xs rounded-2xl popover bg-token-main-surface-primary dark:bg-[#353535] shadow-long will-change-[opacity,transform] py-1.5 min-w-[max(var(--trigger-width),min(125px,95vw))] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto select-none";
+            "z-50 max-w-xs rounded-2xl popover bg-token-main-surface-primary dark:bg-[#353535] shadow-long will-change-[opacity,transform] radix-side-bottom:animate-slideUpAndFade radix-side-left:animate-slideRightAndFade radix-side-right:animate-slideLeftAndFade radix-side-top:animate-slideDownAndFade py-1.5 data-[unbound-width]:min-w-[unset] data-[custom-padding]:py-0 [--trigger-width:calc(var(--radix-dropdown-menu-trigger-width)-2*var(--radix-align-offset))] min-w-(--trigger-width) max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto select-none";
+        menu.setAttribute("dir", "ltr");
+        menu.setAttribute("role", "menu");
+        menu.setAttribute("aria-orientation", "vertical");
+        menu.tabIndex = -1;
         menu.style.pointerEvents = "auto";
+        menu.style.outline = "none";
+        menu.style.setProperty("--radix-align-offset", "-8px");
+        menu.style.setProperty(
+            "--radix-dropdown-menu-content-transform-origin",
+            "var(--radix-popper-transform-origin)",
+        );
+        const group = document.createElement("div");
+        group.setAttribute("role", "group");
         const heading = document.createElement("div");
-        heading.className = "__menu-label mb-0";
-        heading.textContent = "Thinking level";
-        menu.appendChild(heading);
-        const normalizedSelected = normalizeThinkingOptionId(selectedId);
-        const options = [
-            {
-                id: null,
-                label: DEFAULT_THINKING_OPTION_LABEL,
-                description: describeThinkingOption(null),
-            },
-            ...THINKING_TIME_OPTIONS.map((option) => ({
-                id: option.id,
-                label: `${option.label} thinking`,
-                description: describeThinkingOption(option.id),
-            })),
-        ];
+        heading.className = "__menu-label";
+        heading.textContent = "Thinking time";
+        group.appendChild(heading);
+        const normalizedSelected =
+            normalizeThinkingOptionId(selectedId) ||
+            normalizeThinkingOptionId(getCurrentThinkingOption());
+        const options = THINKING_TIME_OPTIONS.map((option) => ({
+            id: option.id,
+            label: option.label,
+            icon: THINKING_OPTION_ICONS[option.id],
+        }));
         options.forEach((option) => {
-            const selected = option.id
-                ? normalizeThinkingOptionId(option.id) === normalizedSelected
-                : !normalizedSelected;
-            menu.appendChild(
-                createThinkingDropdownItem(option, selected, (id) => {
-                    if (!id) {
-                        onSelect?.(null);
-                    } else {
-                        onSelect?.(id);
-                    }
-                }),
-            );
+            const selected =
+                normalizeThinkingOptionId(option.id) === normalizedSelected;
+            const item = document.createElement("div");
+            item.className = "group __menu-item";
+            item.dataset.state = selected ? "checked" : "unchecked";
+            item.dataset.orientation = "vertical";
+            item.dataset.radixCollectionItem = "";
+            item.setAttribute("role", "menuitemradio");
+            item.setAttribute("aria-checked", selected ? "true" : "false");
+            item.tabIndex = 0;
+            const row = document.createElement("div");
+            row.className = "flex min-w-0 items-center gap-1.5";
+            const iconWrapper = document.createElement("div");
+            iconWrapper.className =
+                "flex items-center justify-center group-disabled:opacity-50 group-data-disabled:opacity-50 icon";
+            iconWrapper.innerHTML = option.icon || "";
+            row.appendChild(iconWrapper);
+            const labelWrapper = document.createElement("div");
+            labelWrapper.className =
+                "flex min-w-0 grow items-center gap-2.5 group-data-no-contents-gap:gap-0";
+            const label = document.createElement("div");
+            label.className = "truncate";
+            label.textContent = option.label;
+            labelWrapper.appendChild(label);
+            row.appendChild(labelWrapper);
+            item.appendChild(row);
+            const trailing = document.createElement("div");
+            trailing.className = "trailing";
+            if (selected) {
+                const check = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "svg",
+                );
+                check.setAttribute("width", "16");
+                check.setAttribute("height", "16");
+                check.setAttribute("viewBox", "0 0 16 16");
+                check.setAttribute("fill", "currentColor");
+                check.classList.add("icon-sm");
+                const path = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "path",
+                );
+                path.setAttribute(
+                    "d",
+                    "M12.0961 2.91371C12.3297 2.68688 12.6984 2.64794 12.9779 2.83852C13.2571 3.02905 13.3554 3.38601 13.2299 3.68618L13.1615 3.81118L6.91152 12.9772C6.79412 13.1494 6.60631 13.2604 6.39882 13.2799C6.19137 13.2994 5.98565 13.226 5.83828 13.0788L2.08828 9.32875L1.99843 9.2184C1.81921 8.94677 1.84928 8.57767 2.08828 8.33852C2.3274 8.0994 2.69648 8.06947 2.96816 8.24868L3.07851 8.33852L6.23085 11.4909L12.0053 3.02211L12.0961 2.91371Z",
+                );
+                check.appendChild(path);
+                trailing.appendChild(check);
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.className = "icon-sm group-radix-state-checked:hidden";
+                trailing.appendChild(placeholder);
+            }
+            item.appendChild(trailing);
+            const triggerSelection = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSelect?.(option.id);
+            };
+            item.addEventListener("click", triggerSelection);
+            item.addEventListener("keydown", (event) => {
+                const key = event.key || "";
+                if (key === "Enter" || key === " " || key === "Spacebar") {
+                    triggerSelection(event);
+                }
+            });
+            group.appendChild(item);
         });
+        menu.appendChild(group);
         wrapper.appendChild(menu);
         return wrapper;
     };
@@ -2154,7 +2190,7 @@
     const createQueueEntryThinkingPill = (entry, index) => {
         if (!supportsThinkingForModel(entry?.model)) return null;
         const container = document.createElement("div");
-        container.className = "cq-row-thinking __composer-pill-composite";
+        container.className = "cq-row-thinking __composer-pill-composite group relative";
         container.dataset.entryIndex = String(index);
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -2168,7 +2204,7 @@
         });
         const pillButton = document.createElement("button");
         pillButton.type = "button";
-        pillButton.className = "__composer-pill cq-row-thinking-pill";
+        pillButton.className = "__composer-pill cq-row-thinking-pill group/pill";
         pillButton.dataset.entryIndex = String(index);
         pillButton.dataset.state = "closed";
         pillButton.setAttribute("aria-haspopup", "menu");
@@ -2180,21 +2216,17 @@
         pillButton.title = "Choose thinking level";
         const icon = document.createElement("div");
         icon.className = "__composer-pill-icon";
-        icon.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
-          <path d="M10.0002 8.5C10.8285 8.50022 11.5002 9.17171 11.5002 10C11.5002 10.8283 10.8285 11.4998 10.0002 11.5C8.50014 11.4999 5.00025 10.5 5.00025 10C5.00025 9.50002 8.50014 8.50009 10.0002 8.5Z"></path>
-          <path d="M12.0833 0.00488281C12.4504 0.00505872 12.7483 0.302761 12.7483 0.669922C12.7483 1.03708 12.4504 1.33479 12.0833 1.33496H7.91626C7.54922 1.3347 7.25122 1.03703 7.25122 0.669922C7.25122 0.302814 7.54922 0.00514505 7.91626 0.00488281H12.0833Z"></path>
-        </svg>`;
+        const iconId = entry?.thinking || getCurrentThinkingOption() || "extended";
+        icon.innerHTML = THINKING_OPTION_ICONS[iconId] || THINKING_OPTION_ICONS.extended;
         const labelSpan = document.createElement("span");
-        labelSpan.className = "cq-row-thinking-pill__label";
+        labelSpan.className = "max-w-40 truncate [[data-collapse-labels]_&]:sr-only";
         labelSpan.textContent = resolveQueueEntryThinkingLabel(entry);
         const caret = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         caret.setAttribute("width", "16");
         caret.setAttribute("height", "16");
         caret.setAttribute("viewBox", "0 0 16 16");
         caret.setAttribute("fill", "currentColor");
-        caret.classList.add("cq-row-thinking-pill__caret");
+        caret.classList.add("icon-sm", "-me-0.5", "h-3.5", "w-3.5");
         const caretPath = document.createElementNS(
             "http://www.w3.org/2000/svg",
             "path",
@@ -3283,8 +3315,10 @@
     };
 
     const resolveQueueEntryThinkingLabel = (entry) => {
-        if (!entry?.thinking) return DEFAULT_THINKING_BUTTON_LABEL;
-        return `${labelForThinkingOption(entry.thinking)} thinking`;
+        const sourceId = entry?.thinking || getCurrentThinkingOption();
+        const label = labelForThinkingOption(sourceId, DEFAULT_THINKING_BUTTON_LABEL);
+        if (!label) return DEFAULT_THINKING_BUTTON_LABEL;
+        return `${label} thinking`;
     };
 
     const setEntryThinkingOption = (index, value) => {
