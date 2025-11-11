@@ -2060,7 +2060,7 @@
             const selected =
                 normalizeThinkingOptionId(option.id) === normalizedSelected;
             const item = document.createElement("div");
-            item.className = "group __menu-item";
+            item.className = "group __menu-item hoverable";
             item.dataset.state = selected ? "checked" : "unchecked";
             item.dataset.orientation = "vertical";
             item.dataset.radixCollectionItem = "";
