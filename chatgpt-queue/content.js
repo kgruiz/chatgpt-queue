@@ -1655,11 +1655,11 @@
         try {
             const applied = await selectThinkingTimeOption(optionId);
             if (!applied) {
-                console.warn("[cq] Failed to apply thinking shortcut", optionId);
+                console.info("[cq] Failed to apply thinking shortcut", optionId);
             }
             return applied;
         } catch (error) {
-            console.warn("[cq] Thinking shortcut error", optionId, error);
+            console.info("[cq] Thinking shortcut error", optionId, error);
             return false;
         }
     };
