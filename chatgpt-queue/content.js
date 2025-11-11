@@ -2151,6 +2151,69 @@
         );
     };
 
+    const createQueueEntryThinkingPill = (entry, index) => {
+        if (!supportsThinkingForModel(entry?.model)) return null;
+        const container = document.createElement("div");
+        container.className = "cq-row-thinking __composer-pill-composite";
+        container.dataset.entryIndex = String(index);
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "__composer-pill-remove cq-row-thinking-remove";
+        removeBtn.setAttribute("aria-label", "Clear thinking level override");
+        removeBtn.hidden = !entry.thinking;
+        removeBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setEntryThinkingOption(index, "");
+        });
+        const pillButton = document.createElement("button");
+        pillButton.type = "button";
+        pillButton.className = "__composer-pill cq-row-thinking-pill";
+        pillButton.dataset.entryIndex = String(index);
+        pillButton.dataset.state = "closed";
+        pillButton.setAttribute("aria-haspopup", "menu");
+        pillButton.setAttribute("aria-expanded", "false");
+        pillButton.setAttribute(
+            "aria-label",
+            "Choose thinking level for this follow-up",
+        );
+        pillButton.title = "Choose thinking level";
+        const icon = document.createElement("div");
+        icon.className = "__composer-pill-icon";
+        icon.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+          <path d="M10.0002 8.5C10.8285 8.50022 11.5002 9.17171 11.5002 10C11.5002 10.8283 10.8285 11.4998 10.0002 11.5C8.50014 11.4999 5.00025 10.5 5.00025 10C5.00025 9.50002 8.50014 8.50009 10.0002 8.5Z"></path>
+          <path d="M12.0833 0.00488281C12.4504 0.00505872 12.7483 0.302761 12.7483 0.669922C12.7483 1.03708 12.4504 1.33479 12.0833 1.33496H7.91626C7.54922 1.3347 7.25122 1.03703 7.25122 0.669922C7.25122 0.302814 7.54922 0.00514505 7.91626 0.00488281H12.0833Z"></path>
+        </svg>`;
+        const labelSpan = document.createElement("span");
+        labelSpan.className = "cq-row-thinking-pill__label";
+        labelSpan.textContent = resolveQueueEntryThinkingLabel(entry);
+        const caret = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        caret.setAttribute("width", "16");
+        caret.setAttribute("height", "16");
+        caret.setAttribute("viewBox", "0 0 16 16");
+        caret.setAttribute("fill", "currentColor");
+        caret.classList.add("cq-row-thinking-pill__caret");
+        const caretPath = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path",
+        );
+        caretPath.setAttribute(
+            "d",
+            "M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z",
+        );
+        caret.appendChild(caretPath);
+        pillButton.append(icon, labelSpan, caret);
+        pillButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void openQueueEntryThinkingDropdown(index, pillButton);
+        });
+        container.append(removeBtn, pillButton);
+        return container;
+    };
+
     const mountComposerModelLabelBeforeDictate = (root) => {
         if (!composerModelLabelButton) return false;
         const dictateButton = root.querySelector(
@@ -4495,81 +4558,15 @@
                 body.appendChild(mediaWrap);
             }
 
-            if (supportsThinkingForModel(entry.model)) {
-                const controls = document.createElement("div");
-                controls.className = "cq-row-controls";
-                const thinking = document.createElement("div");
-                thinking.className = "cq-row-thinking __composer-pill-composite";
-                thinking.title = "Set thinking level for this follow-up";
-
-                const removeBtn = document.createElement("button");
-                removeBtn.type = "button";
-                removeBtn.className = "__composer-pill-remove cq-row-thinking-remove";
-                removeBtn.setAttribute(
-                    "aria-label",
-                    "Clear thinking level override",
-                );
-                removeBtn.hidden = !entry.thinking;
-                removeBtn.addEventListener("click", (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setEntryThinkingOption(index, "");
-                });
-
-                const pillButton = document.createElement("button");
-                pillButton.type = "button";
-                pillButton.className = "__composer-pill cq-row-thinking-pill";
-                pillButton.dataset.entryIndex = String(index);
-                pillButton.dataset.state = "closed";
-                pillButton.setAttribute("aria-haspopup", "menu");
-                pillButton.setAttribute("aria-expanded", "false");
-                pillButton.title = "Choose thinking level";
-                const icon = document.createElement("div");
-                icon.className = "__composer-pill-icon";
-                icon.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
-          <path d="M10.0002 8.5C10.8285 8.50022 11.5002 9.17171 11.5002 10C11.5002 10.8283 10.8285 11.4998 10.0002 11.5C8.50014 11.4999 5.00025 10.5 5.00025 10C5.00025 9.50002 8.50014 8.50009 10.0002 8.5Z"></path>
-          <path d="M12.0833 0.00488281C12.4504 0.00505872 12.7483 0.302761 12.7483 0.669922C12.7483 1.03708 12.4504 1.33479 12.0833 1.33496H7.91626C7.54922 1.3347 7.25122 1.03703 7.25122 0.669922C7.25122 0.302814 7.54922 0.00514505 7.91626 0.00488281H12.0833Z"></path>
-        </svg>`;
-                const labelSpan = document.createElement("span");
-                labelSpan.className = "cq-row-thinking-pill__label";
-                labelSpan.textContent = resolveQueueEntryThinkingLabel(entry);
-                const caret = document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "svg",
-                );
-                caret.setAttribute("width", "16");
-                caret.setAttribute("height", "16");
-                caret.setAttribute("viewBox", "0 0 16 16");
-                caret.setAttribute("fill", "currentColor");
-                caret.classList.add("cq-row-thinking-pill__caret");
-                const caretPath = document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "path",
-                );
-                caretPath.setAttribute(
-                    "d",
-                    "M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z",
-                );
-                caret.appendChild(caretPath);
-
-                pillButton.append(icon, labelSpan, caret);
-                pillButton.addEventListener("click", (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void openQueueEntryThinkingDropdown(index, pillButton);
-                });
-
-                thinking.append(removeBtn, pillButton);
-                controls.appendChild(thinking);
-                body.appendChild(controls);
-            }
-
             row.appendChild(body);
 
             const actions = document.createElement("div");
             actions.className = "cq-row-actions";
+
+            const thinkingPill = createQueueEntryThinkingPill(entry, index);
+            if (thinkingPill) {
+                actions.appendChild(thinkingPill);
+            }
 
             const modelButton = document.createElement("button");
             modelButton.type = "button";
