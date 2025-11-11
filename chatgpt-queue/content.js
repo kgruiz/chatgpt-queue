@@ -2201,6 +2201,7 @@
             event.preventDefault();
             event.stopPropagation();
             setEntryThinkingOption(index, "");
+            applyModelSelectionToEntry(index, { id: "auto", label: "Auto" });
         });
         const pillButton = document.createElement("button");
         pillButton.type = "button";
