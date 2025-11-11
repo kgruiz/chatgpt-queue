@@ -1310,7 +1310,6 @@
 
     const resolveModelShortcutIndex = (event) => {
         if (!event) return null;
-        if (event.shiftKey) return null;
         const directKey =
             typeof event.key === "string" && event.key.length === 1
                 ? event.key.toLowerCase()
@@ -1327,14 +1326,19 @@
             }
         }
         if (!index) return null;
-        const requiresMeta = isApplePlatform;
-        const hasMeta = event.metaKey;
-        const hasCtrl = event.ctrlKey;
-        const hasAlt = event.altKey;
-        if (requiresMeta) {
-            if (!hasMeta || !hasAlt || hasCtrl) return null;
+        const hasMeta = !!event.metaKey;
+        const hasCtrl = !!event.ctrlKey;
+        const hasAlt = !!event.altKey;
+        const hasShift = !!event.shiftKey;
+        if (isApplePlatform) {
+            if (!hasAlt) return null;
+            const metaCombo = hasMeta && !hasCtrl;
+            const ctrlCombo = hasCtrl && !hasMeta;
+            if (!metaCombo && !ctrlCombo) return null;
         } else {
-            if (!hasCtrl || !hasAlt || hasMeta) return null;
+            if (hasMeta) return null;
+            if (!hasCtrl) return null;
+            if (!hasAlt && !hasShift) return null;
         }
         return index;
     };
@@ -1347,18 +1351,100 @@
         return displayModels[index - 1] || null;
     };
 
+    let modelShortcutToast = null;
+    let modelShortcutToastTimer = null;
+
+    const ensureModelShortcutToast = () => {
+        if (
+            modelShortcutToast &&
+            modelShortcutToast.isConnected &&
+            document.body.contains(modelShortcutToast)
+        ) {
+            return modelShortcutToast;
+        }
+        const toast = document.createElement("div");
+        toast.id = "cq-model-shortcut-toast";
+        toast.style.position = "fixed";
+        toast.style.inset = "auto 16px 16px";
+        toast.style.zIndex = "2147483000";
+        toast.style.padding = "10px 14px";
+        toast.style.borderRadius = "999px";
+        toast.style.fontSize = "0.92rem";
+        toast.style.lineHeight = "1.2";
+        toast.style.fontWeight = "500";
+        toast.style.fontFamily =
+            '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        toast.style.color = "#fff";
+        toast.style.background = "rgba(28,28,33,0.94)";
+        toast.style.boxShadow = "0 15px 35px rgba(0,0,0,0.35)";
+        toast.style.backdropFilter = "blur(12px)";
+        toast.style.opacity = "0";
+        toast.style.pointerEvents = "none";
+        toast.style.transform = "translateY(8px)";
+        toast.style.transition = "opacity 160ms ease, transform 160ms ease";
+        document.body.appendChild(toast);
+        modelShortcutToast = toast;
+        return toast;
+    };
+
+    const hideModelShortcutToast = () => {
+        if (!modelShortcutToast) return;
+        modelShortcutToast.style.opacity = "0";
+        modelShortcutToast.style.transform = "translateY(8px)";
+    };
+
+    const showModelShortcutToast = (message, variant = "info") => {
+        if (!message) return;
+        const toast = ensureModelShortcutToast();
+        toast.textContent = message;
+        const palette = {
+            info: "rgba(28,28,33,0.94)",
+            success: "rgba(4, 120, 87, 0.92)",
+            error: "rgba(190, 18, 60, 0.95)",
+        };
+        toast.style.background = palette[variant] || palette.info;
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
+        if (modelShortcutToastTimer) {
+            clearTimeout(modelShortcutToastTimer);
+        }
+        modelShortcutToastTimer = window.setTimeout(() => {
+            hideModelShortcutToast();
+        }, 2200);
+    };
+
     const handleModelShortcut = async (index) => {
         if (!Number.isInteger(index)) return false;
         try {
             const models = await ensureModelOptions();
             const model = getModelForShortcutIndex(index, models);
-            if (!model?.id) return false;
+            if (!model?.id) {
+                showModelShortcutToast(
+                    `Shortcut ${index} is unmapped (only ${Math.min(
+                        models?.length || 0,
+                        MODEL_SHORTCUT_COUNT,
+                    )} models detected).`,
+                    "error",
+                );
+                return false;
+            }
+            const label = model.label || model.id;
             const matchesCurrent =
                 normalizeModelId(model.id) === normalizeModelId(currentModelId);
-            if (matchesCurrent) return true;
-            return await handleComposerModelSelection(model);
+            if (matchesCurrent) {
+                showModelShortcutToast(`Already using ${label}.`, "info");
+                return true;
+            }
+            const applied = await handleComposerModelSelection(model);
+            if (applied) {
+                showModelShortcutToast(`Switched to ${label}.`, "success");
+            } else {
+                showModelShortcutToast(`Couldn't switch to ${label}.`, "error");
+            }
+            return applied;
         } catch (error) {
             console.warn("[cq] Failed to apply model shortcut", error);
+            showModelShortcutToast("Model shortcut failed.", "error");
             return false;
         }
     };
