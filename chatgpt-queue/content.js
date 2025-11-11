@@ -3317,7 +3317,10 @@
 
     const resolveQueueEntryThinkingLabel = (entry) => {
         const sourceId = entry?.thinking || getCurrentThinkingOption();
-        const label = labelForThinkingOption(sourceId, DEFAULT_THINKING_BUTTON_LABEL);
+        const normalized = normalizeThinkingOptionId(sourceId);
+        if (!normalized) return DEFAULT_THINKING_BUTTON_LABEL;
+        if (normalized === "standard") return "Thinking";
+        const label = labelForThinkingOption(normalized, DEFAULT_THINKING_BUTTON_LABEL);
         if (!label) return DEFAULT_THINKING_BUTTON_LABEL;
         return `${label} thinking`;
     };
