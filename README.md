@@ -84,7 +84,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 
 Browser-level commands (set from `chrome://extensions/shortcuts`) include **Queue current input** with a default of **Cmd+Shift+Y** (macOS) / **Ctrl+Shift+Y** (Windows/Linux).
 
-Each digit shortcut maps to the model order we learn from ChatGPT’s picker: `⌘⌥1`/`Ctrl+Alt+1` activates the first model in the list, `⌘⌥0`/`Ctrl+Alt+0` the tenth, while **Cmd/Ctrl+Shift+H** still opens the dropdown when you want to confirm labels.
+Each digit shortcut maps to the model order we learn from ChatGPT’s picker: `⌘⌥1` activates the first model in the list, `⌘⌥0` the tenth, while **Cmd/Ctrl+Shift+H** still opens the dropdown when you want to confirm labels. Holding Control+Option on macOS or swapping Alt for Shift on Windows/Linux works as an alternate chord if the primary combo is intercepted by the browser.
 
 ## Persistence & data
 
