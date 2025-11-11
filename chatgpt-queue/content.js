@@ -46,8 +46,14 @@
     const MODEL_DROPDOWN_ID = "cq-model-dropdown";
     const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
+    const THINKING_TIME_OPTIONS = [
+        { id: "light", label: "Light", code: "KeyL" },
+        { id: "standard", label: "Standard", code: "KeyS" },
+        { id: "extended", label: "Extended", code: "KeyE" },
+        { id: "heavy", label: "Heavy", code: "KeyH" },
+    ];
 
-    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue & models";
+    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
     const MODEL_SHORTCUT_ENTRIES = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
         const number = index === MODEL_SHORTCUT_KEY_ORDER.length - 1 ? 10 : index + 1;
@@ -61,6 +67,12 @@
             otherKeys,
         };
     });
+    const THINKING_SHORTCUT_ENTRIES = THINKING_TIME_OPTIONS.map((option) => ({
+        id: `thinking-${option.id}`,
+        label: `Set thinking time: ${option.label}`,
+        macKeys: ["command", "option", option.id.charAt(0)],
+        otherKeys: ["control", "alt", option.id.charAt(0)],
+    }));
     const KEYBOARD_SHORTCUT_ENTRIES = [
         {
             id: "queue-add",
@@ -117,6 +129,7 @@
             otherKeys: ["alt", "shift", "delete"],
         },
         ...MODEL_SHORTCUT_ENTRIES,
+        ...THINKING_SHORTCUT_ENTRIES,
     ];
 
     const KEY_DISPLAY_MAP = {
@@ -970,7 +983,7 @@
         return true;
     };
 
-    const activateModelMenuItem = (item) => {
+    const activateMenuItem = (item) => {
         if (!(item instanceof HTMLElement)) return false;
         item.focus?.({ preventScroll: true });
         dispatchPointerAndMousePress(item);
@@ -979,6 +992,117 @@
         if (!item.isConnected) return true;
         item.click();
         return true;
+    };
+
+    const THINKING_MENU_LABEL = "thinking time";
+
+    const normalizeThinkingText = (value = "") =>
+        String(value || "").trim().toLowerCase();
+
+    const findThinkingChipButton = () => {
+        const selector = "button.__composer-pill";
+        for (const button of document.querySelectorAll(selector)) {
+            if (!(button instanceof HTMLElement)) continue;
+            const text = button.textContent || "";
+            if (normalizeThinkingText(text).includes("thinking")) {
+                return button;
+            }
+        }
+        return null;
+    };
+
+    const findThinkingMenuRoot = () => {
+        const menus = document.querySelectorAll(
+            '[role="menu"][data-radix-menu-content]'
+        );
+        for (const menu of menus) {
+            if (!(menu instanceof HTMLElement)) continue;
+            const heading = menu.querySelector(".__menu-label");
+            const label = normalizeThinkingText(heading?.textContent || "");
+            if (label === THINKING_MENU_LABEL) {
+                return menu;
+            }
+        }
+        return null;
+    };
+
+    const isThinkingMenuOpen = () => !!findThinkingMenuRoot();
+
+    const waitForThinkingMenu = (timeoutMs = 1200) =>
+        new Promise((resolve) => {
+            const start = performance.now();
+            const tick = () => {
+                const menu = findThinkingMenuRoot();
+                if (menu) {
+                    resolve(menu);
+                    return;
+                }
+                if (performance.now() - start >= timeoutMs) {
+                    resolve(null);
+                    return;
+                }
+                requestAnimationFrame(tick);
+            };
+            tick();
+        });
+
+    const useThinkingMenu = async (operation) => {
+        const button = findThinkingChipButton();
+        if (!(button instanceof HTMLElement)) return null;
+        const wasOpen = isThinkingMenuOpen();
+        if (!wasOpen) {
+            dispatchPointerAndMousePress(button);
+        }
+        const menu = wasOpen ? findThinkingMenuRoot() : await waitForThinkingMenu();
+        if (!(menu instanceof HTMLElement)) {
+            if (!wasOpen) {
+                button.click();
+            }
+            return null;
+        }
+        let result;
+        try {
+            result = await operation(menu, button);
+        } finally {
+            if (!wasOpen && isThinkingMenuOpen()) {
+                button.click();
+            }
+        }
+        return result;
+    };
+
+    const THINKING_OPTION_LABEL_MAP = THINKING_TIME_OPTIONS.reduce(
+        (map, option) => {
+            map[option.id] = normalizeThinkingText(option.label);
+            return map;
+        },
+        {},
+    );
+
+    const findThinkingMenuItem = (menu, optionId) => {
+        if (!(menu instanceof HTMLElement)) return null;
+        const desired = THINKING_OPTION_LABEL_MAP[optionId];
+        if (!desired) return null;
+        const items = menu.querySelectorAll('[role="menuitemradio"]');
+        for (const item of items) {
+            if (!(item instanceof HTMLElement)) continue;
+            const text = normalizeThinkingText(item.textContent || "");
+            if (text === desired) {
+                return item;
+            }
+        }
+        return null;
+    };
+
+    const selectThinkingTimeOption = async (optionId) => {
+        if (!THINKING_OPTION_LABEL_MAP[optionId]) return false;
+        const result = await useThinkingMenu(async (menu) => {
+            const item = findThinkingMenuItem(menu, optionId);
+            if (!item) return false;
+            activateMenuItem(item);
+            return true;
+        });
+        return !!result;
     };
 
     const setComposerModelSelectionBusy = (isBusy) => {
@@ -1298,6 +1422,16 @@
         return Array.from(map.values());
     };
 
+    const THINKING_SHORTCUT_KEY_MAP = THINKING_TIME_OPTIONS.reduce(
+        (map, option) => {
+            if (option?.code) {
+                map[option.code.toLowerCase()] = option.id;
+            }
+            return map;
+        },
+        {},
+    );
+
     const normalizeShortcutDigit = (value) => {
         if (typeof value !== "string" || !value.length) return null;
         const digit = value.slice(-1);
@@ -1347,6 +1481,23 @@
         return displayModels[index - 1] || null;
     };
 
+    const resolveThinkingShortcut = (event) => {
+        if (!event) return null;
+        const code = typeof event.code === "string" ? event.code.toLowerCase() : "";
+        if (!code || !THINKING_SHORTCUT_KEY_MAP[code]) return null;
+        if (event.shiftKey) return null;
+        const optionId = THINKING_SHORTCUT_KEY_MAP[code];
+        if (!optionId) return null;
+        if (isApplePlatform) {
+            if (!event.metaKey || !event.altKey) return null;
+            if (event.ctrlKey) return null;
+        } else {
+            if (!event.ctrlKey || !event.altKey) return null;
+            if (event.metaKey) return null;
+        }
+        return optionId;
+    };
+
     const handleModelShortcut = async (index) => {
         if (!Number.isInteger(index)) return false;
         try {
@@ -1359,6 +1510,20 @@
             return await handleComposerModelSelection(model);
         } catch (error) {
             console.warn("[cq] Failed to apply model shortcut", error);
+            return false;
+        }
+    };
+
+    const handleThinkingShortcut = async (optionId) => {
+        if (!optionId) return false;
+        try {
+            const applied = await selectThinkingTimeOption(optionId);
+            if (!applied) {
+                console.warn("[cq] Failed to apply thinking shortcut", optionId);
+            }
+            return applied;
+        } catch (error) {
+            console.warn("[cq] Thinking shortcut error", optionId, error);
             return false;
         }
     };
@@ -1822,7 +1987,7 @@
                 return false;
             }
             const label = getModelNodeLabel(item) || targetModelId;
-            activateModelMenuItem(item);
+            activateMenuItem(item);
             await sleep(120);
             markModelSelected(modelId, label);
             return true;
@@ -4327,6 +4492,13 @@
             if (modelShortcutIndex) {
                 event.preventDefault();
                 void handleModelShortcut(modelShortcutIndex);
+                return;
+            }
+            const thinkingShortcut = resolveThinkingShortcut(event);
+            if (thinkingShortcut) {
+                event.preventDefault();
+                void handleThinkingShortcut(thinkingShortcut);
+                return;
             }
         },
         true,
