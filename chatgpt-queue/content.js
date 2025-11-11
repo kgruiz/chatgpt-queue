@@ -4211,30 +4211,9 @@
                 body.appendChild(mediaWrap);
             }
 
-            const controls = document.createElement("div");
-            controls.className = "cq-row-controls";
-
-            const modelButton = document.createElement("button");
-            modelButton.type = "button";
-            modelButton.className = "cq-row-model-btn cq-composer-models-btn";
-            modelButton.dataset.entryIndex = String(index);
-            const modelValue = document.createElement("span");
-            modelValue.className = "cq-composer-models-btn__value";
-            modelValue.textContent = resolveQueueEntryModelLabel(entry);
-            modelButton.appendChild(modelValue);
-            modelButton.title = "Choose model for this follow-up";
-            modelButton.setAttribute(
-                "aria-label",
-                "Choose model for this follow-up",
-            );
-            modelButton.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void openQueueEntryModelDropdown(index, modelButton);
-            });
-            controls.appendChild(modelButton);
-
             if (supportsThinkingForModel(entry.model)) {
+                const controls = document.createElement("div");
+                controls.className = "cq-row-controls";
                 const thinking = document.createElement("label");
                 thinking.className = "cq-row-thinking";
                 thinking.title = "Set thinking level for this follow-up";
@@ -4266,9 +4245,6 @@
                 });
                 thinking.append(thinkingLabel, select);
                 controls.appendChild(thinking);
-            }
-
-            if (controls.childNodes.length > 0) {
                 body.appendChild(controls);
             }
 
@@ -4276,6 +4252,26 @@
 
             const actions = document.createElement("div");
             actions.className = "cq-row-actions";
+
+            const modelButton = document.createElement("button");
+            modelButton.type = "button";
+            modelButton.className = "cq-composer-models-btn";
+            modelButton.dataset.entryIndex = String(index);
+            const modelValue = document.createElement("span");
+            modelValue.className = "cq-composer-models-btn__value";
+            modelValue.textContent = resolveQueueEntryModelLabel(entry);
+            modelButton.appendChild(modelValue);
+            modelButton.title = "Choose model for this follow-up";
+            modelButton.setAttribute(
+                "aria-label",
+                "Choose model for this follow-up",
+            );
+            modelButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void openQueueEntryModelDropdown(index, modelButton);
+            });
+            actions.appendChild(modelButton);
 
             const sendButton = document.createElement("button");
             sendButton.type = "button";
