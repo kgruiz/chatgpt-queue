@@ -80,14 +80,14 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 | Delete focused follow-up (without confirmation) | Option+Shift+Delete | Alt+Shift+Delete |
 | Collapse/expand queue list | Shift+Cmd+. | Shift+Ctrl+. |
 | Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
-| Set thinking time (Light/Standard/Extended/Heavy) | Cmd+Option+L / S / E / H | Ctrl+Alt+L / S / E / H |
+| Set thinking time (Light/Standard/Extended/Heavy) | Cmd+Ctrl+1 / 2 / 3 / 4 | Ctrl+Alt+1 / 2 / 3 / 4 |
 | Select models 1–10 | Cmd+Option+1 … Cmd+Option+0 | Ctrl+Alt+1 … Ctrl+Alt+0 |
 
 Browser-level commands (set from `chrome://extensions/shortcuts`) include **Queue current input** with a default of **Cmd+Shift+Y** (macOS) / **Ctrl+Shift+Y** (Windows/Linux).
 
 Each digit shortcut maps to the model order we learn from ChatGPT’s picker: `⌘⌥1`/`Ctrl+Alt+1` activates the first model in the list, `⌘⌥0`/`Ctrl+Alt+0` the tenth, while **Cmd/Ctrl+Shift+H** still opens the dropdown when you want to confirm labels.
 
-Thinking time shortcuts follow the same pattern: hold Cmd+Option (macOS) or Ctrl+Alt (Windows/Linux) and press **L**, **S**, **E**, or **H** to jump straight to Light, Standard, Extended, or Heavy thinking modes.
+Thinking time shortcuts are digit-only now: hold Cmd+Ctrl (macOS) or Ctrl+Alt (Windows/Linux) and press **1**, **2**, **3**, or **4** to jump to Light, Standard, Extended, or Heavy respectively.
 
 ## Persistence & data
 

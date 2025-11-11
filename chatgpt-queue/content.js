@@ -47,10 +47,10 @@
     const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
     const THINKING_TIME_OPTIONS = [
-        { id: "light", label: "Light", code: "KeyL" },
-        { id: "standard", label: "Standard", code: "KeyS" },
-        { id: "extended", label: "Extended", code: "KeyE" },
-        { id: "heavy", label: "Heavy", code: "KeyH" },
+        { id: "light", label: "Light", digit: "1" },
+        { id: "standard", label: "Standard", digit: "2" },
+        { id: "extended", label: "Extended", digit: "3" },
+        { id: "heavy", label: "Heavy", digit: "4" },
     ];
 
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
@@ -70,8 +70,8 @@
     const THINKING_SHORTCUT_ENTRIES = THINKING_TIME_OPTIONS.map((option) => ({
         id: `thinking-${option.id}`,
         label: `Set thinking time: ${option.label}`,
-        macKeys: ["command", "option", option.id.charAt(0)],
-        otherKeys: ["control", "alt", option.id.charAt(0)],
+        macKeys: ["command", "control", option.digit],
+        otherKeys: ["control", "alt", option.digit],
     }));
     const KEYBOARD_SHORTCUT_ENTRIES = [
         {
@@ -1422,10 +1422,10 @@
         return Array.from(map.values());
     };
 
-    const THINKING_SHORTCUT_KEY_MAP = THINKING_TIME_OPTIONS.reduce(
+    const THINKING_DIGIT_OPTION_MAP = THINKING_TIME_OPTIONS.reduce(
         (map, option) => {
-            if (option?.code) {
-                map[option.code.toLowerCase()] = option.id;
+            if (option?.digit) {
+                map[String(option.digit)] = option.id;
             }
             return map;
         },
@@ -1483,19 +1483,28 @@
 
     const resolveThinkingShortcut = (event) => {
         if (!event) return null;
-        const code = typeof event.code === "string" ? event.code.toLowerCase() : "";
-        if (!code || !THINKING_SHORTCUT_KEY_MAP[code]) return null;
         if (event.shiftKey) return null;
-        const optionId = THINKING_SHORTCUT_KEY_MAP[code];
-        if (!optionId) return null;
+        let digit = null;
+        const key = typeof event.key === "string" ? event.key : "";
+        if (key && key.length === 1 && /[0-9]/.test(key)) {
+            digit = key;
+        } else {
+            const code = typeof event.code === "string" ? event.code.toLowerCase() : "";
+            if (code.startsWith("digit")) {
+                digit = code.slice(5);
+            } else if (code.startsWith("numpad")) {
+                digit = code.slice(6);
+            }
+        }
+        if (!digit || !THINKING_DIGIT_OPTION_MAP[digit]) return null;
         if (isApplePlatform) {
-            if (!event.metaKey || !event.altKey) return null;
-            if (event.ctrlKey) return null;
+            if (!event.metaKey || !event.ctrlKey) return null;
+            if (event.altKey) return null;
         } else {
             if (!event.ctrlKey || !event.altKey) return null;
             if (event.metaKey) return null;
         }
-        return optionId;
+        return THINKING_DIGIT_OPTION_MAP[digit];
     };
 
     const handleModelShortcut = async (index) => {
