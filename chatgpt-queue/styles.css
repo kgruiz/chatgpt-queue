@@ -691,6 +691,55 @@
   gap: 8px;
 }
 
+#cq-ui .cq-row-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+#cq-ui .cq-row-model-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+#cq-ui .cq-row-model-btn:hover,
+#cq-ui .cq-row-model-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+#cq-ui .cq-row-thinking {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+#cq-ui .cq-row-thinking__select {
+  min-height: 32px;
+  padding: 0 28px 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+#cq-ui .cq-row-thinking__select:focus-visible {
+  outline: 2px solid rgba(16, 163, 127, 0.45);
+  outline-offset: 1px;
+}
+
+#cq-ui .cq-row-thinking__select option {
+  color: #111;
+}
+
 #cq-ui .cq-row-text {
   width: 100%;
   min-height: 24px;

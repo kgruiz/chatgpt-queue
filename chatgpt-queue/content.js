@@ -53,6 +53,18 @@
         { id: "heavy", label: "Heavy", digit: "4" },
     ];
 
+    const THINKING_OPTION_ID_SET = new Set(
+        THINKING_TIME_OPTIONS.map((option) => option.id),
+    );
+
+    const normalizeThinkingOptionId = (value) => {
+        if (typeof value !== "string") return null;
+        const normalized = value.trim().toLowerCase();
+        if (!THINKING_OPTION_ID_SET.has(normalized)) return null;
+        return normalized;
+    };
+
+
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
     const MODEL_SHORTCUT_ENTRIES = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
@@ -387,6 +399,7 @@
                 attachments: [],
                 model: null,
                 modelLabel: null,
+                thinking: null,
             };
         if (!entry || typeof entry !== "object")
             return {
@@ -394,6 +407,7 @@
                 attachments: [],
                 model: null,
                 modelLabel: null,
+                thinking: null,
             };
         const text =
             typeof entry.text === "string"
@@ -410,7 +424,8 @@
             typeof entry.modelLabel === "string" && entry.modelLabel
                 ? entry.modelLabel
                 : null;
-        return { text, attachments, model, modelLabel };
+        const thinking = normalizeThinkingOptionId(entry.thinking);
+        return { text, attachments, model, modelLabel, thinking };
     };
 
     const cloneAttachment = (attachment) => ({
@@ -427,6 +442,7 @@
             : [],
         model: entry.model || null,
         modelLabel: entry.modelLabel || null,
+        thinking: normalizeThinkingOptionId(entry.thinking) || null,
     });
 
     const readFileAsDataUrl = (file) =>
@@ -796,6 +812,15 @@
         return MODEL_ID_ALIASES[normalized] || value;
     };
 
+    const supportsThinkingForModel = (modelId) => {
+        if (!modelId) return false;
+        const canonical = normalizeModelId(applyModelIdAlias(modelId));
+        if (!canonical) return false;
+        return (
+            canonical.startsWith("gpt-5") || canonical.includes("thinking")
+        );
+    };
+
     let currentModelId = null;
     let currentModelLabel = "";
     let modelsPromise = null;
@@ -806,9 +831,9 @@
     let composerModelLabelButton = null;
     let composerModelLabelButtonValue = null;
     let composerModelLabelPlacement = null;
-    let composerModelDropdown = null;
-    let composerModelDropdownAnchor = null;
-    let composerModelDropdownCleanup = [];
+    let modelDropdown = null;
+    let modelDropdownAnchor = null;
+    let modelDropdownCleanup = [];
     let composerModelSelectionPending = false;
 
     const getModelNodeLabel = (node) => {
@@ -1099,7 +1124,7 @@
     };
 
     const openModelSwitcherDropdown = () => {
-        closeComposerModelDropdown();
+        closeModelDropdown();
         const button = document.querySelector(
             'button[data-testid="model-switcher-dropdown-button"]',
         );
@@ -1126,6 +1151,23 @@
     const normalizeThinkingText = (value = "") =>
         String(value || "").trim().toLowerCase();
 
+    const THINKING_OPTION_LABEL_MAP = THINKING_TIME_OPTIONS.reduce(
+        (map, option) => {
+            map[option.id] = normalizeThinkingText(option.label);
+            return map;
+        },
+        {},
+    );
+
+    const resolveThinkingOptionFromText = (value = "") => {
+        const normalized = normalizeThinkingText(value);
+        if (!normalized) return null;
+        for (const [id, label] of Object.entries(THINKING_OPTION_LABEL_MAP)) {
+            if (label && normalized.includes(label)) return id;
+        }
+        return null;
+    };
+
     const findThinkingChipButton = () => {
         const selector = "button.__composer-pill";
         for (const button of document.querySelectorAll(selector)) {
@@ -1135,6 +1177,21 @@
                 return button;
             }
         }
+        return null;
+    };
+
+    const getCurrentThinkingOption = () => {
+        const button = findThinkingChipButton();
+        if (!(button instanceof HTMLElement)) return null;
+        const aria = button.getAttribute("aria-label") || "";
+        let match = resolveThinkingOptionFromText(aria);
+        if (match) return normalizeThinkingOptionId(match);
+        const title = button.getAttribute("title") || "";
+        match = resolveThinkingOptionFromText(title);
+        if (match) return normalizeThinkingOptionId(match);
+        const text = button.textContent || "";
+        match = resolveThinkingOptionFromText(text);
+        if (match) return normalizeThinkingOptionId(match);
         return null;
     };
 
@@ -1198,14 +1255,6 @@
         return result;
     };
 
-    const THINKING_OPTION_LABEL_MAP = THINKING_TIME_OPTIONS.reduce(
-        (map, option) => {
-            map[option.id] = normalizeThinkingText(option.label);
-            return map;
-        },
-        {},
-    );
-
     const findThinkingMenuItem = (menu, optionId) => {
         if (!(menu instanceof HTMLElement)) return null;
         const desired = THINKING_OPTION_LABEL_MAP[optionId];
@@ -1246,7 +1295,7 @@
     const handleComposerModelSelection = async (model) => {
         if (!model || !model.id || composerModelSelectionPending) return false;
         composerModelSelectionPending = true;
-        closeComposerModelDropdown();
+        closeModelDropdown();
         setComposerModelSelectionBusy(true);
         try {
             const applied = await ensureModel(model.id);
@@ -1308,10 +1357,14 @@
         return slug;
     };
 
-    const resolveModelDropdownHeading = () => {
+    const resolveModelDropdownHeading = (
+        models = STATE.models,
+        preferredId = null,
+    ) => {
         const slugCandidate =
+            preferredId ||
             currentModelId ||
-            STATE.models.find((model) => model.selected)?.id ||
+            models.find((model) => model.selected)?.id ||
             STATE.models[0]?.id ||
             "";
         if (!slugCandidate) return "Models";
@@ -1391,40 +1444,40 @@
         return MODEL_BUTTON_FALLBACK_LABEL;
     };
 
-    const registerComposerModelDropdownCleanup = (target, event, handler, options) => {
+    const registerModelDropdownCleanup = (target, event, handler, options) => {
         if (!target || typeof target.addEventListener !== "function") return;
         target.addEventListener(event, handler, options);
-        composerModelDropdownCleanup.push(() => {
+        modelDropdownCleanup.push(() => {
             target.removeEventListener(event, handler, options);
         });
     };
 
-    const closeComposerModelDropdown = () => {
-        composerModelDropdownCleanup.forEach((cleanup) => {
+    const closeModelDropdown = () => {
+        modelDropdownCleanup.forEach((cleanup) => {
             try {
                 cleanup();
             } catch (_) {
                 /* noop */
             }
         });
-        composerModelDropdownCleanup = [];
-        if (composerModelDropdown?.parentNode) {
-            composerModelDropdown.parentNode.removeChild(composerModelDropdown);
+        modelDropdownCleanup = [];
+        if (modelDropdown?.parentNode) {
+            modelDropdown.parentNode.removeChild(modelDropdown);
         }
-        composerModelDropdown = null;
-        composerModelDropdownAnchor = null;
+        modelDropdown = null;
+        modelDropdownAnchor = null;
     };
 
-    const positionComposerModelDropdown = () => {
+    const positionModelDropdown = () => {
         if (
-            !composerModelDropdown ||
-            !composerModelDropdownAnchor ||
-            !document.body.contains(composerModelDropdownAnchor)
+            !modelDropdown ||
+            !modelDropdownAnchor ||
+            !document.body.contains(modelDropdownAnchor)
         )
             return;
-        const rect = composerModelDropdownAnchor.getBoundingClientRect();
+        const rect = modelDropdownAnchor.getBoundingClientRect();
         if (!rect.width && !rect.height) return;
-        const dropdownRect = composerModelDropdown.getBoundingClientRect();
+        const dropdownRect = modelDropdown.getBoundingClientRect();
         const offset = 6;
         let top = rect.bottom + offset;
         let side = "bottom";
@@ -1436,10 +1489,10 @@
         const maxLeft = window.innerWidth - dropdownRect.width - 8;
         if (left > maxLeft) left = Math.max(8, maxLeft);
         if (left < 8) left = 8;
-        composerModelDropdown.style.transform = `translate(${Math.round(
+        modelDropdown.style.transform = `translate(${Math.round(
             left,
         )}px, ${Math.round(top)}px)`;
-        const menu = composerModelDropdown.querySelector(
+        const menu = modelDropdown.querySelector(
             "[data-radix-menu-content]",
         );
         if (menu instanceof HTMLElement) {
@@ -1458,7 +1511,11 @@
             .toLowerCase()
             .replace(/\s+/g, " ");
 
-    const createComposerModelDropdownItem = (model, selected = false) => {
+    const createModelDropdownItem = (
+        model,
+        selected = false,
+        selectionHandler,
+    ) => {
         const item = document.createElement("div");
         item.className = "group __menu-item hoverable";
         item.setAttribute("role", "menuitem");
@@ -1507,7 +1564,14 @@
         const triggerSelection = (event) => {
             event.preventDefault();
             event.stopPropagation();
-            void handleComposerModelSelection(model);
+            const handler =
+                typeof selectionHandler === "function"
+                    ? selectionHandler
+                    : (payload) => handleComposerModelSelection(payload);
+            const result = handler(model);
+            if (result instanceof Promise) {
+                void result;
+            }
         };
         item.addEventListener("click", triggerSelection);
         item.addEventListener("keydown", (event) => {
@@ -1664,7 +1728,8 @@
         }
     };
 
-    const buildComposerModelDropdown = (models) => {
+    const buildModelDropdown = (models, options = {}) => {
+        const { selectedModelId = null, onSelect } = options;
         const displayModels = dedupeModelsForDisplay(models);
         const wrapper = document.createElement("div");
         wrapper.id = MODEL_DROPDOWN_ID;
@@ -1690,15 +1755,19 @@
         menu.style.pointerEvents = "auto";
         const heading = document.createElement("div");
         heading.className = "__menu-label mb-0";
-        heading.textContent = resolveModelDropdownHeading(models);
+        heading.textContent = resolveModelDropdownHeading(models, selectedModelId);
         menu.appendChild(heading);
-        const headerLabel = applyHeaderLabelAliases(
-            readCurrentModelLabelFromHeader(),
-        );
+        const headerLabelSource = selectedModelId
+            ? labelForModel(selectedModelId, selectedModelId)
+            : readCurrentModelLabelFromHeader();
+        const headerLabel = applyHeaderLabelAliases(headerLabelSource);
         const normalizedHeaderLabel = normalizeModelLabelText(headerLabel);
         const normalizedHeaderSlug = headerLabel
             ? normalizeModelId(headerLabel)
             : "";
+        const normalizedSelectedId = normalizeModelId(
+            selectedModelId || "",
+        );
         const matchesHeader = (model) => {
             const displayValue = model?.label || model?.id || "";
             const normalizedDisplay = normalizeModelLabelText(displayValue);
@@ -1716,74 +1785,83 @@
         const hasHeaderMatch = normalizedHeaderLabel
             ? models.some((model) => matchesHeader(model))
             : false;
+        const matchesSelectedId = (model) => {
+            if (!normalizedSelectedId) return false;
+            return normalizeModelId(model?.id || "") === normalizedSelectedId;
+        };
+        const selectionHandler =
+            typeof onSelect === "function"
+                ? onSelect
+                : (model) => handleComposerModelSelection(model);
         displayModels.forEach((model) => {
-            const selected = hasHeaderMatch
-                ? matchesHeader(model)
-                : !!model?.selected;
-            menu.appendChild(createComposerModelDropdownItem(model, selected));
+            const selected = normalizedSelectedId
+                ? matchesSelectedId(model)
+                : hasHeaderMatch
+                  ? matchesHeader(model)
+                  : !!model?.selected;
+            menu.appendChild(
+                createModelDropdownItem(model, selected, selectionHandler),
+            );
         });
         wrapper.appendChild(menu);
         return wrapper;
     };
 
-    const openComposerModelDropdown = async () => {
+    const openModelDropdownForAnchor = async (
+        anchor,
+        { selectedModelId = null, onSelect } = {},
+    ) => {
+        if (!(anchor instanceof HTMLElement)) return;
         try {
             const models = await ensureModelOptions();
             if (!Array.isArray(models) || !models.length) return;
-            if (!composerModelLabelButton) return;
-            if (
-                composerModelDropdown &&
-                composerModelDropdownAnchor === composerModelLabelButton
-            ) {
-                closeComposerModelDropdown();
+            if (modelDropdown && modelDropdownAnchor === anchor) {
+                closeModelDropdown();
                 return;
             }
-            closeComposerModelDropdown();
-            composerModelDropdownAnchor = composerModelLabelButton;
-            composerModelDropdown = buildComposerModelDropdown(models);
-            document.body.appendChild(composerModelDropdown);
-            positionComposerModelDropdown();
+            closeModelDropdown();
+            modelDropdownAnchor = anchor;
+            modelDropdown = buildModelDropdown(models, {
+                selectedModelId,
+                onSelect,
+            });
+            document.body.appendChild(modelDropdown);
+            positionModelDropdown();
             const handleClickOutside = (event) => {
-                if (
-                    !composerModelDropdown ||
-                    composerModelDropdown.contains(event.target)
-                )
+                if (!modelDropdown || modelDropdown.contains(event.target)) {
                     return;
-                if (
-                    composerModelLabelButton &&
-                    composerModelLabelButton.contains(event.target)
-                )
-                    return;
-                closeComposerModelDropdown();
+                }
+                if (anchor.contains(event.target)) return;
+                closeModelDropdown();
             };
             const handleEscape = (event) => {
                 if (event.key === "Escape") {
                     event.preventDefault();
-                    closeComposerModelDropdown();
-                    composerModelLabelButton?.focus?.();
+                    closeModelDropdown();
+                    anchor.focus?.();
                 }
             };
             const handleViewportChange = () => {
-                positionComposerModelDropdown();
+                positionModelDropdown();
             };
-            registerComposerModelDropdownCleanup(
+            registerModelDropdownCleanup(
                 document,
-                "click",
+                "mousedown",
                 handleClickOutside,
                 true,
             );
-            registerComposerModelDropdownCleanup(
+            registerModelDropdownCleanup(
                 document,
                 "keydown",
                 handleEscape,
                 true,
             );
-            registerComposerModelDropdownCleanup(
+            registerModelDropdownCleanup(
                 window,
                 "resize",
                 handleViewportChange,
             );
-            registerComposerModelDropdownCleanup(
+            registerModelDropdownCleanup(
                 window,
                 "scroll",
                 handleViewportChange,
@@ -1791,8 +1869,15 @@
             );
         } catch (error) {
             console.warn("[cq] Failed to open model dropdown", error);
-            closeComposerModelDropdown();
+            closeModelDropdown();
         }
+    };
+
+    const openComposerModelDropdown = async () => {
+        if (!composerModelLabelButton) return;
+        await openModelDropdownForAnchor(composerModelLabelButton, {
+            selectedModelId: currentModelId,
+        });
     };
 
     const mountComposerModelLabelBeforeDictate = (root) => {
@@ -2848,6 +2933,61 @@
         }, 150);
     };
 
+    const resolveQueueEntryModelLabel = (entry) => {
+        if (!entry) return resolveCurrentModelButtonValue() || "Select model";
+        if (entry.model) {
+            return labelForModel(entry.model, entry.modelLabel || entry.model);
+        }
+        if (entry.modelLabel) return entry.modelLabel;
+        if (currentModelId) {
+            return labelForModel(
+                currentModelId,
+                currentModelLabel || currentModelId,
+            );
+        }
+        return resolveCurrentModelButtonValue() || "Select model";
+    };
+
+    const setEntryThinkingOption = (index, value) => {
+        const entry = STATE.queue[index];
+        if (!entry) return;
+        if (!supportsThinkingForModel(entry.model)) {
+            entry.thinking = null;
+            scheduleSave();
+            return;
+        }
+        const normalized = normalizeThinkingOptionId(value);
+        entry.thinking = normalized;
+        scheduleSave();
+    };
+
+    const applyModelSelectionToEntry = (index, model) => {
+        if (!model?.id) return;
+        const entry = STATE.queue[index];
+        if (!entry) return;
+        const canonicalId = applyModelIdAlias(model.id);
+        entry.model = canonicalId;
+        entry.modelLabel = model.label || canonicalId;
+        if (!supportsThinkingForModel(entry.model)) {
+            entry.thinking = null;
+        }
+        refreshAll();
+        scheduleSave();
+    };
+
+    const openQueueEntryModelDropdown = async (index, anchor) => {
+        if (!Number.isInteger(index)) return;
+        const entry = STATE.queue[index];
+        if (!entry || !(anchor instanceof HTMLElement)) return;
+        await openModelDropdownForAnchor(anchor, {
+            selectedModelId: entry.model,
+            onSelect: (model) => {
+                closeModelDropdown();
+                applyModelSelectionToEntry(index, model);
+            },
+        });
+    };
+
     const persistActiveConversationState = () => {
         if (!hydrated) return;
         if (saveTimer) {
@@ -3106,7 +3246,7 @@
         ) {
             composerModelLabelButton = null;
             composerModelLabelButtonValue = null;
-            closeComposerModelDropdown();
+            closeModelDropdown();
         }
         ensureComposerControls();
         refreshComposerModelLabelButton();
@@ -4071,6 +4211,67 @@
                 body.appendChild(mediaWrap);
             }
 
+            const controls = document.createElement("div");
+            controls.className = "cq-row-controls";
+
+            const modelButton = document.createElement("button");
+            modelButton.type = "button";
+            modelButton.className = "cq-row-model-btn cq-composer-models-btn";
+            modelButton.dataset.entryIndex = String(index);
+            const modelValue = document.createElement("span");
+            modelValue.className = "cq-composer-models-btn__value";
+            modelValue.textContent = resolveQueueEntryModelLabel(entry);
+            modelButton.appendChild(modelValue);
+            modelButton.title = "Choose model for this follow-up";
+            modelButton.setAttribute(
+                "aria-label",
+                "Choose model for this follow-up",
+            );
+            modelButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void openQueueEntryModelDropdown(index, modelButton);
+            });
+            controls.appendChild(modelButton);
+
+            if (supportsThinkingForModel(entry.model)) {
+                const thinking = document.createElement("label");
+                thinking.className = "cq-row-thinking";
+                thinking.title = "Set thinking level for this follow-up";
+                const thinkingLabel = document.createElement("span");
+                thinkingLabel.className = "cq-row-thinking__label";
+                thinkingLabel.textContent = "Thinking";
+                const select = document.createElement("select");
+                select.className = "cq-row-thinking__select";
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = "Use current";
+                select.appendChild(defaultOption);
+                THINKING_TIME_OPTIONS.forEach((option) => {
+                    const opt = document.createElement("option");
+                    opt.value = option.id;
+                    opt.textContent = option.label;
+                    select.appendChild(opt);
+                });
+                select.value = entry.thinking || "";
+                select.addEventListener("change", (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLSelectElement)) return;
+                    setEntryThinkingOption(index, target.value);
+                });
+                ["pointerdown", "mousedown", "click"].forEach((eventName) => {
+                    select.addEventListener(eventName, (event) => {
+                        event.stopPropagation();
+                    });
+                });
+                thinking.append(thinkingLabel, select);
+                controls.appendChild(thinking);
+            }
+
+            if (controls.childNodes.length > 0) {
+                body.appendChild(controls);
+            }
+
             row.appendChild(body);
 
             const actions = document.createElement("div");
@@ -4252,6 +4453,11 @@
             ? entry.attachments.slice()
             : [];
         const desiredModel = entry.model || null;
+        const targetModelId = desiredModel || currentModelId;
+        const desiredThinking =
+            entry.thinking && supportsThinkingForModel(targetModelId)
+                ? entry.thinking
+                : null;
 
         const [removed] = STATE.queue.splice(index, 1);
         STATE.busy = true;
@@ -4262,6 +4468,18 @@
         if (desiredModel) {
             const modelApplied = await ensureModel(desiredModel);
             if (!modelApplied) {
+                STATE.busy = false;
+                STATE.phase = "idle";
+                STATE.queue.splice(index, 0, removed);
+                refreshAll();
+                save();
+                return false;
+            }
+        }
+
+        if (desiredThinking) {
+            const thinkingApplied = await selectThinkingTimeOption(desiredThinking);
+            if (!thinkingApplied) {
                 STATE.busy = false;
                 STATE.phase = "idle";
                 STATE.queue.splice(index, 0, removed);
@@ -4383,6 +4601,9 @@
         const modelLabel = modelId
             ? labelForModel(modelId, currentModelLabel)
             : null;
+        const thinking = modelId && supportsThinkingForModel(modelId)
+            ? getCurrentThinkingOption()
+            : null;
         STATE.queue.push({
             text,
             attachments: attachments.map((attachment) =>
@@ -4390,6 +4611,7 @@
             ),
             model: modelId,
             modelLabel,
+            thinking,
         });
         if (attachments.length) {
             clearComposerAttachments(root);

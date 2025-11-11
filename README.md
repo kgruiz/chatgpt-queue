@@ -13,6 +13,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 - **Inline queue controls** - two buttons live next to the ChatGPT composer: *Add to queue* captures the current draft, while *Hold & queue* captures it and pauses the automation until you resume.
 - **Attachment-aware entries** - when you queue something that contains pasted images or uploaded files, those attachments stay with the follow-up, display in the queue, and are re-applied before the item sends.
 - **Model locking** - each queued follow-up remembers the ChatGPT model that was selected when it was captured, so mixed runs (e.g., GPT-4o followed by GPT-4.1) are replayed on the right model automatically.
+- **Per-item model & thinking controls** - every queue card now exposes the same model dropdown that lives in the composer, letting you retarget individual follow-ups and, when you're on GPT-5 thinking models, pre-select the Light/Standard/Extended/Heavy level they'll use at send time.
 - **Keyboard-first editing** - navigate with Option/Alt+Arrow keys, send with Enter, delete with Shift+Delete, or reorder via drag-and-drop or by typing a new queue position.
 - **Chat-scoped, persistent state** - every conversation gets its own queue snapshot (items, attachments, collapsed state, pause reasons) stored in `chrome.storage.local`, so switching threads swaps to their specific queues while staying fully local.
 - **Keyboard shortcut helper** - when you open ChatGPT's built-in `?` shortcut panel, the queue shortcuts are injected into that list for quick reference.
@@ -59,6 +60,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 ### Model locking
 
 - Whatever ChatGPT model (GPT-4o, GPT-4.1, o1-mini, etc.) is active when you queue a follow-up is stored with that item.
+- Need to retarget a follow-up later? Open the model dropdown on that queue card to swap models or, when applicable, adjust the GPT-5 thinking level before it runs.
 - When the queue dispatches that item, it opens the model picker, selects the stored model, reapplies the prompt and attachments, and only then sends. Mixed-model runs no longer require manual babysitting.
 - If the model picker layout changes, open the model menu once so the queue script can learn the latest entries before replaying.
 
