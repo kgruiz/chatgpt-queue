@@ -699,6 +699,33 @@
   flex-shrink: 0;
 }
 
+#cq-ui .cq-row-thinking .__composer-pill-remove {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+#cq-ui .cq-row-thinking.group:hover .__composer-pill-remove,
+#cq-ui .cq-row-thinking.group:focus-within .__composer-pill-remove {
+  opacity: 1;
+}
+
+#cq-ui .cq-row-thinking .__composer-pill-remove:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+#cq-ui .cq-row-thinking .__composer-pill-remove[hidden] {
+  display: none;
+}
+
 #cq-ui .cq-row-thinking-remove[hidden] {
   display: none;
 }
