@@ -450,6 +450,27 @@
         });
     };
 
+    const DATA_OR_BLOB_URL = /^(data|blob):/i;
+
+    const mimeFromDataUrl = (dataUrl) => {
+        if (typeof dataUrl !== "string") return "image/png";
+        const match = dataUrl.match(/^data:([^;,]+)/i);
+        return match?.[1] || "image/png";
+    };
+
+    const createAttachmentFromDataUrl = (dataUrl) => {
+        if (typeof dataUrl !== "string" || dataUrl.length === 0)
+            return null;
+        const mime = mimeFromDataUrl(dataUrl);
+        const extension = mime.split("/")[1] || "png";
+        return normalizeAttachment({
+            id: makeId(),
+            name: `image-${makeId()}.${extension}`,
+            mime,
+            dataUrl,
+        });
+    };
+
     const collectImagesFromDataTransfer = async (dataTransfer) => {
         if (!dataTransfer) return [];
         const items = Array.from(dataTransfer.items || []);
@@ -554,6 +575,63 @@
         return countFilesInInputs(root);
     };
 
+    const extractUrlsFromStyleValue = (value) => {
+        if (typeof value !== "string" || value.toLowerCase() === "none")
+            return [];
+        const urls = [];
+        const regex = /url\(([^)]+)\)/gi;
+        let match;
+        while ((match = regex.exec(value))) {
+            const raw = match[1]?.trim();
+            if (!raw) continue;
+            const normalized = raw.replace(/^['"]|['"]$/g, "");
+            if (DATA_OR_BLOB_URL.test(normalized)) urls.push(normalized);
+        }
+        return urls;
+    };
+
+    const collectPreviewDataUrls = (root) => {
+        if (!root) return [];
+        const urls = new Set();
+        const addUrl = (value) => {
+            if (typeof value !== "string") return;
+            const trimmed = value.trim();
+            if (!trimmed || !DATA_OR_BLOB_URL.test(trimmed)) return;
+            urls.add(trimmed);
+        };
+        const inspectElement = (element) => {
+            if (!(element instanceof HTMLElement)) return;
+            if (element instanceof HTMLImageElement) {
+                const src = element.getAttribute("src");
+                if (src) addUrl(src);
+            }
+            extractUrlsFromStyleValue(element.style?.backgroundImage || "").forEach(
+                (url) => addUrl(url),
+            );
+            if (typeof getComputedStyle === "function") {
+                try {
+                    const computed = getComputedStyle(element);
+                    extractUrlsFromStyleValue(
+                        computed?.backgroundImage || "",
+                    ).forEach((url) => addUrl(url));
+                } catch (_) {
+                    /* noop */
+                }
+            }
+        };
+        ATTACHMENT_SELECTORS.forEach((selector) => {
+            root.querySelectorAll(selector).forEach((node) => {
+                if (!(node instanceof HTMLElement)) return;
+                inspectElement(node);
+                node.querySelectorAll("img").forEach((img) => inspectElement(img));
+                node.querySelectorAll("*").forEach((child) =>
+                    inspectElement(child),
+                );
+            });
+        });
+        return Array.from(urls);
+    };
+
     const gatherComposerAttachments = async (root) => {
         if (!root) return [];
         const attachments = [];
@@ -575,9 +653,6 @@
         const blobImages = Array.from(
             root.querySelectorAll('img[src^="blob:"]'),
         );
-        if (blobImages.length && attachments.length >= blobImages.length) {
-            return attachments;
-        }
         const seenDataUrls = new Set(
             attachments.map((attachment) => attachment.dataUrl),
         );
@@ -601,6 +676,38 @@
                 }
             } catch (_) {
                 /* noop */
+            }
+        }
+        const previewUrls = collectPreviewDataUrls(root);
+        for (const url of previewUrls) {
+            if (!url || seenDataUrls.has(url)) continue;
+            if (/^data:/i.test(url)) {
+                const attachment = createAttachmentFromDataUrl(url);
+                if (attachment) {
+                    attachments.push(attachment);
+                    seenDataUrls.add(attachment.dataUrl);
+                }
+                continue;
+            }
+            if (/^blob:/i.test(url)) {
+                try {
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    const mime = blob.type || "image/png";
+                    const extension = mime.split("/")[1] || "png";
+                    const file = new File(
+                        [blob],
+                        `image-${makeId()}.${extension}`,
+                        { type: mime },
+                    );
+                    const attachment = await createAttachmentFromFile(file);
+                    if (attachment) {
+                        attachments.push(attachment);
+                        seenDataUrls.add(attachment.dataUrl);
+                    }
+                } catch (_) {
+                    /* noop */
+                }
             }
         }
         return attachments;
