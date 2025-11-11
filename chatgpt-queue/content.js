@@ -44,6 +44,7 @@
         : "Ctrl+Shift+H";
     const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
     const MODEL_DROPDOWN_ID = "cq-model-dropdown";
+    const THINKING_DROPDOWN_ID = "cq-thinking-dropdown";
     const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
     const THINKING_TIME_OPTIONS = [
@@ -52,6 +53,18 @@
         { id: "extended", label: "Extended", digit: "3" },
         { id: "heavy", label: "Heavy", digit: "4" },
     ];
+    const THINKING_OPTION_MAP = THINKING_TIME_OPTIONS.reduce((map, option) => {
+        map[option.id] = option;
+        return map;
+    }, {});
+    const DEFAULT_THINKING_BUTTON_LABEL = "Thinking level";
+    const DEFAULT_THINKING_OPTION_LABEL = "Use current thinking";
+    const THINKING_OPTION_DESCRIPTION_MAP = {
+        light: "Quickest replies",
+        standard: "Balanced detail",
+        extended: "More thorough reasoning",
+        heavy: "Deepest analysis",
+    };
 
     const THINKING_OPTION_ID_SET = new Set(
         THINKING_TIME_OPTIONS.map((option) => option.id),
@@ -62,6 +75,23 @@
         const normalized = value.trim().toLowerCase();
         if (!THINKING_OPTION_ID_SET.has(normalized)) return null;
         return normalized;
+    };
+
+    const labelForThinkingOption = (id, fallback = DEFAULT_THINKING_OPTION_LABEL) => {
+        const normalized = normalizeThinkingOptionId(id);
+        if (!normalized) return fallback;
+        return THINKING_OPTION_MAP[normalized]?.label || fallback;
+    };
+
+    const describeThinkingOption = (id) => {
+        const normalized = normalizeThinkingOptionId(id);
+        if (!normalized) {
+            return "Follow the composer’s current thinking level.";
+        }
+        return (
+            THINKING_OPTION_DESCRIPTION_MAP[normalized] ||
+            `${labelForThinkingOption(normalized)} mode`
+        );
     };
 
 
@@ -834,6 +864,9 @@
     let modelDropdown = null;
     let modelDropdownAnchor = null;
     let modelDropdownCleanup = [];
+    let thinkingDropdown = null;
+    let thinkingDropdownAnchor = null;
+    let thinkingDropdownCleanup = [];
     let composerModelSelectionPending = false;
 
     const getModelNodeLabel = (node) => {
@@ -1878,6 +1911,244 @@
         await openModelDropdownForAnchor(composerModelLabelButton, {
             selectedModelId: currentModelId,
         });
+    };
+
+    const registerThinkingDropdownCleanup = (
+        target,
+        event,
+        handler,
+        options,
+    ) => {
+        if (!target || typeof target.addEventListener !== "function") return;
+        target.addEventListener(event, handler, options);
+        thinkingDropdownCleanup.push(() => {
+            try {
+                target.removeEventListener(event, handler, options);
+            } catch (_) {
+                /* noop */
+            }
+        });
+    };
+
+    const closeThinkingDropdown = () => {
+        thinkingDropdownCleanup.forEach((cleanup) => {
+            try {
+                cleanup();
+            } catch (_) {
+                /* noop */
+            }
+        });
+        thinkingDropdownCleanup = [];
+        if (thinkingDropdown?.parentNode) {
+            thinkingDropdown.parentNode.removeChild(thinkingDropdown);
+        }
+        if (thinkingDropdownAnchor instanceof HTMLElement) {
+            thinkingDropdownAnchor.dataset.state = "closed";
+            thinkingDropdownAnchor.setAttribute("aria-expanded", "false");
+        }
+        thinkingDropdown = null;
+        thinkingDropdownAnchor = null;
+    };
+
+    const positionThinkingDropdown = () => {
+        if (
+            !thinkingDropdown ||
+            !thinkingDropdownAnchor ||
+            !document.body.contains(thinkingDropdownAnchor)
+        ) {
+            return;
+        }
+        const rect = thinkingDropdownAnchor.getBoundingClientRect();
+        if (!rect.width && !rect.height) return;
+        const dropdownRect = thinkingDropdown.getBoundingClientRect();
+        const offset = 6;
+        let top = rect.bottom + offset;
+        let side = "bottom";
+        if (top + dropdownRect.height > window.innerHeight - 8) {
+            top = Math.max(8, rect.top - dropdownRect.height - offset);
+            side = "top";
+        }
+        let left = rect.left;
+        const maxLeft = window.innerWidth - dropdownRect.width - 8;
+        if (left > maxLeft) left = Math.max(8, maxLeft);
+        if (left < 8) left = 8;
+        thinkingDropdown.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+        const menu = thinkingDropdown.querySelector("[data-radix-menu-content]");
+        if (menu instanceof HTMLElement) {
+            menu.dataset.side = side;
+        }
+    };
+
+    const createThinkingDropdownItem = (option, selected, onSelect) => {
+        const item = document.createElement("div");
+        item.className = "group __menu-item hoverable";
+        item.setAttribute("role", "menuitemradio");
+        item.tabIndex = 0;
+        item.dataset.state = selected ? "checked" : "unchecked";
+        const body = document.createElement("div");
+        body.className = "min-w-0";
+        const label = document.createElement("span");
+        label.className = "flex items-center gap-1";
+        label.textContent = option.label;
+        const description = document.createElement("div");
+        description.className =
+            "not-group-data-disabled:text-token-text-tertiary leading-dense mb-0.5 text-xs group-data-sheet-item:mt-0.5 group-data-sheet-item:mb-0";
+        description.textContent = option.description || "";
+        body.append(label, description);
+        const trailing = document.createElement("div");
+        trailing.className = "trailing";
+        if (selected) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", "16");
+            svg.setAttribute("height", "16");
+            svg.setAttribute("viewBox", "0 0 16 16");
+            svg.setAttribute("fill", "currentColor");
+            svg.classList.add("icon-sm");
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute(
+                "d",
+                "M12.0961 2.91371C12.3297 2.68688 12.6984 2.64794 12.9779 2.83852C13.2571 3.02905 13.3554 3.38601 13.2299 3.68618L13.1615 3.81118L6.91152 12.9772C6.79412 13.1494 6.60631 13.2604 6.39882 13.2799C6.19137 13.2994 5.98565 13.226 5.83828 13.0788L2.08828 9.32875L1.99843 9.2184C1.81921 8.94677 1.84928 8.57767 2.08828 8.33852C2.3274 8.0994 2.69648 8.06947 2.96816 8.24868L3.07851 8.33852L6.23085 11.4909L12.0053 3.02211L12.0961 2.91371Z",
+            );
+            svg.appendChild(path);
+            trailing.appendChild(svg);
+        } else {
+            const span = document.createElement("span");
+            span.className = "icon";
+            trailing.appendChild(span);
+        }
+        item.append(body, trailing);
+        const triggerSelection = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof onSelect === "function") {
+                onSelect(option.id);
+            }
+        };
+        item.addEventListener("click", triggerSelection);
+        item.addEventListener("keydown", (event) => {
+            const key = event.key || "";
+            if (key === "Enter" || key === " " || key === "Spacebar") {
+                triggerSelection(event);
+            }
+        });
+        return item;
+    };
+
+    const buildThinkingDropdown = ({ selectedId = null, onSelect } = {}) => {
+        const wrapper = document.createElement("div");
+        wrapper.id = THINKING_DROPDOWN_ID;
+        wrapper.dataset.radixPopperContentWrapper = "";
+        wrapper.style.position = "fixed";
+        wrapper.style.left = "0px";
+        wrapper.style.top = "0px";
+        wrapper.style.transform = "translate(0px, 0px)";
+        wrapper.style.minWidth = "max-content";
+        wrapper.style.zIndex = "2147480000";
+        wrapper.style.pointerEvents = "none";
+        const menu = document.createElement("div");
+        menu.dataset.radixMenuContent = "";
+        menu.dataset.side = "bottom";
+        menu.dataset.align = "start";
+        menu.dataset.orientation = "vertical";
+        menu.dataset.state = "open";
+        menu.setAttribute("role", "menu");
+        menu.tabIndex = -1;
+        menu.className =
+            "z-50 max-w-xs rounded-2xl popover bg-token-main-surface-primary dark:bg-[#353535] shadow-long will-change-[opacity,transform] py-1.5 min-w-[max(var(--trigger-width),min(125px,95vw))] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto select-none";
+        menu.style.pointerEvents = "auto";
+        const heading = document.createElement("div");
+        heading.className = "__menu-label mb-0";
+        heading.textContent = "Thinking level";
+        menu.appendChild(heading);
+        const normalizedSelected = normalizeThinkingOptionId(selectedId);
+        const options = [
+            {
+                id: null,
+                label: DEFAULT_THINKING_OPTION_LABEL,
+                description: describeThinkingOption(null),
+            },
+            ...THINKING_TIME_OPTIONS.map((option) => ({
+                id: option.id,
+                label: `${option.label} thinking`,
+                description: describeThinkingOption(option.id),
+            })),
+        ];
+        options.forEach((option) => {
+            const selected = option.id
+                ? normalizeThinkingOptionId(option.id) === normalizedSelected
+                : !normalizedSelected;
+            menu.appendChild(
+                createThinkingDropdownItem(option, selected, (id) => {
+                    if (!id) {
+                        onSelect?.(null);
+                    } else {
+                        onSelect?.(id);
+                    }
+                }),
+            );
+        });
+        wrapper.appendChild(menu);
+        return wrapper;
+    };
+
+    const openQueueEntryThinkingDropdown = (index, anchor) => {
+        if (!(anchor instanceof HTMLElement)) return;
+        const entry = STATE.queue[index];
+        if (!entry || !supportsThinkingForModel(entry.model)) return;
+        if (thinkingDropdown && thinkingDropdownAnchor === anchor) {
+            closeThinkingDropdown();
+            return;
+        }
+        closeThinkingDropdown();
+        thinkingDropdownAnchor = anchor;
+        anchor.dataset.state = "open";
+        anchor.setAttribute("aria-expanded", "true");
+        thinkingDropdown = buildThinkingDropdown({
+            selectedId: entry.thinking,
+            onSelect: (optionId) => {
+                setEntryThinkingOption(index, optionId || "");
+            },
+        });
+        document.body.appendChild(thinkingDropdown);
+        positionThinkingDropdown();
+        const handleClickOutside = (event) => {
+            if (
+                !thinkingDropdown ||
+                thinkingDropdown.contains(event.target) ||
+                anchor.contains(event.target)
+            ) {
+                return;
+            }
+            closeThinkingDropdown();
+        };
+        const handleEscape = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeThinkingDropdown();
+                anchor.focus?.();
+            }
+        };
+        const handleViewportChange = () => positionThinkingDropdown();
+        registerThinkingDropdownCleanup(
+            document,
+            "mousedown",
+            handleClickOutside,
+            true,
+        );
+        registerThinkingDropdownCleanup(
+            document,
+            "keydown",
+            handleEscape,
+            true,
+        );
+        registerThinkingDropdownCleanup(window, "resize", handleViewportChange);
+        registerThinkingDropdownCleanup(
+            window,
+            "scroll",
+            handleViewportChange,
+            true,
+        );
     };
 
     const mountComposerModelLabelBeforeDictate = (root) => {
@@ -2948,17 +3219,29 @@
         return resolveCurrentModelButtonValue() || "Select model";
     };
 
+    const resolveQueueEntryThinkingLabel = (entry) => {
+        if (!entry?.thinking) return DEFAULT_THINKING_BUTTON_LABEL;
+        return `${labelForThinkingOption(entry.thinking)} thinking`;
+    };
+
     const setEntryThinkingOption = (index, value) => {
         const entry = STATE.queue[index];
         if (!entry) return;
         if (!supportsThinkingForModel(entry.model)) {
-            entry.thinking = null;
-            scheduleSave();
+            if (entry.thinking) {
+                entry.thinking = null;
+                scheduleSave();
+                refreshAll();
+            }
             return;
         }
         const normalized = normalizeThinkingOptionId(value);
-        entry.thinking = normalized;
+        const nextValue = normalized || null;
+        if (entry.thinking === nextValue) return;
+        entry.thinking = nextValue;
         scheduleSave();
+        closeThinkingDropdown();
+        refreshAll();
     };
 
     const applyModelSelectionToEntry = (index, model) => {
@@ -3987,6 +4270,7 @@
                 ? generatingOverride
                 : isGenerating();
         const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
+        closeThinkingDropdown();
         list.textContent = "";
         if (STATE.queue.length === 0) {
             scheduleQueueHeightSync();
@@ -4214,36 +4498,70 @@
             if (supportsThinkingForModel(entry.model)) {
                 const controls = document.createElement("div");
                 controls.className = "cq-row-controls";
-                const thinking = document.createElement("label");
-                thinking.className = "cq-row-thinking";
+                const thinking = document.createElement("div");
+                thinking.className = "cq-row-thinking __composer-pill-composite";
                 thinking.title = "Set thinking level for this follow-up";
-                const thinkingLabel = document.createElement("span");
-                thinkingLabel.className = "cq-row-thinking__label";
-                thinkingLabel.textContent = "Thinking";
-                const select = document.createElement("select");
-                select.className = "cq-row-thinking__select";
-                const defaultOption = document.createElement("option");
-                defaultOption.value = "";
-                defaultOption.textContent = "Use current";
-                select.appendChild(defaultOption);
-                THINKING_TIME_OPTIONS.forEach((option) => {
-                    const opt = document.createElement("option");
-                    opt.value = option.id;
-                    opt.textContent = option.label;
-                    select.appendChild(opt);
+
+                const removeBtn = document.createElement("button");
+                removeBtn.type = "button";
+                removeBtn.className = "__composer-pill-remove cq-row-thinking-remove";
+                removeBtn.setAttribute(
+                    "aria-label",
+                    "Clear thinking level override",
+                );
+                removeBtn.hidden = !entry.thinking;
+                removeBtn.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setEntryThinkingOption(index, "");
                 });
-                select.value = entry.thinking || "";
-                select.addEventListener("change", (event) => {
-                    const target = event.target;
-                    if (!(target instanceof HTMLSelectElement)) return;
-                    setEntryThinkingOption(index, target.value);
+
+                const pillButton = document.createElement("button");
+                pillButton.type = "button";
+                pillButton.className = "__composer-pill cq-row-thinking-pill";
+                pillButton.dataset.entryIndex = String(index);
+                pillButton.dataset.state = "closed";
+                pillButton.setAttribute("aria-haspopup", "menu");
+                pillButton.setAttribute("aria-expanded", "false");
+                pillButton.title = "Choose thinking level";
+                const icon = document.createElement("div");
+                icon.className = "__composer-pill-icon";
+                icon.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.585 10C16.585 6.3632 13.6368 3.41504 10 3.41504C6.3632 3.41504 3.41504 6.3632 3.41504 10C3.41504 13.6368 6.3632 16.585 10 16.585C13.6368 16.585 16.585 13.6368 16.585 10ZM17.915 10C17.915 14.3713 14.3713 17.915 10 17.915C5.62867 17.915 2.08496 14.3713 2.08496 10C2.08496 5.62867 5.62867 2.08496 10 2.08496C14.3713 2.08496 17.915 5.62867 17.915 10Z"></path>
+          <path d="M10.0002 8.5C10.8285 8.50022 11.5002 9.17171 11.5002 10C11.5002 10.8283 10.8285 11.4998 10.0002 11.5C8.50014 11.4999 5.00025 10.5 5.00025 10C5.00025 9.50002 8.50014 8.50009 10.0002 8.5Z"></path>
+          <path d="M12.0833 0.00488281C12.4504 0.00505872 12.7483 0.302761 12.7483 0.669922C12.7483 1.03708 12.4504 1.33479 12.0833 1.33496H7.91626C7.54922 1.3347 7.25122 1.03703 7.25122 0.669922C7.25122 0.302814 7.54922 0.00514505 7.91626 0.00488281H12.0833Z"></path>
+        </svg>`;
+                const labelSpan = document.createElement("span");
+                labelSpan.className = "cq-row-thinking-pill__label";
+                labelSpan.textContent = resolveQueueEntryThinkingLabel(entry);
+                const caret = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "svg",
+                );
+                caret.setAttribute("width", "16");
+                caret.setAttribute("height", "16");
+                caret.setAttribute("viewBox", "0 0 16 16");
+                caret.setAttribute("fill", "currentColor");
+                caret.classList.add("cq-row-thinking-pill__caret");
+                const caretPath = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "path",
+                );
+                caretPath.setAttribute(
+                    "d",
+                    "M12.1338 5.94433C12.3919 5.77382 12.7434 5.80202 12.9707 6.02929C13.1979 6.25656 13.2261 6.60807 13.0556 6.8662L12.9707 6.9707L8.47067 11.4707C8.21097 11.7304 7.78896 11.7304 7.52926 11.4707L3.02926 6.9707L2.9443 6.8662C2.77379 6.60807 2.80199 6.25656 3.02926 6.02929C3.25653 5.80202 3.60804 5.77382 3.86617 5.94433L3.97067 6.02929L7.99996 10.0586L12.0293 6.02929L12.1338 5.94433Z",
+                );
+                caret.appendChild(caretPath);
+
+                pillButton.append(icon, labelSpan, caret);
+                pillButton.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void openQueueEntryThinkingDropdown(index, pillButton);
                 });
-                ["pointerdown", "mousedown", "click"].forEach((eventName) => {
-                    select.addEventListener(eventName, (event) => {
-                        event.stopPropagation();
-                    });
-                });
-                thinking.append(thinkingLabel, select);
+
+                thinking.append(removeBtn, pillButton);
                 controls.appendChild(thinking);
                 body.appendChild(controls);
             }
