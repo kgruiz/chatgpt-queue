@@ -1298,11 +1298,35 @@
         return Array.from(map.values());
     };
 
+    const normalizeShortcutDigit = (value) => {
+        if (typeof value !== "string" || !value.length) return null;
+        const digit = value.slice(-1);
+        if (!/^[0-9]$/.test(digit)) return null;
+        if (digit === "0") return MODEL_SHORTCUT_COUNT;
+        const numeric = Number.parseInt(digit, 10);
+        if (!Number.isInteger(numeric) || numeric < 1) return null;
+        return numeric;
+    };
+
     const resolveModelShortcutIndex = (event) => {
-        if (!event || typeof event.key !== "string") return null;
+        if (!event) return null;
         if (event.shiftKey) return null;
-        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        if (!MODEL_SHORTCUT_KEY_ORDER.includes(key)) return null;
+        const directKey =
+            typeof event.key === "string" && event.key.length === 1
+                ? event.key.toLowerCase()
+                : typeof event.key === "string"
+                  ? event.key.toLowerCase()
+                  : "";
+        let index = normalizeShortcutDigit(directKey);
+        if (!index) {
+            const code = typeof event.code === "string" ? event.code.toLowerCase() : "";
+            if (code.startsWith("digit")) {
+                index = normalizeShortcutDigit(code.slice(5));
+            } else if (code.startsWith("numpad")) {
+                index = normalizeShortcutDigit(code.slice(6));
+            }
+        }
+        if (!index) return null;
         const requiresMeta = isApplePlatform;
         const hasMeta = event.metaKey;
         const hasCtrl = event.ctrlKey;
@@ -1312,9 +1336,7 @@
         } else {
             if (!hasCtrl || !hasAlt || hasMeta) return null;
         }
-        const index = MODEL_SHORTCUT_KEY_ORDER.indexOf(key);
-        if (index === -1) return null;
-        return index === MODEL_SHORTCUT_COUNT - 1 ? MODEL_SHORTCUT_COUNT : index + 1;
+        return index;
     };
 
     const getModelForShortcutIndex = (index, models = STATE.models) => {
