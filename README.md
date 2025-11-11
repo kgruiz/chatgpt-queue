@@ -80,8 +80,11 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 | Delete focused follow-up (without confirmation) | Option+Shift+Delete | Alt+Shift+Delete |
 | Collapse/expand queue list | Shift+Cmd+. | Shift+Ctrl+. |
 | Pause/resume queue | Shift+Cmd+P | Shift+Ctrl+P |
+| Select models 1–10 | Cmd+Option+1 … Cmd+Option+0 | Ctrl+Alt+1 … Ctrl+Alt+0 |
 
 Browser-level commands (set from `chrome://extensions/shortcuts`) include **Queue current input** with a default of **Cmd+Shift+Y** (macOS) / **Ctrl+Shift+Y** (Windows/Linux).
+
+Each digit shortcut maps to the model order we learn from ChatGPT’s picker: `⌘⌥1`/`Ctrl+Alt+1` activates the first model in the list, `⌘⌥0`/`Ctrl+Alt+0` the tenth, while **Cmd/Ctrl+Shift+H** still opens the dropdown when you want to confirm labels.
 
 ## Persistence & data
 
