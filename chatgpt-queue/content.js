@@ -920,7 +920,6 @@
     let currentModelId = null;
     let currentModelLabel = "";
     let modelsPromise = null;
-    let sourceModelCache = null;
     let composerControlGroup = null;
     let composerQueueButton = null;
     let composerHoldButton = null;
@@ -2605,121 +2604,22 @@
         return false;
     };
 
-    const findModelChunkUrls = () => {
-        if (typeof document === "undefined") return [];
-        const chunkSelector =
-            'link[rel="modulepreload"][href$=".js"], link[rel="modulepreload"][href*=".js?"], link[rel="preload"][as="script"][href$=".js"], link[rel="preload"][as="script"][href*=".js?"], script[src$=".js"], script[src*=".js?"]';
-        const candidates = Array.from(document.querySelectorAll(chunkSelector));
-        const urls = [];
-        const chunkHints = [
-            "/_next/static/",
-            "cdn.oaistatic.com/",
-            "/assets/",
-        ];
-        const looksLikeChunk = (value) =>
-            typeof value === "string" &&
-            chunkHints.some((hint) => value.includes(hint));
-        candidates.forEach((node) => {
-            const raw =
-                node.tagName === "LINK"
-                    ? node.getAttribute("href")
-                    : node.getAttribute("src");
-            if (!raw) return;
-            if (!looksLikeChunk(raw)) return;
-            let absolute;
-            try {
-                absolute = new URL(
-                    raw,
-                    typeof location === "object" && location?.origin
-                        ? location.origin
-                        : document.baseURI || undefined,
-                ).href;
-            } catch {
-                return;
-            }
-            if (!urls.includes(absolute)) {
-                urls.push(absolute);
-            }
-        });
-        return urls;
-    };
-
-    const parseModelsFromSourceText = (text) => {
-        if (typeof text !== "string" || !text) return [];
-        const MODEL_SOURCE_REGEX = /id:"([a-z0-9_.:-]+)"[\s\S]{0,200}?title:"([^"\\]+)"/gi;
-        const allowedPrefix = /^(gpt-|o[0-9]|auto)/i;
-        const map = new Map();
-        let match;
-        while ((match = MODEL_SOURCE_REGEX.exec(text))) {
-            const slug = match[1];
-            const label = match[2];
-            if (!allowedPrefix.test(slug)) continue;
-            if (!map.has(slug)) {
-                map.set(slug, {
-                    id: slug,
-                    label,
-                    selected: !1,
-                });
-            }
-        }
-        return Array.from(map.values());
-    };
-
-    const fetchModelOptionsFromSource = async () => {
-        if (Array.isArray(sourceModelCache) && sourceModelCache.length) {
-            return sourceModelCache;
-        }
-        const urls = findModelChunkUrls();
-        if (!urls.length) {
-            return [];
-        }
-        for (const url of urls) {
-            try {
-                logModelDebug("reading chunk", url);
-                const response = await fetch(url, {
-                    cache: "force-cache",
-                    mode: "cors",
-                });
-                if (!response?.ok) continue;
-                const text = await response.text();
-                if (!text || !text.includes("gpt-")) {
-                    continue;
-                }
-                const models = parseModelsFromSourceText(text);
-                logModelDebug("parsed chunk", { url, count: models.length });
-                if (models.length) {
-                    sourceModelCache = models;
-                    return models;
-                }
-            } catch (error) {
-                console.warn("[cq] Failed reading chunk", url, error);
-            }
-        }
-        return [];
-    };
-
     const ensureModelOptions = async (options = {}) => {
         if (shouldUseCachedModelList(options)) return STATE.models;
         if (modelsPromise) return modelsPromise;
         modelsPromise = (async () => {
-            let source = "menu";
-            let models = await fetchModelOptionsFromMenu();
-            if (!models.length) {
-                source = "source";
-                logModelDebug("menu empty, falling back to chunk parse");
-                models = await fetchModelOptionsFromSource();
-            }
+            const models = await fetchModelOptionsFromMenu();
             modelsPromise = null;
             if (!models.length) {
-                logModelDebug("model discovery failed; keeping existing list", {
+                logModelDebug("menu scrape returned no models; keeping existing list", {
                     existingCount: STATE.models.length,
                 });
                 return STATE.models;
             }
-            lastModelFetchSource = source;
+            lastModelFetchSource = "menu";
             lastModelFetchAt = Date.now();
             logModelDebug("model list refreshed", {
-                source,
+                source: "menu",
                 count: models.length,
                 models: models.map((model) => ({
                     id: model.id,
