@@ -840,8 +840,9 @@
             .replace(/[^a-z0-9]+/g, "-");
 
     const MODEL_ID_ALIASES = {
-        auto: "gpt-5",
-        "gpt5": "gpt-5",
+        auto: "gpt-5-1",
+        "gpt5": "gpt-5-1",
+        "gpt-5": "gpt-5-1",
         "gpt-5-mini": "gpt-5-t-mini",
         "gpt5-mini": "gpt-5-t-mini",
     };
@@ -1414,10 +1415,26 @@
         if (!slugCandidate) return "Models";
         const normalized = slugCandidate.toLowerCase();
         if (normalized.startsWith("gpt-")) {
-            const [, family] = normalized.split("-");
-            if (family) {
-                return `GPT-${family.toUpperCase()}`;
+            const parts = normalized.split("-");
+            const numericRun = [];
+            for (let i = 1; i < parts.length; i += 1) {
+                const token = parts[i];
+                if (/^\d+$/.test(token)) {
+                    numericRun.push(token);
+                    continue;
+                }
+                break;
             }
+            if (numericRun.length >= 2) {
+                return `GPT-${numericRun.join(".")}`;
+            }
+            if (numericRun.length === 1) {
+                return `GPT-${numericRun[0].toUpperCase()}`;
+            }
+            if (parts[1]) {
+                return `GPT-${parts[1].toUpperCase()}`;
+            }
+            return "GPT";
         }
         return slugCandidate.toUpperCase();
     };
@@ -2386,6 +2403,33 @@
         return items;
     };
 
+    const collectModelMenuItems = async (menu, visitedMenus = new Set()) => {
+        if (!(menu instanceof HTMLElement)) return [];
+        if (visitedMenus.has(menu)) return [];
+        visitedMenus.add(menu);
+        const items = [...parseModelItems(menu)];
+        const submenuTriggers = menu.querySelectorAll(
+            '[role="menuitem"][data-testid$="-submenu"]',
+        );
+        for (const trigger of submenuTriggers) {
+            if (!(trigger instanceof HTMLElement)) continue;
+            const controlsId = trigger.getAttribute("aria-controls") || "";
+            const opened = await openSubmenuTrigger(trigger);
+            if (!opened && !controlsId) continue;
+            const submenuRoot = controlsId
+                ? await waitForElementById(controlsId, 800)
+                : null;
+            if (submenuRoot instanceof HTMLElement) {
+                const nestedItems = await collectModelMenuItems(
+                    submenuRoot,
+                    visitedMenus,
+                );
+                items.push(...nestedItems);
+            }
+        }
+        return items;
+    };
+
     const mergeModelOptions = (options) => {
         const map = new Map();
         options.forEach((option) => {
@@ -2400,7 +2444,7 @@
 
     const fetchModelOptionsFromMenu = async () => {
         const result = await useModelMenu(async (menu) =>
-            parseModelItems(menu),
+            collectModelMenuItems(menu),
         );
         if (!Array.isArray(result)) return [];
         return mergeModelOptions(result);
