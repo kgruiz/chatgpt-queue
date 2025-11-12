@@ -886,6 +886,35 @@
         return rect.width > 0 && rect.height > 0;
     };
 
+    const hasDisabledPointerEvents = (element) => {
+        let node = element;
+        while (node instanceof HTMLElement) {
+            const style = window.getComputedStyle(node);
+            if (style.pointerEvents === "none") return true;
+            node = node.parentElement;
+        }
+        return false;
+    };
+
+    const isElementInteractable = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        if (!isElementVisible(element)) return false;
+        if (element.matches?.(":disabled")) return false;
+        if (element.getAttribute("aria-disabled") === "true") return false;
+        if (hasDisabledPointerEvents(element)) return false;
+        return true;
+    };
+
+    const waitForElementInteractable = async (element, timeoutMs = 3000) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) {
+            if (isElementInteractable(element)) return true;
+            await sleep(60);
+        }
+        return isElementInteractable(element);
+    };
+
     const queryModelSwitcherButtons = () =>
         Array.from(
             document.querySelectorAll(
@@ -1008,6 +1037,15 @@
         });
         let openedByUs = false;
         if (!wasOpen) {
+            const interactable = await waitForElementInteractable(button, 3500);
+            if (!interactable) {
+                logModelDebug("useModelMenu:button-not-interactable", {
+                    pointerEvents: window.getComputedStyle(button).pointerEvents,
+                    disabled: button.matches?.(":disabled") || false,
+                    ariaDisabled: button.getAttribute("aria-disabled") || null,
+                });
+                return null;
+            }
             openedByUs = true;
             const toggled = setModelSwitcherOpenState(button, true);
             logModelDebug("useModelMenu:toggle-open", {
