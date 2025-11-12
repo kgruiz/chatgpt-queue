@@ -851,7 +851,21 @@
     let lastModelFetchAt = 0;
     let lastModelFetchSource = null;
 
+    const isModelDebugEnabled = () => {
+        try {
+            if (typeof window !== "object") return false;
+            if (typeof window.__CQ_DEBUG_MODELS === "boolean") {
+                return window.__CQ_DEBUG_MODELS;
+            }
+            const stored = window.localStorage?.getItem("cq:model-debug");
+            return stored === "true";
+        } catch (_) {
+            return false;
+        }
+    };
+
     const logModelDebug = (...parts) => {
+        if (!isModelDebugEnabled()) return;
         try {
             if (typeof console === "object" && typeof console.info === "function") {
                 console.info("[cq][models]", ...parts);
@@ -1054,8 +1068,12 @@
         const alreadyOpen = trigger.getAttribute("aria-expanded") === "true";
         const controlsId = trigger.getAttribute("aria-controls") || "";
         if (!alreadyOpen) {
-            dispatchPointerAndMousePress(trigger);
+            dispatchHoverSequence(trigger);
             await sleep(80);
+            if (trigger.getAttribute("aria-expanded") !== "true") {
+                dispatchPointerAndMousePress(trigger);
+                await sleep(80);
+            }
         }
         if (trigger.getAttribute("aria-expanded") === "true") return true;
         await waitForElementById(controlsId, 600);
@@ -1160,6 +1178,32 @@
         target.dispatchEvent(mouseDown);
         target.dispatchEvent(mouseUp);
         target.dispatchEvent(mouseClick);
+        return true;
+    };
+
+    const dispatchHoverSequence = (target) => {
+        if (!(target instanceof HTMLElement)) return false;
+        const rect = target.getBoundingClientRect();
+        const clientX = rect.left + rect.width / 2;
+        const clientY = rect.top + rect.height / 2;
+        const common = {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+        };
+        try {
+            if (typeof PointerEvent === "function") {
+                target.dispatchEvent(new PointerEvent("pointerover", { ...common, pointerId: 1, pointerType: "mouse" }));
+                target.dispatchEvent(new PointerEvent("pointerenter", { ...common, pointerId: 1, pointerType: "mouse" }));
+                target.dispatchEvent(new PointerEvent("pointermove", { ...common, pointerId: 1, pointerType: "mouse" }));
+            }
+        } catch (_) {
+            /* ignore pointer issues */
+        }
+        target.dispatchEvent(new MouseEvent("mouseover", common));
+        target.dispatchEvent(new MouseEvent("mouseenter", { ...common, bubbles: false }));
+        target.dispatchEvent(new MouseEvent("mousemove", common));
         return true;
     };
 
@@ -1835,6 +1879,13 @@
     const buildModelDropdown = (models, options = {}) => {
         const { selectedModelId = null, onSelect } = options;
         const displayModels = dedupeModelsForDisplay(models);
+        logModelDebug("composer dropdown models", {
+            count: displayModels.length,
+            models: displayModels.map((model) => ({
+                id: model.id,
+                label: model.label || model.id,
+            })),
+        });
         const wrapper = document.createElement("div");
         wrapper.id = MODEL_DROPDOWN_ID;
         wrapper.dataset.radixPopperContentWrapper = "";
@@ -2527,7 +2578,13 @@
             collectModelMenuItems(menu),
         );
         if (!Array.isArray(result)) return [];
-        logModelDebug("menu scrape result", { count: result.length });
+        logModelDebug("menu scrape result", {
+            count: result.length,
+            models: result.map((model) => ({
+                id: model.id,
+                label: model.label,
+            })),
+        });
         return mergeModelOptions(result);
     };
 
