@@ -851,6 +851,42 @@
     let lastModelFetchAt = 0;
     let lastModelFetchSource = null;
 
+    const logModelDebug = (...parts) => {
+        try {
+            if (typeof console === "object" && typeof console.info === "function") {
+                console.info("[cq][models]", ...parts);
+            }
+        } catch (_) {
+            /* ignored */
+        }
+    };
+
+    const isElementVisible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const style = window.getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+            return false;
+        }
+        if (style.pointerEvents === "none") return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    };
+
+    const queryModelSwitcherButtons = () =>
+        Array.from(
+            document.querySelectorAll(
+                'button[data-testid="model-switcher-dropdown-button"]',
+            ),
+        );
+
+    const findPreferredModelSwitcherButton = () => {
+        const buttons = queryModelSwitcherButtons();
+        if (!buttons.length) return null;
+        const visible = buttons.filter((btn) => isElementVisible(btn));
+        if (visible.length) return visible[0];
+        return buttons[0];
+    };
+
     const applyModelIdAlias = (value) => {
         const normalized = normalizeModelId(value);
         return MODEL_ID_ALIASES[normalized] || value;
@@ -904,6 +940,9 @@
         ];
         for (const root of document.querySelectorAll(selectors.join(","))) {
             if (!(root instanceof HTMLElement)) continue;
+            if (root.id === MODEL_DROPDOWN_ID || root.closest(`#${MODEL_DROPDOWN_ID}`)) {
+                continue;
+            }
             if (root.querySelector('[data-testid^="model-switcher-"]'))
                 return root;
         }
@@ -929,9 +968,7 @@
         });
 
     const useModelMenu = async (operation) => {
-        const button = document.querySelector(
-            'button[data-testid="model-switcher-dropdown-button"]',
-        );
+        const button = findPreferredModelSwitcherButton();
         if (!button) return null;
         const wasOpen = isDropdownVisiblyOpen(button);
         let openedByUs = false;
@@ -987,6 +1024,12 @@
     const lookupMenuItemAcrossRoots = (modelId) => {
         const selector = `[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`;
         for (const root of document.querySelectorAll("[data-radix-menu-content]")) {
+            if (
+                root instanceof HTMLElement &&
+                (root.id === MODEL_DROPDOWN_ID || root.closest(`#${MODEL_DROPDOWN_ID}`))
+            ) {
+                continue;
+            }
             const match = root.querySelector(selector);
             if (match) return match;
         }
@@ -1174,9 +1217,7 @@
 
     const openModelSwitcherDropdown = () => {
         closeModelDropdown();
-        const button = document.querySelector(
-            'button[data-testid="model-switcher-dropdown-button"]',
-        );
+        const button = findPreferredModelSwitcherButton();
         if (!(button instanceof HTMLElement)) return false;
         const opened = setModelSwitcherOpenState(button, true);
         if (!opened) return false;
@@ -1461,9 +1502,7 @@
     };
 
     const readCurrentModelLabelFromHeader = () => {
-        const button = document.querySelector(
-            'button[data-testid="model-switcher-dropdown-button"]',
-        );
+        const button = findPreferredModelSwitcherButton();
         if (!(button instanceof HTMLElement)) return "";
         const aria = button.getAttribute("aria-label") || "";
         const ariaMatch = aria.match(/current model is (.+)$/i);
@@ -2407,27 +2446,63 @@
         return items;
     };
 
+    const waitForMenuItems = async (menu, timeoutMs = 1500) => {
+        if (!(menu instanceof HTMLElement)) return [];
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const items = parseModelItems(menu);
+            if (items.length) return items;
+            await sleep(60);
+        }
+        return [];
+    };
+
     const collectModelMenuItems = async (menu, visitedMenus = new Set()) => {
         if (!(menu instanceof HTMLElement)) return [];
         if (visitedMenus.has(menu)) return [];
         visitedMenus.add(menu);
-        const items = [...parseModelItems(menu)];
+        logModelDebug("collecting models from menu", {
+            menuId: menu.id || null,
+            visited: visitedMenus.size,
+        });
+        let items = [...parseModelItems(menu)];
+        if (!items.length) {
+            logModelDebug("menu empty on first pass; waiting for items", {
+                menuId: menu.id || null,
+            });
+            items = await waitForMenuItems(menu);
+        }
+        logModelDebug("parsed menu items", {
+            menuId: menu.id || null,
+            count: items.length,
+        });
         const submenuTriggers = menu.querySelectorAll(
             '[role="menuitem"][data-testid$="-submenu"]',
         );
         for (const trigger of submenuTriggers) {
             if (!(trigger instanceof HTMLElement)) continue;
             const controlsId = trigger.getAttribute("aria-controls") || "";
+            logModelDebug("opening submenu trigger", {
+                testId: trigger.getAttribute("data-testid") || null,
+                controlsId,
+            });
             const opened = await openSubmenuTrigger(trigger);
             if (!opened && !controlsId) continue;
             const submenuRoot = controlsId
                 ? await waitForElementById(controlsId, 800)
                 : null;
             if (submenuRoot instanceof HTMLElement) {
+                if (!submenuRoot.querySelector('[data-testid^="model-switcher-"]')) {
+                    await waitForMenuItems(submenuRoot);
+                }
                 const nestedItems = await collectModelMenuItems(
                     submenuRoot,
                     visitedMenus,
                 );
+                logModelDebug("submenu parsed", {
+                    menuId: submenuRoot.id || null,
+                    count: nestedItems.length,
+                });
                 items.push(...nestedItems);
             }
         }
@@ -2447,10 +2522,12 @@
     };
 
     const fetchModelOptionsFromMenu = async () => {
+        logModelDebug("attempting menu scrape for models");
         const result = await useModelMenu(async (menu) =>
             collectModelMenuItems(menu),
         );
         if (!Array.isArray(result)) return [];
+        logModelDebug("menu scrape result", { count: result.length });
         return mergeModelOptions(result);
     };
 
@@ -2459,7 +2536,16 @@
         if (!STATE.models.length) return false;
         if (!lastModelFetchAt) return false;
         if (lastModelFetchSource !== "menu") return false;
-        return Date.now() - lastModelFetchAt < MODEL_LIST_CACHE_MAX_MS;
+        const age = Date.now() - lastModelFetchAt;
+        if (age < MODEL_LIST_CACHE_MAX_MS) {
+            logModelDebug("cache hit", {
+                source: lastModelFetchSource,
+                age,
+                count: STATE.models.length,
+            });
+            return true;
+        }
+        return false;
     };
 
     const findModelChunkUrls = () => {
@@ -2532,6 +2618,7 @@
         }
         for (const url of urls) {
             try {
+                logModelDebug("reading chunk", url);
                 const response = await fetch(url, {
                     cache: "force-cache",
                     mode: "cors",
@@ -2542,6 +2629,7 @@
                     continue;
                 }
                 const models = parseModelsFromSourceText(text);
+                logModelDebug("parsed chunk", { url, count: models.length });
                 if (models.length) {
                     sourceModelCache = models;
                     return models;
@@ -2561,12 +2649,22 @@
             let models = await fetchModelOptionsFromMenu();
             if (!models.length) {
                 source = "source";
+                logModelDebug("menu empty, falling back to chunk parse");
                 models = await fetchModelOptionsFromSource();
             }
             modelsPromise = null;
-            if (!models.length) return STATE.models;
+            if (!models.length) {
+                logModelDebug("model discovery failed; keeping existing list", {
+                    existingCount: STATE.models.length,
+                });
+                return STATE.models;
+            }
             lastModelFetchSource = source;
             lastModelFetchAt = Date.now();
+            logModelDebug("model list refreshed", {
+                source,
+                count: models.length,
+            });
             const previousSignature = JSON.stringify(
                 STATE.models.map((model) => ({
                     id: model.id,
@@ -2591,6 +2689,7 @@
         })().catch((error) => {
             modelsPromise = null;
             console.warn("[cq] Failed to load model list", error);
+            logModelDebug("model refresh error", error);
             return STATE.models;
         });
         return modelsPromise;
