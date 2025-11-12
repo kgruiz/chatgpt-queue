@@ -895,7 +895,12 @@
 
     const findPreferredModelSwitcherButton = () => {
         const buttons = queryModelSwitcherButtons();
-        if (!buttons.length) return null;
+        if (!buttons.length) {
+            logModelDebug("model switcher button missing", {
+                timestamp: Date.now(),
+            });
+            return null;
+        }
         const visible = buttons.filter((btn) => isElementVisible(btn));
         if (visible.length) return visible[0];
         return buttons[0];
@@ -965,13 +970,23 @@
     const waitForModelMenu = (timeoutMs = 1500) =>
         new Promise((resolve) => {
             const start = performance.now();
+            logModelDebug("waitForModelMenu:start", {
+                timeoutMs,
+            });
             const tick = () => {
                 const root = findModelMenuRoot();
                 if (root) {
+                    logModelDebug("waitForModelMenu:resolved", {
+                        elapsed: performance.now() - start,
+                        menuId: root.id || null,
+                    });
                     resolve(root);
                     return;
                 }
                 if (performance.now() - start >= timeoutMs) {
+                    logModelDebug("waitForModelMenu:timeout", {
+                        elapsed: performance.now() - start,
+                    });
                     resolve(null);
                     return;
                 }
@@ -982,25 +997,45 @@
 
     const useModelMenu = async (operation) => {
         const button = findPreferredModelSwitcherButton();
-        if (!button) return null;
+        if (!button) {
+            logModelDebug("useModelMenu:button-missing");
+            return null;
+        }
         const wasOpen = isDropdownVisiblyOpen(button);
+        logModelDebug("useModelMenu:begin", {
+            wasOpen,
+            buttonState: button.getAttribute("aria-expanded"),
+        });
         let openedByUs = false;
         if (!wasOpen) {
             openedByUs = true;
-            setModelSwitcherOpenState(button, true);
+            const toggled = setModelSwitcherOpenState(button, true);
+            logModelDebug("useModelMenu:toggle-open", {
+                toggled,
+            });
         }
         const menu = await waitForModelMenu();
         if (!menu) {
+            logModelDebug("useModelMenu:no-menu", {
+                openedByUs,
+                wasOpen,
+            });
             if (!wasOpen && openedByUs) {
                 setModelSwitcherOpenState(button, false);
             }
             return null;
         }
+        logModelDebug("useModelMenu:menu-ready", {
+            openedByUs,
+            wasOpen,
+            menuId: menu.id || null,
+        });
         let result;
         try {
             result = await operation(menu, button);
         } finally {
             if (!wasOpen && openedByUs) {
+                logModelDebug("useModelMenu:closing-menu");
                 setModelSwitcherOpenState(button, false);
             }
         }
@@ -1231,6 +1266,10 @@
             return true;
         }
         button.focus?.({ preventScroll: true });
+        logModelDebug("setModelSwitcherOpenState:attempt", {
+            desired,
+            ariaExpanded: button.getAttribute("aria-expanded"),
+        });
         const attempt = () => {
             const state = isDropdownVisiblyOpen(button);
             return state === desired;
@@ -1255,6 +1294,10 @@
             );
             success = attempt();
         }
+        logModelDebug("setModelSwitcherOpenState:result", {
+            success,
+            desired,
+        });
         return success;
     };
 
