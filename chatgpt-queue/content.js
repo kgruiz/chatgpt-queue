@@ -2721,6 +2721,10 @@
             logModelDebug("model list refreshed", {
                 source,
                 count: models.length,
+                models: models.map((model) => ({
+                    id: model.id,
+                    label: model.label,
+                })),
             });
             const previousSignature = JSON.stringify(
                 STATE.models.map((model) => ({
