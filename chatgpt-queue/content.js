@@ -847,6 +847,10 @@
         "gpt5-mini": "gpt-5-t-mini",
     };
 
+    const MODEL_LIST_CACHE_MAX_MS = 90 * 1000;
+    let lastModelFetchAt = 0;
+    let lastModelFetchSource = null;
+
     const applyModelIdAlias = (value) => {
         const normalized = normalizeModelId(value);
         return MODEL_ID_ALIASES[normalized] || value;
@@ -2450,6 +2454,14 @@
         return mergeModelOptions(result);
     };
 
+    const shouldUseCachedModelList = (options = {}) => {
+        if (options.force) return false;
+        if (!STATE.models.length) return false;
+        if (!lastModelFetchAt) return false;
+        if (lastModelFetchSource !== "menu") return false;
+        return Date.now() - lastModelFetchAt < MODEL_LIST_CACHE_MAX_MS;
+    };
+
     const findModelChunkUrls = () => {
         if (typeof document === "undefined") return [];
         const chunkSelector =
@@ -2542,15 +2554,19 @@
     };
 
     const ensureModelOptions = async (options = {}) => {
-        if (!options.force && STATE.models.length) return STATE.models;
+        if (shouldUseCachedModelList(options)) return STATE.models;
         if (modelsPromise) return modelsPromise;
         modelsPromise = (async () => {
+            let source = "menu";
             let models = await fetchModelOptionsFromMenu();
             if (!models.length) {
+                source = "source";
                 models = await fetchModelOptionsFromSource();
             }
             modelsPromise = null;
             if (!models.length) return STATE.models;
+            lastModelFetchSource = source;
+            lastModelFetchAt = Date.now();
             const previousSignature = JSON.stringify(
                 STATE.models.map((model) => ({
                     id: model.id,
