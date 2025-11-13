@@ -904,6 +904,22 @@
         return isElementInteractable(element);
     };
 
+    const describeElementInteractableState = (element) => {
+        if (!(element instanceof HTMLElement)) return {};
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return {
+            width: rect?.width ?? null,
+            height: rect?.height ?? null,
+            top: rect?.top ?? null,
+            left: rect?.left ?? null,
+            display: style?.display || null,
+            visibility: style?.visibility || null,
+            opacity: style?.opacity || null,
+            pointerEvents: style?.pointerEvents || null,
+        };
+    };
+
     const queryModelSwitcherButtons = () =>
         Array.from(
             document.querySelectorAll(
@@ -1029,17 +1045,18 @@
             const interactable = await waitForElementInteractable(button, 3500);
             if (!interactable) {
                 logModelDebug("useModelMenu:button-not-interactable", {
-                    pointerEvents: window.getComputedStyle(button).pointerEvents,
-                    disabled: button.matches?.(":disabled") || false,
-                    ariaDisabled: button.getAttribute("aria-disabled") || null,
+                    ...describeElementInteractableState(button),
                 });
-                return null;
             }
-            openedByUs = true;
             const toggled = setModelSwitcherOpenState(button, true);
+            openedByUs = toggled;
             logModelDebug("useModelMenu:toggle-open", {
                 toggled,
+                forced: !interactable,
             });
+            if (!toggled) {
+                return null;
+            }
         }
         const menu = await waitForModelMenu();
         if (!menu) {
