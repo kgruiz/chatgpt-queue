@@ -10,6 +10,8 @@
         paused: false,
         pauseReason: "",
         pausedAt: null,
+        modelSections: [],
+        modelGroups: {},
     };
     const SEL = {
         editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
@@ -938,6 +940,9 @@
     let thinkingDropdownAnchor = null;
     let thinkingDropdownCleanup = [];
     let composerModelSelectionPending = false;
+    let activeModelSubmenu = null;
+    let activeModelSubmenuTrigger = null;
+    let modelSubmenuCloseTimer = null;
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -1643,6 +1648,7 @@
     };
 
     const closeModelDropdown = () => {
+        closeActiveModelSubmenu();
         modelDropdownCleanup.forEach((cleanup) => {
             try {
                 cleanup();
@@ -1688,6 +1694,65 @@
         if (menu instanceof HTMLElement) {
             menu.dataset.side = side;
         }
+        positionActiveModelSubmenu();
+    };
+
+    const positionModelSubmenu = (wrapper, trigger) => {
+        if (!wrapper || !trigger) return;
+        const triggerRect = trigger.getBoundingClientRect();
+        const menu = wrapper.querySelector("[data-radix-menu-content]");
+        if (!(menu instanceof HTMLElement)) return;
+        const menuRect = menu.getBoundingClientRect();
+        const gutter = 12;
+        let left = triggerRect.right + gutter;
+        let top = triggerRect.top;
+        const maxLeft = window.innerWidth - menuRect.width - 8;
+        if (left > maxLeft) {
+            left = Math.max(8, triggerRect.left - menuRect.width - gutter);
+        }
+        if (top + menuRect.height > window.innerHeight - 8) {
+            top = Math.max(8, window.innerHeight - menuRect.height - 8);
+        }
+        wrapper.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    };
+
+    const positionActiveModelSubmenu = () => {
+        if (!activeModelSubmenu || !activeModelSubmenuTrigger) return;
+        positionModelSubmenu(activeModelSubmenu, activeModelSubmenuTrigger);
+    };
+
+    const cancelModelSubmenuClose = () => {
+        if (modelSubmenuCloseTimer) {
+            clearTimeout(modelSubmenuCloseTimer);
+            modelSubmenuCloseTimer = null;
+        }
+    };
+
+    const isTargetInsideModelMenus = (target) => {
+        if (!(target instanceof Node)) return false;
+        if (modelDropdown?.contains(target)) return true;
+        if (activeModelSubmenu?.contains(target)) return true;
+        return false;
+    };
+
+    const scheduleModelSubmenuClose = () => {
+        cancelModelSubmenuClose();
+        modelSubmenuCloseTimer = window.setTimeout(() => {
+            closeActiveModelSubmenu();
+        }, 150);
+    };
+
+    const closeActiveModelSubmenu = () => {
+        cancelModelSubmenuClose();
+        if (activeModelSubmenu?.parentNode) {
+            activeModelSubmenu.parentNode.removeChild(activeModelSubmenu);
+        }
+        if (activeModelSubmenuTrigger instanceof HTMLElement) {
+            activeModelSubmenuTrigger.dataset.state = "closed";
+            activeModelSubmenuTrigger.setAttribute("aria-expanded", "false");
+        }
+        activeModelSubmenu = null;
+        activeModelSubmenuTrigger = null;
     };
 
     const normalizeModelLabelText = (value) =>
@@ -1775,6 +1840,153 @@
             if (key === "Enter" || key === " " || key === "Spacebar") {
                 triggerSelection(event);
             }
+        });
+        return item;
+    };
+
+    const createMenuSectionLabel = (text) => {
+        const label = document.createElement("div");
+        label.className = "__menu-label mb-0";
+        label.textContent = String(text || "").trim();
+        return label;
+    };
+
+    const createMenuSeparator = () => {
+        const separator = document.createElement("div");
+        separator.setAttribute("role", "separator");
+        separator.setAttribute("aria-orientation", "horizontal");
+        separator.className = "bg-token-border-default h-px mx-4 my-1";
+        return separator;
+    };
+
+    const createSubmenuArrowIcon = () => {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("width", "16");
+        svg.setAttribute("height", "16");
+        svg.setAttribute("viewBox", "0 0 16 16");
+        svg.setAttribute("fill", "currentColor");
+        svg.classList.add("icon-sm", "-me-0.25");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute(
+            "d",
+            "M6.02925 3.02929C6.25652 2.80202 6.60803 2.77382 6.86616 2.94433L6.97065 3.02929L11.4707 7.52929C11.7304 7.78899 11.7304 8.211 11.4707 8.4707L6.97065 12.9707C6.71095 13.2304 6.28895 13.2304 6.02925 12.9707C5.76955 12.711 5.76955 12.289 6.02925 12.0293L10.0585 7.99999L6.02925 3.9707L5.94429 3.8662C5.77378 3.60807 5.80198 3.25656 6.02925 3.02929Z",
+        );
+        svg.appendChild(path);
+        return svg;
+    };
+
+    const openModelSubmenuPanel = (
+        trigger,
+        models,
+        selectionHandler,
+        selectedModelIdNormalized,
+    ) => {
+        if (!(trigger instanceof HTMLElement)) return;
+        if (!Array.isArray(models) || !models.length) return;
+        if (activeModelSubmenuTrigger === trigger && activeModelSubmenu) {
+            cancelModelSubmenuClose();
+            positionActiveModelSubmenu();
+            return;
+        }
+        closeActiveModelSubmenu();
+        const wrapper = document.createElement("div");
+        wrapper.dataset.radixPopperContentWrapper = "";
+        wrapper.style.position = "fixed";
+        wrapper.style.left = "0px";
+        wrapper.style.top = "0px";
+        wrapper.style.transform = "translate(0px, 0px)";
+        wrapper.style.minWidth = "max-content";
+        wrapper.style.zIndex = "2147480000";
+        wrapper.style.pointerEvents = "none";
+
+        const menu = document.createElement("div");
+        menu.dataset.radixMenuContent = "";
+        menu.dataset.side = "right";
+        menu.dataset.align = "start";
+        menu.dataset.orientation = "vertical";
+        menu.dataset.state = "open";
+        menu.setAttribute("role", "menu");
+        menu.tabIndex = -1;
+        menu.className =
+            "z-50 max-w-xs rounded-2xl popover bg-token-main-surface-primary dark:bg-[#353535] shadow-long will-change-[opacity,transform] radix-side-bottom:animate-slideUpAndFade radix-side-left:animate-slideRightAndFade radix-side-right:animate-slideLeftAndFade radix-side-top:animate-slideDownAndFade py-1.5 select-none data-[unbound-width]:min-w-[unset] data-[custom-padding]:py-0 mt-2 max-h-[calc(100vh-300px)] min-w-[100px] overflow-auto";
+        menu.style.pointerEvents = "auto";
+        models.forEach((model) => {
+            const selected =
+                normalizeModelId(model?.id || "") === selectedModelIdNormalized;
+            menu.appendChild(
+                createModelDropdownItem(model, selected, selectionHandler),
+            );
+        });
+        const handlePointerEnter = () => {
+            cancelModelSubmenuClose();
+        };
+        const handlePointerLeave = () => {
+            scheduleModelSubmenuClose();
+        };
+        menu.addEventListener("pointerenter", handlePointerEnter);
+        menu.addEventListener("pointerleave", handlePointerLeave);
+        wrapper.appendChild(menu);
+        document.body.appendChild(wrapper);
+        activeModelSubmenu = wrapper;
+        activeModelSubmenuTrigger = trigger;
+        trigger.dataset.state = "open";
+        trigger.setAttribute("aria-expanded", "true");
+        positionActiveModelSubmenu();
+    };
+
+    const createModelSubmenuTrigger = ({
+        key,
+        label,
+        models,
+        selectionHandler,
+        selectedModelId,
+    }) => {
+        const item = document.createElement("div");
+        item.className = "group __menu-item";
+        item.setAttribute("role", "menuitem");
+        item.dataset.orientation = "vertical";
+        item.dataset.radixCollectionItem = "";
+        item.dataset.hasSubmenu = "";
+        item.setAttribute("aria-haspopup", "menu");
+        item.setAttribute("aria-expanded", "false");
+        if (key) {
+            item.dataset.testid = `${key}-submenu`;
+        }
+        const body = document.createElement("div");
+        body.className =
+            "flex min-w-0 grow items-center gap-2.5 group-data-no-contents-gap:gap-0";
+        body.textContent = label || "More models";
+        const trailing = document.createElement("div");
+        trailing.className = "flex items-center gap-1 self-stretch";
+        trailing.appendChild(createSubmenuArrowIcon());
+        item.append(body, trailing);
+
+        const openSubmenu = (event) => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            cancelModelSubmenuClose();
+            openModelSubmenuPanel(
+                item,
+                models,
+                selectionHandler,
+                selectedModelId || "",
+            );
+        };
+
+        item.addEventListener("pointerenter", openSubmenu);
+        item.addEventListener("focus", openSubmenu);
+        item.addEventListener("click", openSubmenu);
+        item.addEventListener("keydown", (event) => {
+            const keyPressed = event.key || "";
+            if (keyPressed === "ArrowRight" || keyPressed === "Enter") {
+                openSubmenu(event);
+            }
+        });
+        item.addEventListener("pointerleave", () => {
+            scheduleModelSubmenuClose();
         });
         return item;
     };
@@ -1924,9 +2136,16 @@
         }
     };
 
+    const resolveModelOrder = (model) =>
+        Number.isFinite(model?.order)
+            ? Number(model.order)
+            : Number.MAX_SAFE_INTEGER;
+
     const buildModelDropdown = (models, options = {}) => {
         const { selectedModelId = null, onSelect } = options;
-        const displayModels = dedupeModelsForDisplay(models);
+        const displayModels = dedupeModelsForDisplay(models).sort((a, b) =>
+            resolveModelOrder(a) - resolveModelOrder(b),
+        );
         logModelDebug("composer dropdown models", {
             count: displayModels.length,
             models: displayModels.map((model) => ({
@@ -1960,52 +2179,67 @@
         heading.className = "__menu-label mb-0";
         heading.textContent = resolveModelDropdownHeading(models, selectedModelId);
         menu.appendChild(heading);
-        const headerLabelSource = selectedModelId
-            ? labelForModel(selectedModelId, selectedModelId)
-            : readCurrentModelLabelFromHeader();
-        const headerLabel = applyHeaderLabelAliases(headerLabelSource);
-        const normalizedHeaderLabel = normalizeModelLabelText(headerLabel);
-        const normalizedHeaderSlug = headerLabel
-            ? normalizeModelId(headerLabel)
-            : "";
-        const normalizedSelectedId = normalizeModelId(
-            selectedModelId || "",
-        );
-        const matchesHeader = (model) => {
-            const displayValue = model?.label || model?.id || "";
-            const normalizedDisplay = normalizeModelLabelText(displayValue);
-            const normalizedId = normalizeModelId(model?.id || "");
-            const headerMatchesLabel =
-                normalizedHeaderLabel &&
-                normalizedHeaderLabel.length > 0 &&
-                normalizedDisplay === normalizedHeaderLabel;
-            const headerMatchesId =
-                normalizedHeaderSlug &&
-                normalizedHeaderSlug.length > 0 &&
-                normalizedHeaderSlug === normalizedId;
-            return headerMatchesLabel || headerMatchesId;
-        };
-        const hasHeaderMatch = normalizedHeaderLabel
-            ? models.some((model) => matchesHeader(model))
-            : false;
-        const matchesSelectedId = (model) => {
-            if (!normalizedSelectedId) return false;
-            return normalizeModelId(model?.id || "") === normalizedSelectedId;
-        };
+        const normalizedSelectedId = normalizeModelId(selectedModelId || "");
         const selectionHandler =
             typeof onSelect === "function"
                 ? onSelect
                 : (model) => handleComposerModelSelection(model);
-        displayModels.forEach((model) => {
+        const inlineModels = displayModels.filter((model) => !model.group);
+        let lastSection = Symbol("section-init");
+        inlineModels.forEach((model) => {
+            const sectionName = String(model?.section || "").trim();
+            if (sectionName && sectionName !== lastSection) {
+                menu.appendChild(createMenuSectionLabel(sectionName));
+                lastSection = sectionName;
+            }
             const selected = normalizedSelectedId
-                ? matchesSelectedId(model)
-                : hasHeaderMatch
-                  ? matchesHeader(model)
-                  : !!model?.selected;
+                ? normalizeModelId(model?.id || "") === normalizedSelectedId
+                : !!model?.selected;
             menu.appendChild(
                 createModelDropdownItem(model, selected, selectionHandler),
             );
         });
+
+        const groupedModels = displayModels.filter((model) => model.group);
+        if (groupedModels.length) {
+            const groupedMap = new Map();
+            groupedModels.forEach((model) => {
+                const key = model.group;
+                if (!key) return;
+                const existing = groupedMap.get(key);
+                const meta = existing || {
+                    label:
+                        model.groupLabel ||
+                        STATE.modelGroups?.[key]?.label ||
+                        "More models",
+                    order:
+                        STATE.modelGroups?.[key]?.order ?? resolveModelOrder(model),
+                    models: [],
+                };
+                meta.models.push(model);
+                groupedMap.set(key, meta);
+            });
+            const sortedGroups = Array.from(groupedMap.entries()).sort(
+                (a, b) => (a[1].order || 0) - (b[1].order || 0),
+            );
+            if (inlineModels.length) {
+                menu.appendChild(createMenuSeparator());
+            }
+            sortedGroups.forEach(([groupKey, meta]) => {
+                meta.models.sort((a, b) =>
+                    resolveModelOrder(a) - resolveModelOrder(b),
+                );
+                menu.appendChild(
+                    createModelSubmenuTrigger({
+                        key: groupKey,
+                        label: meta.label,
+                        models: meta.models,
+                        selectedModelId: normalizedSelectedId,
+                        selectionHandler,
+                    }),
+                );
+            });
+        }
         wrapper.appendChild(menu);
         return wrapper;
     };
@@ -2031,7 +2265,8 @@
             document.body.appendChild(modelDropdown);
             positionModelDropdown();
             const handleClickOutside = (event) => {
-                if (!modelDropdown || modelDropdown.contains(event.target)) {
+                if (!modelDropdown) return;
+                if (isTargetInsideModelMenus(event.target)) {
                     return;
                 }
                 if (anchor.contains(event.target)) return;
@@ -2539,7 +2774,31 @@
         };
     };
 
-    const parseModelItems = (menu) => {
+    const findMenuSectionLabel = (item) => {
+        let node = item?.previousElementSibling || null;
+        while (node instanceof HTMLElement) {
+            if (node.classList.contains("__menu-label")) {
+                const text = node.textContent || "";
+                return text.trim();
+            }
+            node = node.previousElementSibling;
+        }
+        return "";
+    };
+
+    const resolveMenuGroupKey = (label, fallback = "") => {
+        const normalizedLabel = normalizeModelId(label || "");
+        if (normalizedLabel) return normalizedLabel;
+        if (fallback) {
+            const fallbackNormalized = normalizeModelId(fallback);
+            if (fallbackNormalized) return fallbackNormalized;
+        }
+        return `submenu-${Date.now().toString(36)}-${Math.random()
+            .toString(36)
+            .slice(2, 6)}`;
+    };
+
+    const parseModelItems = (menu, options = {}) => {
         const items = [];
         const seen = new Set();
         const candidates = menu.querySelectorAll(
@@ -2566,23 +2825,40 @@
                 item.getAttribute("aria-checked") === "true" ||
                 item.getAttribute("aria-pressed") === "true" ||
                 hasCheckIcon;
-            items.push({ id, label, description, selected });
+            const orderRef = options.orderRef || { value: 0 };
+            const sectionLabel = options.section || findMenuSectionLabel(item) || "";
+            const order = Number(orderRef.value) || 0;
+            orderRef.value = order + 1;
+            items.push({
+                id,
+                label,
+                description,
+                selected,
+                section: sectionLabel,
+                group: options.groupKey || null,
+                groupLabel: options.groupLabel || null,
+                order,
+            });
         });
         return items;
     };
 
-    const waitForMenuItems = async (menu, timeoutMs = 1500) => {
+    const waitForMenuItems = async (menu, timeoutMs = 1500, options = {}) => {
         if (!(menu instanceof HTMLElement)) return [];
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
-            const items = parseModelItems(menu);
+            const items = parseModelItems(menu, options);
             if (items.length) return items;
             await sleep(60);
         }
         return [];
     };
 
-    const collectModelMenuItems = async (menu, visitedMenus = new Set()) => {
+    const collectModelMenuItems = async (
+        menu,
+        visitedMenus = new Set(),
+        options = {},
+    ) => {
         if (!(menu instanceof HTMLElement)) return [];
         if (visitedMenus.has(menu)) return [];
         visitedMenus.add(menu);
@@ -2590,12 +2866,22 @@
             menuId: menu.id || null,
             visited: visitedMenus.size,
         });
-        let items = [...parseModelItems(menu)];
+        let items = [
+            ...parseModelItems(menu, {
+                orderRef: options.orderRef,
+                groupKey: options.groupKey,
+                groupLabel: options.groupLabel,
+            }),
+        ];
         if (!items.length) {
             logModelDebug("menu empty on first pass; waiting for items", {
                 menuId: menu.id || null,
             });
-            items = await waitForMenuItems(menu);
+            items = await waitForMenuItems(menu, 1500, {
+                orderRef: options.orderRef,
+                groupKey: options.groupKey,
+                groupLabel: options.groupLabel,
+            });
         }
         logModelDebug("parsed menu items", {
             menuId: menu.id || null,
@@ -2617,12 +2903,26 @@
                 ? await waitForElementById(controlsId, 800)
                 : null;
             if (submenuRoot instanceof HTMLElement) {
+                const { label: submenuLabel } = resolveMenuItemTexts(trigger);
+                const groupKey = resolveMenuGroupKey(
+                    submenuLabel,
+                    trigger.getAttribute("data-testid") || controlsId || "submenu",
+                );
                 if (!submenuRoot.querySelector('[data-testid^="model-switcher-"]')) {
-                    await waitForMenuItems(submenuRoot);
+                    await waitForMenuItems(submenuRoot, 1500, {
+                        orderRef: options.orderRef,
+                        groupKey,
+                        groupLabel: submenuLabel || "More models",
+                    });
                 }
                 const nestedItems = await collectModelMenuItems(
                     submenuRoot,
                     visitedMenus,
+                    {
+                        orderRef: options.orderRef,
+                        groupKey,
+                        groupLabel: submenuLabel || "More models",
+                    },
                 );
                 logModelDebug("submenu parsed", {
                     menuId: submenuRoot.id || null,
@@ -2646,10 +2946,44 @@
         return Array.from(map.values());
     };
 
+    const syncModelMenuStructure = (models = STATE.models) => {
+        const sectionOrder = new Map();
+        const groupOrder = new Map();
+        models.forEach((model) => {
+            const order = Number.isFinite(model?.order)
+                ? Number(model.order)
+                : Number.MAX_SAFE_INTEGER;
+            if (model?.group) {
+                const key = model.group;
+                const label = model.groupLabel || model.group;
+                const existing = groupOrder.get(key);
+                if (!existing || order < existing.order) {
+                    groupOrder.set(key, { label, order });
+                }
+                return;
+            }
+            const sectionName = String(model?.section || "").trim();
+            if (!sectionName) return;
+            if (!sectionOrder.has(sectionName)) {
+                sectionOrder.set(sectionName, order);
+            }
+        });
+        STATE.modelSections = Array.from(sectionOrder.entries())
+            .sort((a, b) => a[1] - b[1])
+            .map(([name]) => name);
+        STATE.modelGroups = Array.from(groupOrder.entries())
+            .sort((a, b) => a[1].order - b[1].order)
+            .reduce((acc, [key, meta]) => {
+                acc[key] = meta;
+                return acc;
+            }, {});
+    };
+
     const fetchModelOptionsFromMenu = async () => {
         logModelDebug("attempting menu scrape for models");
+        const orderRef = { value: 0 };
         const result = await useModelMenu(async (menu) =>
-            collectModelMenuItems(menu),
+            collectModelMenuItems(menu, new Set(), { orderRef }),
         );
         if (!Array.isArray(result)) return [];
         logModelDebug("menu scrape result", {
@@ -2708,6 +3042,7 @@
                 })),
             );
             STATE.models = models;
+            syncModelMenuStructure(models);
             const selected = models.find((model) => model.selected);
             if (selected) {
                 markModelSelected(selected.id, selected.label);
