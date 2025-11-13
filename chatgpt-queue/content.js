@@ -2185,6 +2185,14 @@
                 ? onSelect
                 : (model) => handleComposerModelSelection(model);
         const inlineModels = displayModels.filter((model) => !model.group);
+        logModelDebug("composer dropdown inline models", {
+            count: inlineModels.length,
+            sections: inlineModels.map((model) => ({
+                id: model.id,
+                section: model.section || null,
+                order: model.order ?? null,
+            })),
+        });
         let lastSection = null;
         inlineModels.forEach((model) => {
             const sectionName = String(model?.section || "").trim();
@@ -2195,6 +2203,16 @@
                 });
                 menu.appendChild(createMenuSectionLabel(sectionName));
                 lastSection = sectionName;
+            } else if (!sectionName) {
+                logModelDebug("composer dropdown section missing", {
+                    id: model?.id || null,
+                    label: model?.label || null,
+                });
+            } else {
+                logModelDebug("composer dropdown section duplicate", {
+                    section: sectionName,
+                    previous: lastSection,
+                });
             }
             const selected = normalizedSelectedId
                 ? normalizeModelId(model?.id || "") === normalizedSelectedId
