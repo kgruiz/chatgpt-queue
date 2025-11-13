@@ -2185,7 +2185,7 @@
                 ? onSelect
                 : (model) => handleComposerModelSelection(model);
         const inlineModels = displayModels.filter((model) => !model.group);
-        let lastSection = Symbol("section-init");
+        let lastSection = null;
         inlineModels.forEach((model) => {
             const sectionName = String(model?.section || "").trim();
             if (sectionName && sectionName !== lastSection) {
