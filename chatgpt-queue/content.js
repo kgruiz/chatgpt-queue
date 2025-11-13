@@ -886,22 +886,11 @@
         return rect.width > 0 && rect.height > 0;
     };
 
-    const hasDisabledPointerEvents = (element) => {
-        let node = element;
-        while (node instanceof HTMLElement) {
-            const style = window.getComputedStyle(node);
-            if (style.pointerEvents === "none") return true;
-            node = node.parentElement;
-        }
-        return false;
-    };
-
     const isElementInteractable = (element) => {
         if (!(element instanceof HTMLElement)) return false;
         if (!isElementVisible(element)) return false;
         if (element.matches?.(":disabled")) return false;
         if (element.getAttribute("aria-disabled") === "true") return false;
-        if (hasDisabledPointerEvents(element)) return false;
         return true;
     };
 
