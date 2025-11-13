@@ -2189,6 +2189,10 @@
         inlineModels.forEach((model) => {
             const sectionName = String(model?.section || "").trim();
             if (sectionName && sectionName !== lastSection) {
+                logModelDebug("composer dropdown section", {
+                    section: sectionName,
+                    previous: lastSection,
+                });
                 menu.appendChild(createMenuSectionLabel(sectionName));
                 lastSection = sectionName;
             }
