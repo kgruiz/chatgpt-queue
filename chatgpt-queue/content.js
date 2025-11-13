@@ -2177,7 +2177,8 @@
         menu.style.pointerEvents = "auto";
         const heading = document.createElement("div");
         heading.className = "__menu-label mb-0";
-        heading.textContent = resolveModelDropdownHeading(models, selectedModelId);
+        const headingText = resolveModelDropdownHeading(models, selectedModelId);
+        heading.textContent = headingText;
         menu.appendChild(heading);
         const normalizedSelectedId = normalizeModelId(selectedModelId || "");
         const selectionHandler =
@@ -2196,12 +2197,19 @@
         let lastSection = null;
         inlineModels.forEach((model) => {
             const sectionName = String(model?.section || "").trim();
+            const shouldSkipSectionLabel =
+                !lastSection &&
+                sectionName &&
+                headingText &&
+                sectionName.toLowerCase() === headingText.toLowerCase();
             if (sectionName && sectionName !== lastSection) {
                 logModelDebug("composer dropdown section", {
                     section: sectionName,
                     previous: lastSection,
                 });
-                menu.appendChild(createMenuSectionLabel(sectionName));
+                if (!shouldSkipSectionLabel) {
+                    menu.appendChild(createMenuSectionLabel(sectionName));
+                }
                 lastSection = sectionName;
             } else if (!sectionName) {
                 logModelDebug("composer dropdown section missing", {
