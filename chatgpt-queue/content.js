@@ -1723,7 +1723,13 @@
         const description = document.createElement("div");
         description.className =
             "not-group-data-disabled:text-token-text-tertiary leading-dense mb-0.5 text-xs group-data-sheet-item:mt-0.5 group-data-sheet-item:mb-0";
-        description.textContent = describeModel(model);
+        const descriptionText = String(
+            (model?.description || "").trim() || describeModel(model),
+        );
+        description.textContent = descriptionText;
+        if (!descriptionText) {
+            description.hidden = true;
+        }
         body.append(label, description);
 
         const trailing = document.createElement("div");
