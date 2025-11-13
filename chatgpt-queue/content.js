@@ -2507,6 +2507,32 @@
         return updated;
     };
 
+    const resolveMenuItemTexts = (item) => {
+        if (!(item instanceof HTMLElement)) {
+            return { label: "", description: "" };
+        }
+        const contentRoot = item.querySelector(".min-w-0") || item;
+        const elementChildren = Array.from(contentRoot.children).filter(
+            (child) => child instanceof HTMLElement,
+        );
+        let label = "";
+        let description = "";
+        if (elementChildren.length) {
+            label = (elementChildren[0].textContent || "").trim();
+            for (let i = 1; i < elementChildren.length; i += 1) {
+                const text = (elementChildren[i].textContent || "").trim();
+                if (text) {
+                    description = text;
+                    break;
+                }
+            }
+        }
+        return {
+            label: label || getModelNodeLabel(item) || "",
+            description,
+        };
+    };
+
     const parseModelItems = (menu) => {
         const items = [];
         const seen = new Set();
@@ -2525,7 +2551,7 @@
                 item.getAttribute("aria-disabled") === "true" ||
                 item.matches('[data-disabled="true"]');
             if (disabled) return;
-            const label = getModelNodeLabel(item) || id;
+            const { label, description } = resolveMenuItemTexts(item);
             const hasCheckIcon = !!item.querySelector(
                 '.trailing svg, [data-testid="check-icon"], svg[aria-hidden="false"]',
             );
@@ -2534,7 +2560,7 @@
                 item.getAttribute("aria-checked") === "true" ||
                 item.getAttribute("aria-pressed") === "true" ||
                 hasCheckIcon;
-            items.push({ id, label, selected });
+            items.push({ id, label, description, selected });
         });
         return items;
     };
