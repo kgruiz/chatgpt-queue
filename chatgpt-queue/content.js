@@ -886,40 +886,6 @@
         return rect.width > 0 && rect.height > 0;
     };
 
-    const isElementInteractable = (element) => {
-        if (!(element instanceof HTMLElement)) return false;
-        if (!isElementVisible(element)) return false;
-        if (element.matches?.(":disabled")) return false;
-        if (element.getAttribute("aria-disabled") === "true") return false;
-        return true;
-    };
-
-    const waitForElementInteractable = async (element, timeoutMs = 3000) => {
-        if (!(element instanceof HTMLElement)) return false;
-        const deadline = performance.now() + timeoutMs;
-        while (performance.now() < deadline) {
-            if (isElementInteractable(element)) return true;
-            await sleep(60);
-        }
-        return isElementInteractable(element);
-    };
-
-    const describeElementInteractableState = (element) => {
-        if (!(element instanceof HTMLElement)) return {};
-        const rect = element.getBoundingClientRect();
-        const style = window.getComputedStyle(element);
-        return {
-            width: rect?.width ?? null,
-            height: rect?.height ?? null,
-            top: rect?.top ?? null,
-            left: rect?.left ?? null,
-            display: style?.display || null,
-            visibility: style?.visibility || null,
-            opacity: style?.opacity || null,
-            pointerEvents: style?.pointerEvents || null,
-        };
-    };
-
     const queryModelSwitcherButtons = () =>
         Array.from(
             document.querySelectorAll(
@@ -1042,17 +1008,10 @@
         });
         let openedByUs = false;
         if (!wasOpen) {
-            const interactable = await waitForElementInteractable(button, 3500);
-            if (!interactable) {
-                logModelDebug("useModelMenu:button-not-interactable", {
-                    ...describeElementInteractableState(button),
-                });
-            }
+            openedByUs = true;
             const toggled = setModelSwitcherOpenState(button, true);
-            openedByUs = toggled;
             logModelDebug("useModelMenu:toggle-open", {
                 toggled,
-                forced: !interactable,
             });
             if (!toggled) {
                 return null;
