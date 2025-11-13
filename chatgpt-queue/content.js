@@ -1013,9 +1013,6 @@
             logModelDebug("useModelMenu:toggle-open", {
                 toggled,
             });
-            if (!toggled) {
-                return null;
-            }
         }
         const menu = await waitForModelMenu();
         if (!menu) {
