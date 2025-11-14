@@ -92,6 +92,10 @@
         </svg>`,
     };
 
+    const HEADER_MODEL_SYNC_DEBOUNCE_MS = 150;
+
+    const MODEL_SWITCHER_BUTTON_LOG_INTERVAL_MS = 4000;
+
     const normalizeThinkingOptionId = (value) => {
         if (typeof value !== "string") return null;
         const normalized = value.trim().toLowerCase();
@@ -895,15 +899,35 @@
             ),
         );
 
+    const logModelSwitcherButtonState = (total, visible) => {
+        const now = Date.now();
+        const key = `${total}:${visible}`;
+        if (
+            key === lastModelSwitcherButtonLogKey &&
+            now - lastModelSwitcherButtonLogAt <
+                MODEL_SWITCHER_BUTTON_LOG_INTERVAL_MS
+        ) {
+            return;
+        }
+        lastModelSwitcherButtonLogKey = key;
+        lastModelSwitcherButtonLogAt = now;
+        console.info("[cq][debug] model switcher buttons", {
+            total,
+            visible,
+            timestamp: now,
+        });
+    };
+
     const findPreferredModelSwitcherButton = () => {
         const buttons = queryModelSwitcherButtons();
+        const visible = buttons.filter((btn) => isElementVisible(btn));
+        logModelSwitcherButtonState(buttons.length, visible.length);
         if (!buttons.length) {
             logModelDebug("model switcher button missing", {
                 timestamp: Date.now(),
             });
             return null;
         }
-        const visible = buttons.filter((btn) => isElementVisible(btn));
         if (visible.length) return visible[0];
         return buttons[0];
     };
@@ -912,6 +936,13 @@
         const normalized = normalizeModelId(value);
         return MODEL_ID_ALIASES[normalized] || value;
     };
+
+    const normalizeModelLabelSignature = (value) =>
+        String(value || "")
+            .replace(/chatgpt/gi, "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, " ");
 
     const supportsThinkingForModel = (modelId, label = "") => {
         const canonical = modelId
@@ -922,6 +953,106 @@
             ? label.toLowerCase().includes("thinking")
             : false;
         return canonicalMatches || labelMatches;
+    };
+
+    const scheduleHeaderModelSync = (delay = HEADER_MODEL_SYNC_DEBOUNCE_MS) => {
+        if (headerModelSyncTimer) {
+            window.clearTimeout(headerModelSyncTimer);
+        }
+        headerModelSyncTimer = window.setTimeout(() => {
+            headerModelSyncTimer = 0;
+            void syncCurrentModelFromHeader();
+        }, delay);
+    };
+
+    const findModelMatchByLabelSignature = (signature, models = STATE.models) => {
+        if (!signature || !Array.isArray(models)) return null;
+        return (
+            models.find((model) => {
+                const labelSignature = normalizeModelLabelSignature(model?.label);
+                const descriptionSignature = normalizeModelLabelSignature(
+                    model?.description,
+                );
+                return (
+                    labelSignature === signature ||
+                    (descriptionSignature && descriptionSignature === signature)
+                );
+            }) || null
+        );
+    };
+
+    const syncCurrentModelFromHeader = async () => {
+        if (headerModelSyncInFlight) return;
+        const label = applyHeaderLabelAliases(readCurrentModelLabelFromHeader());
+        const signature = normalizeModelLabelSignature(label);
+        if (!signature) return;
+        if (signature === lastSyncedHeaderLabelSignature && currentModelId) return;
+        headerModelSyncInFlight = true;
+        try {
+            const existingMatch = findModelMatchByLabelSignature(signature);
+            if (existingMatch) {
+                lastSyncedHeaderLabelSignature = signature;
+                if (
+                    normalizeModelId(existingMatch.id) !==
+                        normalizeModelId(currentModelId) ||
+                    (existingMatch.label &&
+                        existingMatch.label !== currentModelLabel)
+                ) {
+                    markModelSelected(existingMatch.id, existingMatch.label || label);
+                    refreshControls();
+                }
+                return;
+            }
+            const models = await ensureModelOptions({ force: true });
+            const selectedMatch =
+                models.find((model) => model.selected) ||
+                findModelMatchByLabelSignature(signature, models);
+            if (selectedMatch) {
+                lastSyncedHeaderLabelSignature = signature;
+                if (
+                    normalizeModelId(selectedMatch.id) !==
+                        normalizeModelId(currentModelId) ||
+                    (selectedMatch.label &&
+                        selectedMatch.label !== currentModelLabel)
+                ) {
+                    markModelSelected(selectedMatch.id, selectedMatch.label);
+                    refreshControls();
+                }
+            }
+        } catch (error) {
+            console.info("[cq][debug] header model sync error", error);
+        } finally {
+            headerModelSyncInFlight = false;
+        }
+    };
+
+    const disconnectModelSwitcherObserver = () => {
+        if (modelSwitcherObserver) {
+            modelSwitcherObserver.disconnect();
+            modelSwitcherObserver = null;
+        }
+        observedModelSwitcherButton = null;
+    };
+
+    const ensureModelSwitcherObserver = () => {
+        const button = findPreferredModelSwitcherButton();
+        if (!button) {
+            disconnectModelSwitcherObserver();
+            return;
+        }
+        if (observedModelSwitcherButton === button) return;
+        disconnectModelSwitcherObserver();
+        observedModelSwitcherButton = button;
+        modelSwitcherObserver = new MutationObserver(() => {
+            scheduleHeaderModelSync();
+        });
+        modelSwitcherObserver.observe(button, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+            characterData: true,
+        });
+        scheduleHeaderModelSync(0);
     };
 
     let currentModelId = null;
@@ -943,6 +1074,17 @@
     let activeModelSubmenu = null;
     let activeModelSubmenuTrigger = null;
     let modelSubmenuCloseTimer = null;
+    let lastModelSwitcherButtonLogKey = "";
+    let lastModelSwitcherButtonLogAt = 0;
+    let lastLoggedMarkModelId = null;
+    let lastLoggedMarkModelLabel = "";
+    let lastLoggedCurrentModelId = "__unset__";
+    let lastLoggedCurrentModelLabel = "__unset__";
+    let modelSwitcherObserver = null;
+    let observedModelSwitcherButton = null;
+    let headerModelSyncTimer = 0;
+    let headerModelSyncInFlight = false;
+    let lastSyncedHeaderLabelSignature = "";
 
     const getModelNodeLabel = (node) => {
         if (!node) return "";
@@ -2725,6 +2867,20 @@
     };
 
     const setCurrentModel = (id, label = "") => {
+        const pendingId = id || null;
+        const pendingLabel = label || "";
+        if (
+            pendingId !== lastLoggedCurrentModelId ||
+            pendingLabel !== lastLoggedCurrentModelLabel
+        ) {
+            console.info("[cq][debug] setCurrentModel", {
+                timestamp: Date.now(),
+                id: pendingId,
+                label: pendingLabel,
+            });
+            lastLoggedCurrentModelId = pendingId;
+            lastLoggedCurrentModelLabel = pendingLabel;
+        }
         currentModelId = id || null;
         if (!id) {
             currentModelLabel = label || "";
@@ -2736,6 +2892,19 @@
 
     const markModelSelected = (id, label = "") => {
         if (!id) return;
+        const labelText = label || "";
+        if (
+            id !== lastLoggedMarkModelId ||
+            labelText !== lastLoggedMarkModelLabel
+        ) {
+            console.info("[cq][debug] markModelSelected", {
+                timestamp: Date.now(),
+                id,
+                label: labelText,
+            });
+            lastLoggedMarkModelId = id;
+            lastLoggedMarkModelLabel = labelText;
+        }
         const canonicalId = applyModelIdAlias(id);
         const targetNormalized = normalizeModelId(canonicalId);
         let found = false;
@@ -3046,10 +3215,21 @@
     const ensureModelOptions = async (options = {}) => {
         if (shouldUseCachedModelList(options)) return STATE.models;
         if (modelsPromise) return modelsPromise;
+        console.info("[cq][debug] ensureModelOptions:start", {
+            timestamp: Date.now(),
+            hasStateModels: Array.isArray(STATE.models)
+                ? STATE.models.length
+                : "unknown",
+            currentModelId,
+            forced: !!options.force,
+        });
         modelsPromise = (async () => {
             const models = await fetchModelOptionsFromMenu();
             modelsPromise = null;
             if (!models.length) {
+                console.info("[cq][debug] ensureModelOptions:menu-empty", {
+                    timestamp: Date.now(),
+                });
                 logModelDebug("menu scrape returned no models; keeping existing list", {
                     existingCount: STATE.models.length,
                 });
@@ -3079,6 +3259,12 @@
             } else if (models.length && !currentModelId) {
                 markModelSelected(models[0].id, models[0].label);
             }
+            console.info("[cq][debug] ensureModelOptions:updated", {
+                timestamp: Date.now(),
+                currentModelId,
+                currentModelLabel,
+                modelCount: models.length,
+            });
             const queueUpdated = applyDefaultModelToQueueIfMissing();
             const newSignature = JSON.stringify(
                 models.map((model) => ({ id: model.id, label: model.label })),
@@ -3090,6 +3276,10 @@
         })().catch((error) => {
             modelsPromise = null;
             console.warn("[cq] Failed to load model list", error);
+            console.info("[cq][debug] ensureModelOptions:error", {
+                timestamp: Date.now(),
+                message: error?.message,
+            });
             logModelDebug("model refresh error", error);
             return STATE.models;
         });
@@ -4201,6 +4391,7 @@
         }
         ensureComposerControls();
         refreshComposerModelLabelButton();
+        ensureModelSwitcherObserver();
         const promptHasContent = hasComposerPrompt();
         const hasQueueItems = STATE.queue.length > 0;
         const showComposerGroup = !promptHasContent || !hasQueueItems;
@@ -5526,12 +5717,28 @@
             supportsThinkingForModel(modelId, modelLabel || currentModelLabel)
                 ? getCurrentThinkingOption()
                 : null;
+        console.info("[cq][debug] queueComposerInput captured", {
+            textPreview: text?.slice(0, 40) || "",
+            attachmentCount: attachments.length,
+            modelId,
+            modelLabel,
+            thinking,
+        });
+
         STATE.queue.push({
             text,
             attachments: attachments.map((attachment) =>
                 cloneAttachment(attachment),
             ),
             model: modelId,
+            modelLabel,
+            thinking,
+        });
+
+        console.info("[cq][debug] queueComposerInput stored entry", {
+            queueSize: STATE.queue.length,
+            lastIndex: STATE.queue.length - 1,
+            modelId,
             modelLabel,
             thinking,
         });
@@ -5911,5 +6118,8 @@
     refreshVisibility();
     load()
         .then(() => ensureModelOptions())
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+            scheduleHeaderModelSync(0);
+        });
 })();
