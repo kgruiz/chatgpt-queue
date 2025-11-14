@@ -940,6 +940,115 @@
         return Array.from(signatures);
     };
 
+    const tokenizeSignature = (signature) => {
+        if (!signature) return [];
+        return signature
+            .split(" ")
+            .map((token) => token.trim())
+            .filter(Boolean);
+    };
+
+    const collectDigitsFromValue = (value) => {
+        if (!value) return [];
+        return (String(value).match(/\d+/g) || []).map((digit) => digit.trim()).filter(Boolean);
+    };
+
+    const buildModelSignatureMeta = (model) => {
+        const labelSignature = normalizeModelLabelSignature(model?.label);
+        const descriptionSignature = normalizeModelLabelSignature(model?.description);
+        const idSignature = normalizeModelLabelSignature(model?.id);
+        const tokens = new Set();
+        [labelSignature, descriptionSignature, idSignature].forEach((signature) => {
+            tokenizeSignature(signature).forEach((token) => tokens.add(token));
+        });
+        const digits = new Set();
+        [labelSignature, descriptionSignature, idSignature, model?.id].forEach((signature) => {
+            collectDigitsFromValue(signature).forEach((digit) => digits.add(digit));
+        });
+        return {
+            labelSignature,
+            descriptionSignature,
+            idSignature,
+            tokens,
+            digits,
+        };
+    };
+
+    const scoreModelSignatureMatch = (
+        headerSignatures,
+        headerTokensList,
+        headerDigits,
+        meta,
+    ) => {
+        let score = 0;
+        headerSignatures.forEach((signature, index) => {
+            if (!signature) return;
+            if (meta.labelSignature && signature === meta.labelSignature) {
+                score = Math.max(score, 140);
+            } else if (meta.descriptionSignature && signature === meta.descriptionSignature) {
+                score = Math.max(score, 135);
+            } else if (meta.idSignature && signature === meta.idSignature) {
+                score = Math.max(score, 130);
+            } else {
+                if (
+                    meta.labelSignature &&
+                    signature.includes(meta.labelSignature) &&
+                    meta.labelSignature.length >= 4
+                ) {
+                    score = Math.max(score, 110);
+                }
+                if (
+                    meta.labelSignature &&
+                    meta.labelSignature.includes(signature) &&
+                    signature.length >= 4
+                ) {
+                    score = Math.max(score, 105);
+                }
+                if (
+                    meta.idSignature &&
+                    signature.includes(meta.idSignature) &&
+                    meta.idSignature.length >= 4
+                ) {
+                    score = Math.max(score, 120);
+                }
+                if (
+                    meta.idSignature &&
+                    meta.idSignature.includes(signature) &&
+                    signature.length >= 4
+                ) {
+                    score = Math.max(score, 115);
+                }
+            }
+            const headerTokens = headerTokensList[index];
+            if (headerTokens.length && meta.tokens.size) {
+                let overlap = 0;
+                headerTokens.forEach((token) => {
+                    if (meta.tokens.has(token)) overlap += 1;
+                });
+                if (overlap) {
+                    const precision = overlap / Math.max(meta.tokens.size, 1);
+                    const recall = overlap / Math.max(headerTokens.length, 1);
+                    const tokenScore = Math.round(80 * (precision * 0.4 + recall * 0.6));
+                    score = Math.max(score, tokenScore);
+                }
+            }
+        });
+
+        if (headerDigits.size) {
+            let digitMatches = 0;
+            headerDigits.forEach((digit) => {
+                if (meta.digits.has(digit)) digitMatches += 1;
+            });
+            if (digitMatches) {
+                score += 5 + digitMatches * 5;
+            } else if (score > 0) {
+                score -= 5;
+            }
+        }
+
+        return score;
+    };
+
     const supportsThinkingForModel = (modelId, label = "") => {
         const canonical = modelId
             ? normalizeModelId(applyModelIdAlias(modelId))
@@ -966,26 +1075,33 @@
             ? signatureInput.filter(Boolean)
             : [signatureInput].filter(Boolean);
         if (!signatures.length || !Array.isArray(models)) return null;
-        return (
-            models.find((model) => {
-                const labelSignature = normalizeModelLabelSignature(model?.label);
-                const descriptionSignature = normalizeModelLabelSignature(
-                    model?.description,
-                );
-                return signatures.some((sig) => {
-                    if (!sig) return false;
-                    return (
-                        labelSignature === sig ||
-                        descriptionSignature === sig ||
-                        (labelSignature &&
-                            (labelSignature.includes(sig) || sig.includes(labelSignature))) ||
-                        (descriptionSignature &&
-                            (descriptionSignature.includes(sig) ||
-                                sig.includes(descriptionSignature)))
-                    );
-                });
-            }) || null
-        );
+        const headerTokensList = signatures.map((signature) => tokenizeSignature(signature));
+        const headerDigits = new Set();
+        signatures.forEach((signature) => {
+            collectDigitsFromValue(signature).forEach((digit) => headerDigits.add(digit));
+        });
+        let bestModel = null;
+        let bestScore = 0;
+        models.forEach((model) => {
+            const meta = buildModelSignatureMeta(model);
+            const score = scoreModelSignatureMatch(
+                signatures,
+                headerTokensList,
+                headerDigits,
+                meta,
+            );
+            if (score > bestScore) {
+                bestScore = score;
+                bestModel = model;
+            } else if (score === bestScore && score > 0 && bestModel) {
+                const currentSelected = !!model.selected;
+                const bestSelected = !!bestModel.selected;
+                if (currentSelected && !bestSelected) {
+                    bestModel = model;
+                }
+            }
+        });
+        return bestScore > 0 ? bestModel : null;
     };
 
     const syncCurrentModelFromHeader = async () => {
