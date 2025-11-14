@@ -93,6 +93,7 @@
     };
 
     const HEADER_MODEL_SYNC_DEBOUNCE_MS = 150;
+    const HEADER_LABEL_SEPARATORS = ["·", "|", "/", "-", "–", "—", "·", ":"];
 
 
     const normalizeThinkingOptionId = (value) => {
@@ -919,9 +920,25 @@
     const normalizeModelLabelSignature = (value) =>
         String(value || "")
             .replace(/chatgpt/gi, "")
+            .replace(/[•·|/:\-–—]+/g, " ")
+            .replace(/\s+/g, " ")
             .trim()
-            .toLowerCase()
-            .replace(/\s+/g, " ");
+            .toLowerCase();
+
+    const extractHeaderLabelSignatures = (label) => {
+        const signatures = new Set();
+        const base = normalizeModelLabelSignature(label);
+        if (base) signatures.add(base);
+        const parts = [label];
+        HEADER_LABEL_SEPARATORS.forEach((sep) => {
+            label.split(sep).forEach((part) => parts.push(part));
+        });
+        parts.forEach((part) => {
+            const sig = normalizeModelLabelSignature(part);
+            if (sig) signatures.add(sig);
+        });
+        return Array.from(signatures);
+    };
 
     const supportsThinkingForModel = (modelId, label = "") => {
         const canonical = modelId
@@ -944,18 +961,29 @@
         }, delay);
     };
 
-    const findModelMatchByLabelSignature = (signature, models = STATE.models) => {
-        if (!signature || !Array.isArray(models)) return null;
+    const findModelMatchByLabelSignature = (signatureInput, models = STATE.models) => {
+        const signatures = Array.isArray(signatureInput)
+            ? signatureInput.filter(Boolean)
+            : [signatureInput].filter(Boolean);
+        if (!signatures.length || !Array.isArray(models)) return null;
         return (
             models.find((model) => {
                 const labelSignature = normalizeModelLabelSignature(model?.label);
                 const descriptionSignature = normalizeModelLabelSignature(
                     model?.description,
                 );
-                return (
-                    labelSignature === signature ||
-                    (descriptionSignature && descriptionSignature === signature)
-                );
+                return signatures.some((sig) => {
+                    if (!sig) return false;
+                    return (
+                        labelSignature === sig ||
+                        descriptionSignature === sig ||
+                        (labelSignature &&
+                            (labelSignature.includes(sig) || sig.includes(labelSignature))) ||
+                        (descriptionSignature &&
+                            (descriptionSignature.includes(sig) ||
+                                sig.includes(descriptionSignature)))
+                    );
+                });
             }) || null
         );
     };
@@ -963,14 +991,16 @@
     const syncCurrentModelFromHeader = async () => {
         if (headerModelSyncInFlight) return;
         const label = applyHeaderLabelAliases(readCurrentModelLabelFromHeader());
-        const signature = normalizeModelLabelSignature(label);
-        if (!signature) return;
-        if (signature === lastSyncedHeaderLabelSignature && currentModelId) return;
+        const signatures = extractHeaderLabelSignatures(label);
+        if (!signatures.length) return;
+        const signatureKey = signatures.join("|");
+        if (signatureKey === lastSyncedHeaderLabelSignature && currentModelId)
+            return;
         headerModelSyncInFlight = true;
         try {
-            const existingMatch = findModelMatchByLabelSignature(signature);
+            const existingMatch = findModelMatchByLabelSignature(signatures);
             if (existingMatch) {
-                lastSyncedHeaderLabelSignature = signature;
+                lastSyncedHeaderLabelSignature = signatureKey;
                 if (
                     normalizeModelId(existingMatch.id) !==
                         normalizeModelId(currentModelId) ||
@@ -982,12 +1012,18 @@
                 }
                 return;
             }
-            const models = await ensureModelOptions({ force: true });
-            const selectedMatch =
-                models.find((model) => model.selected) ||
-                findModelMatchByLabelSignature(signature, models);
+            const cachedModels = await ensureModelOptions();
+            let selectedMatch =
+                cachedModels.find((model) => model.selected) ||
+                findModelMatchByLabelSignature(signatures, cachedModels);
+            if (!selectedMatch) {
+                const refreshedModels = await ensureModelOptions({ force: true });
+                selectedMatch =
+                    refreshedModels.find((model) => model.selected) ||
+                    findModelMatchByLabelSignature(signatures, refreshedModels);
+            }
             if (selectedMatch) {
-                lastSyncedHeaderLabelSignature = signature;
+                lastSyncedHeaderLabelSignature = signatureKey;
                 if (
                     normalizeModelId(selectedMatch.id) !==
                         normalizeModelId(currentModelId) ||
