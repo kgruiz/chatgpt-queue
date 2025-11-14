@@ -94,7 +94,6 @@
 
     const HEADER_MODEL_SYNC_DEBOUNCE_MS = 150;
 
-    const MODEL_SWITCHER_BUTTON_LOG_INTERVAL_MS = 4000;
 
     const normalizeThinkingOptionId = (value) => {
         if (typeof value !== "string") return null;
@@ -899,29 +898,9 @@
             ),
         );
 
-    const logModelSwitcherButtonState = (total, visible) => {
-        const now = Date.now();
-        const key = `${total}:${visible}`;
-        if (
-            key === lastModelSwitcherButtonLogKey &&
-            now - lastModelSwitcherButtonLogAt <
-                MODEL_SWITCHER_BUTTON_LOG_INTERVAL_MS
-        ) {
-            return;
-        }
-        lastModelSwitcherButtonLogKey = key;
-        lastModelSwitcherButtonLogAt = now;
-        console.info("[cq][debug] model switcher buttons", {
-            total,
-            visible,
-            timestamp: now,
-        });
-    };
-
     const findPreferredModelSwitcherButton = () => {
         const buttons = queryModelSwitcherButtons();
         const visible = buttons.filter((btn) => isElementVisible(btn));
-        logModelSwitcherButtonState(buttons.length, visible.length);
         if (!buttons.length) {
             logModelDebug("model switcher button missing", {
                 timestamp: Date.now(),
@@ -1074,8 +1053,6 @@
     let activeModelSubmenu = null;
     let activeModelSubmenuTrigger = null;
     let modelSubmenuCloseTimer = null;
-    let lastModelSwitcherButtonLogKey = "";
-    let lastModelSwitcherButtonLogAt = 0;
     let lastLoggedMarkModelId = null;
     let lastLoggedMarkModelLabel = "";
     let lastLoggedCurrentModelId = "__unset__";
