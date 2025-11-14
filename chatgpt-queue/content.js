@@ -1271,6 +1271,26 @@
             tick();
         });
 
+    const getActiveFocusableElement = () => {
+
+        if (!(document.activeElement instanceof HTMLElement)) return null;
+
+        return document.activeElement;
+    };
+
+    const restoreFocusIfAllowed = (element, guard) => {
+
+        if (!(element instanceof HTMLElement)) return false;
+
+        if (!element.isConnected) return false;
+
+        if (typeof guard === "function" && !guard()) return false;
+
+        element.focus({ preventScroll: true });
+
+        return true;
+    };
+
     const useModelMenu = async (operation) => {
         const button = findPreferredModelSwitcherButton();
         if (!button) {
@@ -1282,6 +1302,10 @@
             wasOpen,
             buttonState: button.getAttribute("aria-expanded"),
         });
+        let previousFocus = getActiveFocusableElement();
+
+        if (previousFocus === button) previousFocus = null;
+
         let openedByUs = false;
         if (!wasOpen) {
             openedByUs = true;
@@ -1313,6 +1337,18 @@
             if (!wasOpen && openedByUs) {
                 logModelDebug("useModelMenu:closing-menu");
                 setModelSwitcherOpenState(button, false);
+                restoreFocusIfAllowed(previousFocus, () => {
+
+                    const active = document.activeElement;
+
+                    if (!(active instanceof HTMLElement)) return true;
+
+                    if (active === button) return true;
+
+                    if (active === document.body) return true;
+
+                    return !!active.closest("[data-radix-menu-content]");
+                });
             }
         }
         return result;
