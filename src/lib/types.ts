@@ -14,3 +14,21 @@ export interface QueueEntry {
   modelLabel: string | null;
   thinking: ThinkingLevel | null;
 }
+
+export type QueuePhase = "idle" | "sending" | "waiting";
+
+export interface QueueModelDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  section?: string;
+  group?: string;
+  groupLabel?: string;
+  order?: number;
+  selected?: boolean;
+}
+
+export interface QueueModelGroupMeta {
+  label: string;
+  order: number;
+}

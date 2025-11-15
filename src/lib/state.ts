@@ -1,4 +1,9 @@
-import type { QueueEntry } from "./types";
+import type {
+  QueueEntry,
+  QueueModelDefinition,
+  QueueModelGroupMeta,
+  QueuePhase,
+} from "./types";
 
 export interface QueueState {
   running: boolean;
@@ -6,13 +11,13 @@ export interface QueueState {
   busy: boolean;
   cooldownMs: number;
   collapsed: boolean;
-  phase: string;
-  models: unknown[];
+  phase: QueuePhase;
+  models: QueueModelDefinition[];
   paused: boolean;
   pauseReason: string;
   pausedAt: number | null;
-  modelSections: unknown[];
-  modelGroups: Record<string, unknown>;
+  modelSections: string[];
+  modelGroups: Record<string, QueueModelGroupMeta>;
 }
 
 export const createInitialState = (): QueueState => ({
