@@ -18,12 +18,14 @@ import { createInitialState } from "../lib/state";
 import {
     CONVERSATION_ID_REGEX,
     LEGACY_STORAGE_KEY,
-    STORAGE_PREFIX,
     encodePathForStorage,
     hostToken,
     resolveConversationIdentifier,
-    storageKeyForIdentifier,
 } from "../lib/storage";
+import {
+    createStorageManager,
+    type PersistedQueueState,
+} from "../lib/storage-manager";
 import { sleep } from "../lib/utils";
 
 export default defineContentScript({
@@ -3684,11 +3686,17 @@ export default defineContentScript({
 
     let saveTimer;
     let hydrated = false; // gate UI visibility until persisted state is loaded
-    let legacyStateMigrated = false;
     let activeConversationIdentifier = resolveConversationIdentifier();
     let dragIndex = null;
     let dragOverItem = null;
     let dragOverPosition = null;
+
+    const storageManager = createStorageManager<PersistedQueueState>({
+        legacyKey: LEGACY_STORAGE_KEY,
+        onError: (type, error) => {
+            console.error(`cq: failed to ${type} persisted state`, error);
+        },
+    });
 
     // Persist ------------------------------------------------------------------
     const applyPersistedState = (snapshot) => {
@@ -3719,29 +3727,8 @@ export default defineContentScript({
         pausedAt: STATE.pausedAt,
     });
 
-    const isContextInvalidatedError = (error) => {
-        const message = typeof error === "string" ? error : error?.message;
-        return (
-            typeof message === "string" &&
-            message.includes("Extension context invalidated")
-        );
-    };
-
     const save = (identifier = activeConversationIdentifier) => {
-        if (!chrome.storage?.local?.set) return;
-        const storageKey = storageKeyForIdentifier(identifier);
-        const payload = persistable();
-        try {
-            chrome.storage.local.set({ [storageKey]: payload }, () => {
-                const error = chrome.runtime?.lastError;
-                if (error && !isContextInvalidatedError(error)) {
-                    console.error("cq: failed to persist state", error);
-                }
-            });
-        } catch (error) {
-            if (isContextInvalidatedError(error)) return;
-            console.error("cq: failed to persist state", error);
-        }
+        storageManager.saveSnapshot(identifier, persistable());
     };
     const scheduleSave = () => {
         if (saveTimer) clearTimeout(saveTimer);
@@ -3832,80 +3819,10 @@ export default defineContentScript({
         save(activeConversationIdentifier);
     };
 
-    const load = (identifier = activeConversationIdentifier) =>
-        new Promise((resolve) => {
-            const finish = (snapshot) => {
-                applyPersistedState(snapshot);
-                resolve();
-            };
-
-            if (!chrome.storage?.local?.get) {
-                finish(null);
-                return;
-            }
-
-            const storageKey = storageKeyForIdentifier(identifier);
-            const keys = legacyStateMigrated
-                ? [storageKey]
-                : [storageKey, LEGACY_STORAGE_KEY];
-
-            try {
-                chrome.storage.local.get(keys, (result = {}) => {
-                    const error = chrome.runtime?.lastError;
-                    if (error && !isContextInvalidatedError(error)) {
-                        console.error("cq: failed to load persisted state", error);
-                    }
-                    let snapshot = result[storageKey];
-                    if (!legacyStateMigrated) {
-                        const legacy = result[LEGACY_STORAGE_KEY];
-                        if (legacy !== undefined) {
-                            legacyStateMigrated = true;
-                            if (!snapshot && legacy) {
-                                snapshot = legacy;
-                                if (chrome.storage?.local?.set) {
-                                    try {
-                                        chrome.storage.local.set(
-                                            { [storageKey]: legacy },
-                                            () => {
-                                                chrome.storage?.local?.remove?.(
-                                                    LEGACY_STORAGE_KEY,
-                                                );
-                                            },
-                                        );
-                                    } catch (setError) {
-                                        if (
-                                            !isContextInvalidatedError(setError)
-                                        ) {
-                                            console.error(
-                                                "cq: failed to migrate legacy state",
-                                                setError,
-                                            );
-                                        }
-                                    }
-                                } else {
-                                    chrome.storage?.local?.remove?.(
-                                        LEGACY_STORAGE_KEY,
-                                    );
-                                }
-                            } else {
-                                chrome.storage?.local?.remove?.(
-                                    LEGACY_STORAGE_KEY,
-                                );
-                            }
-                        } else {
-                            legacyStateMigrated = true;
-                        }
-                    }
-                    finish(snapshot || null);
-                });
-            } catch (error) {
-                if (isContextInvalidatedError(error)) {
-                    finish(null);
-                } else {
-                    console.error("cq: failed to load persisted state", error);
-                    finish(null);
-                }
-            }
+    const loadPersistedState = (identifier = activeConversationIdentifier) =>
+        storageManager.loadSnapshot(identifier).then((snapshot) => {
+            applyPersistedState(snapshot);
+            return snapshot;
         });
 
     // DOM helpers ---------------------------------------------------------------
@@ -5765,7 +5682,7 @@ export default defineContentScript({
         persistActiveConversationState();
         activeConversationIdentifier = nextIdentifier;
         resetStateForNewConversation();
-        load(nextIdentifier)
+        loadPersistedState(nextIdentifier)
             .then(() => ensureModelOptions())
             .catch(() => {});
     };
@@ -5810,7 +5727,7 @@ export default defineContentScript({
     ensureMounted();
     refreshKeyboardShortcutPopover();
     refreshVisibility();
-    load()
+    loadPersistedState()
         .then(() => ensureModelOptions())
         .catch(() => {})
         .finally(() => {

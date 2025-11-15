@@ -106,6 +106,7 @@ Project structure (managed by [WXT](https://wxt.dev/)):
 - `src/lib/queue.ts` - Queue-entry normalization/cloning helpers with thinking-level awareness.
 - `src/lib/storage.ts` - Conversation identifier utilities shared across persistence logic.
 - `src/lib/state.ts` - Factory for the shared queue state object imported across entrypoints.
+- `src/lib/storage-manager.ts` - Chrome storage load/save/migration helpers with typed interfaces.
 - `src/styles/content.css` - Styling for the floating queue and inline buttons; imported by the content entrypoint.
 - `wxt.config.ts` - Single source of truth for the MV3 manifest, permissions, and commands.
 
@@ -115,6 +116,7 @@ Workflow:
 2. Load the generated `.output/<browser>-mv3` folder as an unpacked extension. WXT will keep rebuilding there and trigger reloads.
 3. Keep your edits inside `src/`; WXT rebundles automatically and surfaces type errors via `pnpm typecheck`.
 4. When selectors break, update the relevant helpers (mostly in `src/entrypoints/content.ts`) and rerun `pnpm build` to verify production output.
+5. Run `pnpm test:storage` to exercise the storage-manager harness whenever you change persistence logic.
 
 ## Troubleshooting
 

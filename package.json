@@ -12,6 +12,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "tsc --noEmit",
+    "test:storage": "tsx scripts/storage-manager-harness.ts",
     "postinstall": "wxt prepare"
   },
   "keywords": [
@@ -23,6 +24,8 @@
   "packageManager": "pnpm@10.21.0",
   "devDependencies": {
     "@types/chrome": "^0.1.29",
+    "tsx": "^4.20.6",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "wxt": "^0.20.11"
   }
