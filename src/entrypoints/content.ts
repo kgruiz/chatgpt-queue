@@ -3,15 +3,13 @@
 import "../styles/content.css";
 import { defineContentScript } from "#imports";
 import {
-    attachmentToFile,
+    applyAttachmentsToComposer,
     clearComposerAttachments,
     cloneAttachment,
     collectImagesFromDataTransfer,
     countComposerAttachments,
-    countFilesInInputs,
     gatherComposerAttachments,
     hasImagesInDataTransfer,
-    waitForAttachmentsReady,
 } from "../lib/attachments";
 import { createQueueHelpers } from "../lib/queue";
 import { createInitialState } from "../lib/state";
@@ -34,7 +32,9 @@ import {
     type PersistedQueueState,
 } from "../lib/storage-manager";
 import { sleep } from "../lib/utils";
+import { UI_CLASS } from "../lib/ui/classes";
 import { createQueueShell } from "../lib/ui/header";
+import { createConfirmModal } from "../lib/ui/modal";
 import {
     createAttachmentList,
     createAttachmentPreview,
@@ -76,6 +76,11 @@ export default defineContentScript({
         stop: 'button[data-testid="stop-button"][aria-label="Stop streaming"]',
         composer:
             'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
+    };
+    const CQ_SELECTORS = {
+        row: `.${UI_CLASS.row}`,
+        rowTextarea: `.${UI_CLASS.rowTextarea}`,
+        inlineHeader: `.${UI_CLASS.inlineHeader}`,
     };
     const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
     const QUEUE_COLLAPSE_DURATION_MS = 620;
@@ -2059,11 +2064,13 @@ export default defineContentScript({
         if (!supportsThinkingForModel(entry?.model, entry?.modelLabel))
             return null;
         const container = document.createElement("div");
-        container.className = "cq-row-thinking __composer-pill-composite group relative";
+        container.className = "__composer-pill-composite group relative";
+        container.classList.add(UI_CLASS.rowThinking);
         container.dataset.entryIndex = String(index);
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
-        removeBtn.className = "__composer-pill-remove cq-row-thinking-remove";
+        removeBtn.className = "__composer-pill-remove";
+        removeBtn.classList.add(UI_CLASS.rowThinkingRemove);
         removeBtn.setAttribute("aria-label", "Clear thinking level override");
         removeBtn.hidden = !entry.thinking;
         removeBtn.addEventListener("click", (event) => {
@@ -2074,7 +2081,8 @@ export default defineContentScript({
         });
         const pillButton = document.createElement("button");
         pillButton.type = "button";
-        pillButton.className = "__composer-pill cq-row-thinking-pill group/pill";
+        pillButton.className = "__composer-pill group/pill";
+        pillButton.classList.add(UI_CLASS.rowThinkingPill);
         pillButton.dataset.entryIndex = String(index);
         pillButton.dataset.state = "closed";
         pillButton.setAttribute("aria-haspopup", "menu");
@@ -2813,7 +2821,7 @@ export default defineContentScript({
         const next = isCanvasWorkspaceOpen();
         if (!force && next === canvasModeActive) return;
         canvasModeActive = next;
-        ui.classList.toggle("cq-canvas-mode", canvasModeActive);
+    ui.classList.toggle(UI_CLASS.canvasMode, canvasModeActive);
         refreshPauseLabel();
         queueMicrotask(() => ensureMounted());
     };
@@ -2836,11 +2844,11 @@ export default defineContentScript({
     };
 
     const getQueueRows = () =>
-        Array.from(list?.querySelectorAll?.(".cq-row") || []);
+        Array.from(list?.querySelectorAll?.(CQ_SELECTORS.row) || []);
 
     const focusQueueRow = (row) => {
         if (!(row instanceof HTMLElement)) return false;
-        const textarea = row.querySelector(".cq-row-text");
+        const textarea = row.querySelector(CQ_SELECTORS.rowTextarea);
         if (!(textarea instanceof HTMLTextAreaElement)) return false;
         textarea.focus({ preventScroll: true });
         requestAnimationFrame(() => {
@@ -2871,89 +2879,24 @@ export default defineContentScript({
             const preview = entryPreviewText(entry, index);
             const previousActive = document.activeElement;
 
-            const modalRoot = document.createElement("div");
-            modalRoot.dataset.cqModal = "true";
-            modalRoot.dataset.testid = "cq-delete-followup";
-            modalRoot.className = "absolute inset-0";
-
-            const overlay = document.createElement("div");
-            overlay.dataset.state = "open";
-            overlay.dataset.modalLayer = "overlay";
-            overlay.style.pointerEvents = "auto";
-            overlay.className =
-                "fixed inset-0 z-50 before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] before:transition before:duration-250 dark:before:bg-black/50 before:starting:opacity-0";
-
-            const grid = document.createElement("div");
-            grid.className =
-                "z-50 h-full w-full overflow-y-auto grid grid-cols-[10px_1fr_10px] grid-rows-[minmax(10px,1fr)_auto_minmax(10px,1fr)] md:grid-rows-[minmax(20px,0.8fr)_auto_minmax(20px,1fr)]";
-
-            const dialog = document.createElement("div");
-            dialog.setAttribute("role", "dialog");
-            dialog.setAttribute("aria-modal", "true");
-            dialog.dataset.modalLayer = "content";
-            dialog.dataset.state = "open";
-            dialog.style.pointerEvents = "auto";
-            dialog.className =
-                "popover bg-token-bg-primary relative col-auto col-start-2 row-auto row-start-2 h-full w-full text-start start-1/2 ltr:-translate-x-1/2 rtl:translate-x-1/2 rounded-2xl shadow-long flex flex-col focus:outline-hidden max-w-md overflow-hidden";
-            dialog.tabIndex = -1;
-
-            const header = document.createElement("header");
-            header.className =
-                "min-h-header-height flex justify-between p-2.5 ps-4 select-none";
-            const headerWrap = document.createElement("div");
-            headerWrap.className = "flex max-w-full items-center";
-            const headerTextWrap = document.createElement("div");
-            headerTextWrap.className = "flex max-w-full min-w-0 grow flex-col";
-            const h2 = document.createElement("h2");
-            h2.className = "text-token-text-primary text-lg font-normal";
-            h2.textContent = title;
-            headerTextWrap.appendChild(h2);
-            headerWrap.appendChild(headerTextWrap);
-            header.appendChild(headerWrap);
-            const headerActions = document.createElement("div");
-            headerActions.className = "flex h-[max-content] items-center gap-2";
-            header.appendChild(headerActions);
-
-            const body = document.createElement("div");
-            body.className = "grow overflow-y-auto p-4 pt-1";
             const bodyLine = document.createElement("div");
             bodyLine.textContent = "This will delete ";
             const strong = document.createElement("strong");
             strong.textContent = preview;
             bodyLine.appendChild(strong);
             bodyLine.append(".");
-            body.appendChild(bodyLine);
 
-            const footer = document.createElement("div");
-            footer.className =
-                "grow overflow-y-auto p-4 pt-1 flex flex-col justify-end text-sm select-none";
-            const footerInner = document.createElement("div");
-            footerInner.className = "flex w-full flex-row items-center justify-end";
-            const buttonRow = document.createElement("div");
-            buttonRow.className =
-                "flex flex-col gap-3 sm:flex-row-reverse mt-5 sm:mt-4 flex w-full flex-row-reverse";
-            const confirmBtn = document.createElement("button");
-            confirmBtn.className = "btn relative btn-danger";
-            confirmBtn.type = "button";
-            confirmBtn.dataset.testid = "cq-delete-queue-confirm";
-            confirmBtn.innerHTML =
-                '<div class="flex items-center justify-center">Delete</div>';
-            const cancelBtn = document.createElement("button");
-            cancelBtn.className = "btn relative btn-secondary";
-            cancelBtn.type = "button";
-            cancelBtn.innerHTML =
-                '<div class="flex items-center justify-center">Cancel</div>';
-            buttonRow.append(confirmBtn, cancelBtn);
-            footerInner.appendChild(buttonRow);
-            footer.appendChild(footerInner);
-
-            dialog.append(header, body, footer);
-            grid.appendChild(dialog);
-            overlay.appendChild(grid);
-            modalRoot.appendChild(overlay);
+            const modal = createConfirmModal({
+                title,
+                body: bodyLine,
+                confirmLabel: "Delete",
+                cancelLabel: "Cancel",
+                testId: "cq-delete-followup",
+                confirmTestId: "cq-delete-queue-confirm",
+            });
 
             const cleanup = (result) => {
-                modalRoot.remove();
+                modal.root.remove();
                 document.removeEventListener("keydown", onKeyDown, true);
                 previousActive?.focus?.({ preventScroll: true });
                 resolve(result);
@@ -2966,18 +2909,21 @@ export default defineContentScript({
                 }
             };
 
-            overlay.addEventListener("click", (event) => {
-                if (event.target === overlay || event.target === grid) {
+            modal.overlay.addEventListener("click", (event) => {
+                if (
+                    event.target === modal.overlay ||
+                    event.target === modal.container
+                ) {
                     cleanup(false);
                 }
             });
-            cancelBtn.addEventListener("click", () => cleanup(false));
-            confirmBtn.addEventListener("click", () => cleanup(true));
+            modal.cancelButton.addEventListener("click", () => cleanup(false));
+            modal.confirmButton.addEventListener("click", () => cleanup(true));
 
             document.addEventListener("keydown", onKeyDown, true);
-            document.body.appendChild(modalRoot);
+            document.body.appendChild(modal.root);
             requestAnimationFrame(() => {
-                confirmBtn.focus();
+                modal.confirmButton.focus();
             });
         });
 
@@ -3241,49 +3187,6 @@ export default defineContentScript({
         if (button) button.click();
     }
 
-    async function applyAttachments(attachments) {
-        if (!attachments || attachments.length === 0) return true;
-        if (typeof DataTransfer === "undefined") return false;
-        const root = composer();
-        if (!root) return false;
-        const inputSelector =
-            'input[type="file"][accept*="image"], input[type="file"][accept*="png"], input[type="file"][accept*="jpg"], input[type="file"][accept*="jpeg"], input[type="file"][accept*="webp"], input[type="file"]';
-        let input = root.querySelector(inputSelector);
-        if (!input) {
-            const trigger = root.querySelector(
-                'button[data-testid="file-upload-button"], button[aria-label="Upload files"], button[aria-label="Add file"], button[aria-label="Add files"], button[data-testid="upload-button"]',
-            );
-            if (trigger) {
-                trigger.click();
-                await sleep(60);
-                input = root.querySelector(inputSelector);
-            }
-        }
-        if (!input) return false;
-
-        const baseCount = countComposerAttachments(root);
-        const dataTransfer = new DataTransfer();
-        for (const attachment of attachments) {
-            const file = await attachmentToFile(attachment);
-            if (file) dataTransfer.items.add(file);
-        }
-        if (dataTransfer.items.length === 0) return true;
-
-        try {
-            input.files = dataTransfer.files;
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            await waitForAttachmentsReady(
-                root,
-                baseCount,
-                dataTransfer.items.length,
-            );
-            await sleep(120);
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
     function refreshComposerModelLabelButton() {
         if (!composerModelLabelButton) return;
         if (
@@ -3295,7 +3198,7 @@ export default defineContentScript({
         if (!composerModelLabelButtonValue) {
             composerModelLabelButtonValue =
                 composerModelLabelButton.querySelector(
-                    ".cq-composer-models-btn__value",
+                    `.${UI_CLASS.modelButtonValue}`,
                 );
         }
         const label = resolveCurrentModelButtonValue();
@@ -3407,8 +3310,8 @@ export default defineContentScript({
                 STATE.collapsed ? "Expand queue" : "Collapse queue",
             );
         }
-        if (collapseToggle?.parentElement?.classList.contains("cq-inline-meta")) {
-            const header = collapseToggle.closest(".cq-inline-header");
+        if (collapseToggle?.parentElement?.classList.contains(UI_CLASS.inlineMeta)) {
+            const header = collapseToggle.closest(CQ_SELECTORS.inlineHeader);
             if (header) {
                 header.classList.toggle("is-collapsed", STATE.collapsed);
             }
@@ -3718,7 +3621,7 @@ export default defineContentScript({
 
     function deriveQueueButtonClasses(sendButton) {
         const baseTokens = new Set([
-            "cq-composer-queue-btn",
+            UI_CLASS.composerQueueButton,
             "relative",
             "flex",
             "items-center",
@@ -3818,7 +3721,7 @@ export default defineContentScript({
         if (!composerControlGroup || !composerControlGroup.isConnected) {
             composerControlGroup = document.createElement("div");
             composerControlGroup.id = "cq-composer-controls";
-            composerControlGroup.className = "cq-composer-controls";
+            composerControlGroup.className = UI_CLASS.composerControls;
             composerControlGroup.hidden = true;
         }
 
@@ -3832,7 +3735,7 @@ export default defineContentScript({
             );
             queueBtn.title = "Add to queue";
             queueBtn.innerHTML = `
-        <span class="cq-composer-queue-btn__icon" aria-hidden="true">
+        <span class="${UI_CLASS.composerQueueButtonIcon}" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <rect x="3" y="6" width="14" height="2" rx="1"></rect>
             <rect x="3" y="11" width="14" height="2" rx="1"></rect>
@@ -3852,14 +3755,14 @@ export default defineContentScript({
             const pauseBtn = document.createElement("button");
             pauseBtn.type = "button";
             pauseBtn.id = "cq-composer-hold-btn";
-            pauseBtn.className = "cq-composer-hold-btn";
+            pauseBtn.className = UI_CLASS.composerHoldButton;
             pauseBtn.setAttribute(
                 "aria-label",
                 "Add to queue and pause queue",
             );
             pauseBtn.title = "Add to queue and pause";
             pauseBtn.innerHTML = `
-        <span class="cq-composer-hold-btn__icon" aria-hidden="true">
+        <span class="${UI_CLASS.composerHoldButtonIcon}" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <rect x="3" y="6" width="12" height="2" rx="1"></rect>
             <rect x="3" y="11" width="14" height="2" rx="1"></rect>
@@ -3882,9 +3785,9 @@ export default defineContentScript({
             const button = document.createElement("button");
             button.type = "button";
             button.id = "cq-composer-models-btn";
-            button.className = "cq-composer-models-btn";
+            button.className = UI_CLASS.modelButton;
             const value = document.createElement("span");
-            value.className = "cq-composer-models-btn__value";
+            value.className = UI_CLASS.modelButtonValue;
             value.textContent = resolveCurrentModelButtonValue();
             button.append(value);
             button.addEventListener("click", (event) => {
@@ -3903,7 +3806,7 @@ export default defineContentScript({
             (anchor instanceof HTMLElement ? anchor : null);
         const sharedClasses = deriveQueueButtonClasses(classSource);
         composerQueueButton.className = sharedClasses;
-        composerHoldButton.className = `${sharedClasses} cq-composer-hold-btn`;
+        composerHoldButton.className = `${sharedClasses} ${UI_CLASS.composerHoldButton}`;
 
         if (
             !mountComposerModelLabelBeforeDictate(root) &&
@@ -4460,7 +4363,10 @@ export default defineContentScript({
             return false;
         }
 
-        const attachmentsApplied = await applyAttachments(attachments);
+        const attachmentsApplied = await applyAttachmentsToComposer(
+            root,
+            attachments,
+        );
         if (!attachmentsApplied) {
             restoreEntryAfterSendFailure(index, removed, "attachments");
             return false;
@@ -4504,8 +4410,8 @@ export default defineContentScript({
     function clearDragIndicator() {
         if (dragOverItem) {
             dragOverItem.classList.remove(
-                "cq-row--drop-before",
-                "cq-row--drop-after",
+                UI_CLASS.rowDropBefore,
+                UI_CLASS.rowDropAfter,
             );
         }
         dragOverItem = null;
@@ -4522,8 +4428,7 @@ export default defineContentScript({
     const composerHasAttachments = () => {
         const root = composer();
         if (!root) return false;
-        if (countComposerAttachments(root) > 0) return true;
-        return countFilesInInputs(root) > 0;
+        return countComposerAttachments(root) > 0;
     };
 
     function hasComposerPrompt() {
@@ -4634,7 +4539,7 @@ export default defineContentScript({
     list.addEventListener("dragstart", (event) => {
         const target =
             event.target instanceof HTMLElement
-                ? event.target.closest(".cq-row")
+                ? event.target.closest(CQ_SELECTORS.row)
                 : null;
         if (!target) return;
         const index = Number(target.dataset.index);
@@ -4649,12 +4554,12 @@ export default defineContentScript({
                 /* noop */
             }
         }
-        target.classList.add("cq-row--dragging");
+        target.classList.add(UI_CLASS.rowDragging);
     });
 
     list.addEventListener("dragend", () => {
-        list.querySelector(".cq-row--dragging")?.classList.remove(
-            "cq-row--dragging",
+        list.querySelector(`.${UI_CLASS.rowDragging}`)?.classList.remove(
+            UI_CLASS.rowDragging,
         );
         dragIndex = null;
         clearDragIndicator();
@@ -4666,7 +4571,7 @@ export default defineContentScript({
         if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(".cq-row")
+                ? event.target.closest(CQ_SELECTORS.row)
                 : null;
         if (!item) {
             clearDragIndicator();
@@ -4687,8 +4592,8 @@ export default defineContentScript({
             dragOverPosition = position;
             item.classList.add(
                 position === "before"
-                    ? "cq-row--drop-before"
-                    : "cq-row--drop-after",
+                    ? UI_CLASS.rowDropBefore
+                    : UI_CLASS.rowDropAfter,
             );
         }
     });
@@ -4696,7 +4601,7 @@ export default defineContentScript({
     list.addEventListener("dragleave", (event) => {
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(".cq-row")
+                ? event.target.closest(CQ_SELECTORS.row)
                 : null;
         if (item && item === dragOverItem) clearDragIndicator();
     });
@@ -4707,7 +4612,7 @@ export default defineContentScript({
         let newIndex = dragIndex;
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(".cq-row")
+                ? event.target.closest(CQ_SELECTORS.row)
                 : null;
         if (item) {
             const overIndex = Number(item.dataset.index);
@@ -4838,7 +4743,7 @@ export default defineContentScript({
             const composerNode = composer();
             const activeRow =
                 activeElement instanceof HTMLElement
-                    ? activeElement.closest(".cq-row")
+                    ? activeElement.closest(CQ_SELECTORS.row)
                     : null;
             const withinComposer =
                 composerNode instanceof HTMLElement &&

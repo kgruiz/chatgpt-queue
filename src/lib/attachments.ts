@@ -1,5 +1,5 @@
 import type { Attachment } from "./types";
-import { makeId } from "./utils";
+import { makeId, sleep, throttle } from "./utils";
 
 const DATA_OR_BLOB_URL = /^(data|blob):/i;
 
@@ -21,22 +21,89 @@ const ATTACHMENT_REMOVE_SELECTORS = [
 
 const REMOVE_QUERY = ATTACHMENT_REMOVE_SELECTORS.join(",");
 
+const COMPOSER_INPUT_SELECTOR =
+  'input[type="file"][accept*="image"], input[type="file"][accept*="png"], input[type="file"][accept*="jpg"], input[type="file"][accept*="jpeg"], input[type="file"][accept*="webp"], input[type="file"]';
+
+const UPLOAD_TRIGGER_SELECTOR =
+  'button[data-testid="file-upload-button"], button[aria-label="Upload files"], button[aria-label="Add file"], button[aria-label="Add files"], button[data-testid="upload-button"]';
+
 type ComposerRoot = Document | HTMLElement | null;
 
-const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        resolve(result);
-        return;
-      }
-      reject(new Error("Failed to read file"));
-    };
-    reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
+const hasHTMLElement = typeof HTMLElement !== "undefined";
+const hasHTMLInputElement = typeof HTMLInputElement !== "undefined";
+const hasHTMLImageElement = typeof HTMLImageElement !== "undefined";
+const hasDocument = typeof Document !== "undefined";
+const hasMutationObserver = typeof MutationObserver !== "undefined";
+
+const isHTMLElementNode = (node: unknown): node is HTMLElement =>
+  Boolean(
+    node &&
+      (hasHTMLElement
+        ? node instanceof HTMLElement
+        : typeof (node as Partial<HTMLElement>).querySelector === "function" ||
+            typeof (node as Partial<HTMLElement>).click === "function"),
+  );
+
+const isHTMLInputNode = (node: unknown): node is HTMLInputElement =>
+  Boolean(
+    node &&
+      (hasHTMLInputElement
+        ? node instanceof HTMLInputElement
+        : typeof (node as Partial<HTMLInputElement>).files !== "undefined" &&
+            typeof (node as { dispatchEvent?: unknown }).dispatchEvent === "function"),
+  );
+
+const isHTMLImageNode = (node: unknown): node is HTMLImageElement =>
+  Boolean(
+    node &&
+      (hasHTMLImageElement
+        ? node instanceof HTMLImageElement
+        : typeof (node as Partial<HTMLImageElement>).src === "string"),
+  );
+
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let output = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const chunk =
+      ((bytes[i] ?? 0) << 16) |
+      ((bytes[i + 1] ?? 0) << 8) |
+      (bytes[i + 2] ?? 0);
+    output += alphabet[(chunk >> 18) & 63];
+    output += alphabet[(chunk >> 12) & 63];
+    output += i + 1 < bytes.length ? alphabet[(chunk >> 6) & 63] : "=";
+    output += i + 2 < bytes.length ? alphabet[chunk & 63] : "=";
+  }
+  return output;
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  if (typeof FileReader !== "undefined") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          resolve(result);
+          return;
+        }
+        reject(new Error("Failed to read file"));
+      };
+      reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (typeof file.arrayBuffer === "function") {
+    return file.arrayBuffer().then((buffer) => {
+      const mime = file.type || "image/png";
+      const base64 = bytesToBase64(new Uint8Array(buffer));
+      return `data:${mime};base64,${base64}`;
+    });
+  }
+
+  return Promise.reject(new Error("Failed to read file"));
+};
 
 const mimeFromDataUrl = (dataUrl: string): string => {
   const match = dataUrl.match(/^data:([^;,]+)/i);
@@ -49,7 +116,7 @@ const elementHasQuery = (
   Boolean(root && typeof (root as Document | HTMLElement).querySelectorAll === "function");
 
 const ensureHTMLElement = (node: Element | null): HTMLElement | null =>
-  (node instanceof HTMLElement ? node : null);
+  (isHTMLElementNode(node) ? (node as HTMLElement) : null);
 
 export const normalizeAttachment = (input: unknown): Attachment | null => {
   if (!input || typeof input !== "object") return null;
@@ -164,7 +231,7 @@ export const attachmentToFile = async (
 export const countFilesInInputs = (root: ComposerRoot): number => {
   if (!elementHasQuery(root)) return 0;
   return Array.from(root.querySelectorAll('input[type="file"]')).reduce((total, node) => {
-    if (!(node instanceof HTMLInputElement)) return total;
+    if (!isHTMLInputNode(node)) return total;
     return total + (node.files?.length || 0);
   }, 0);
 };
@@ -195,13 +262,14 @@ const collectPreviewDataUrls = (root: HTMLElement | null): string[] => {
   };
 
   const inspectElement = (element: Element) => {
-    if (!(element instanceof HTMLElement)) return;
-    if (element instanceof HTMLImageElement) {
-      addUrl(element.getAttribute("src"));
+    const htmlElement = ensureHTMLElement(element);
+    if (!htmlElement) return;
+    if (isHTMLImageNode(htmlElement)) {
+      addUrl(htmlElement.getAttribute("src"));
     }
-    extractUrlsFromStyleValue(element.style?.backgroundImage || "").forEach((url) => addUrl(url));
+    extractUrlsFromStyleValue(htmlElement.style?.backgroundImage || "").forEach((url) => addUrl(url));
     try {
-      const computed = getComputedStyle(element);
+      const computed = getComputedStyle(htmlElement);
       extractUrlsFromStyleValue(computed.backgroundImage || "").forEach((url) => addUrl(url));
     } catch {
       // ignore computed style failures
@@ -242,7 +310,7 @@ export const gatherComposerAttachments = async (
   if (!root) return [];
   const attachments: Attachment[] = [];
   const inputs = Array.from(root.querySelectorAll('input[type="file"]')).filter(
-    (input): input is HTMLInputElement => input instanceof HTMLInputElement,
+    (input): input is HTMLInputElement => isHTMLInputNode(input),
   );
 
   for (const input of inputs) {
@@ -280,7 +348,7 @@ export const gatherComposerAttachments = async (
     }
   }
 
-  const previewUrls = collectPreviewDataUrls(root instanceof HTMLElement ? root : null);
+  const previewUrls = collectPreviewDataUrls(isHTMLElementNode(root) ? (root as HTMLElement) : null);
   for (const url of previewUrls) {
     if (!url || seenDataUrls.has(url)) continue;
     if (/^data:/i.test(url)) {
@@ -319,14 +387,14 @@ export const clearComposerAttachments = (root: ComposerRoot): void => {
       const element = ensureHTMLElement(node);
       if (!element) return;
       const removeButton = REMOVE_QUERY ? element.querySelector(REMOVE_QUERY) : null;
-      if (removeButton instanceof HTMLElement) {
+      if (isHTMLElementNode(removeButton)) {
         removeButton.click();
       }
     });
   });
 
   root.querySelectorAll('input[type="file"]').forEach((input) => {
-    if (!(input instanceof HTMLInputElement)) return;
+    if (!isHTMLInputNode(input)) return;
     if (!input.value) return;
     try {
       input.value = "";
@@ -352,25 +420,88 @@ export const waitForAttachmentsReady = (
     let settled = false;
     let observer: MutationObserver | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
+    let cancelThrottled: (() => void) | null = null;
 
     const finish = (result: boolean) => {
       if (settled) return;
       settled = true;
       observer?.disconnect();
       if (poll) clearInterval(poll);
+      cancelThrottled?.();
       resolve(result);
     };
 
-    if (root) {
+    const throttledCheck = throttle(() => {
+      if (countComposerAttachments(root) >= target) finish(true);
+    }, 80);
+    cancelThrottled = () => throttledCheck.cancel();
+
+    const observationTarget =
+      (root && isHTMLElementNode(root) && (root as HTMLElement)) ||
+      (root && hasDocument && root instanceof Document ? root : null);
+
+    if (observationTarget && hasMutationObserver) {
       observer = new MutationObserver(() => {
-        if (countComposerAttachments(root) >= target) finish(true);
+        throttledCheck();
       });
-      observer.observe(root, { childList: true, subtree: true });
+      observer.observe(observationTarget, { childList: true, subtree: true });
     }
 
     poll = setInterval(() => {
-      if (countComposerAttachments(root) >= target) finish(true);
-    }, 150);
+      throttledCheck();
+    }, 180);
 
     setTimeout(() => finish(false), timeoutMs);
   });
+
+export interface ApplyAttachmentsOptions {
+  inputSelector?: string;
+  triggerSelector?: string;
+  settleDelayMs?: number;
+}
+
+export const applyAttachmentsToComposer = async (
+  root: ComposerRoot,
+  attachments: Attachment[] | null | undefined,
+  options: ApplyAttachmentsOptions = {},
+): Promise<boolean> => {
+  if (!root) return false;
+  if (!attachments || attachments.length === 0) return true;
+  if (typeof DataTransfer === "undefined") return false;
+
+  const inputSelector = options.inputSelector || COMPOSER_INPUT_SELECTOR;
+  const triggerSelector = options.triggerSelector || UPLOAD_TRIGGER_SELECTOR;
+  const settleDelayMs = Number.isFinite(options.settleDelayMs)
+    ? Number(options.settleDelayMs)
+    : 120;
+
+  let input = root.querySelector(inputSelector);
+  if (!isHTMLInputNode(input)) {
+    const trigger = root.querySelector(triggerSelector);
+    if (isHTMLElementNode(trigger)) {
+      trigger.click();
+      await sleep(60);
+      input = root.querySelector(inputSelector);
+    }
+  }
+  if (!isHTMLInputNode(input)) return false;
+
+  const dataTransfer = new DataTransfer();
+  for (const attachment of attachments) {
+    const file = await attachmentToFile(attachment);
+    if (file) dataTransfer.items.add(file);
+  }
+  if (dataTransfer.items.length === 0) return true;
+
+  const baseCount = countComposerAttachments(root);
+
+  try {
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitForAttachmentsReady(root, baseCount, dataTransfer.items.length);
+    await sleep(settleDelayMs);
+    return true;
+  } catch {
+    return false;
+  }
+};

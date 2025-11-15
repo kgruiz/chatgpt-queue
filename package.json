@@ -12,8 +12,10 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "tsc --noEmit",
+    "test": "pnpm run typecheck && pnpm run test:storage && pnpm run test:models && pnpm run test:attachments",
     "test:storage": "tsx scripts/storage-manager-harness.ts",
     "test:models": "tsx scripts/model-menu-harness.ts",
+    "test:attachments": "tsx scripts/attachments-harness.ts",
     "postinstall": "wxt prepare"
   },
   "keywords": [
@@ -25,7 +27,6 @@
   "packageManager": "pnpm@10.21.0",
   "devDependencies": {
     "@types/chrome": "^0.1.29",
-    "tsx": "^4.20.6",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "wxt": "^0.20.11"
