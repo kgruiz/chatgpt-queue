@@ -11,9 +11,9 @@ import {
     countFilesInInputs,
     gatherComposerAttachments,
     hasImagesInDataTransfer,
-    normalizeAttachment,
     waitForAttachmentsReady,
 } from "../lib/attachments";
+import { createQueueHelpers } from "../lib/queue";
 import { sleep } from "../lib/utils";
 
 export default defineContentScript({
@@ -128,6 +128,10 @@ export default defineContentScript({
         if (!THINKING_OPTION_ID_SET.has(normalized)) return null;
         return normalized;
     };
+
+    const { normalizeEntry, cloneEntry } = createQueueHelpers(
+        normalizeThinkingOptionId,
+    );
 
     const labelForThinkingOption = (id, fallback = DEFAULT_THINKING_OPTION_LABEL) => {
         const normalized = normalizeThinkingOptionId(id);
@@ -437,52 +441,6 @@ export default defineContentScript({
             setTimeout(() => refreshKeyboardShortcutPopover(), delay);
         });
     }
-
-    const normalizeEntry = (entry) => {
-        if (typeof entry === "string")
-            return {
-                text: entry,
-                attachments: [],
-                model: null,
-                modelLabel: null,
-                thinking: null,
-            };
-        if (!entry || typeof entry !== "object")
-            return {
-                text: String(entry ?? ""),
-                attachments: [],
-                model: null,
-                modelLabel: null,
-                thinking: null,
-            };
-        const text =
-            typeof entry.text === "string"
-                ? entry.text
-                : String(entry.text ?? "");
-        const attachments = Array.isArray(entry.attachments)
-            ? entry.attachments
-                  .map((item) => normalizeAttachment(item))
-                  .filter(Boolean)
-            : [];
-        const model =
-            typeof entry.model === "string" && entry.model ? entry.model : null;
-        const modelLabel =
-            typeof entry.modelLabel === "string" && entry.modelLabel
-                ? entry.modelLabel
-                : null;
-        const thinking = normalizeThinkingOptionId(entry.thinking);
-        return { text, attachments, model, modelLabel, thinking };
-    };
-
-    const cloneEntry = (entry) => ({
-        text: entry.text,
-        attachments: Array.isArray(entry.attachments)
-            ? entry.attachments.map((att) => cloneAttachment(att))
-            : [],
-        model: entry.model || null,
-        modelLabel: entry.modelLabel || null,
-        thinking: normalizeThinkingOptionId(entry.thinking) || null,
-    });
 
     const escapeCss = (value) => {
         const str = String(value ?? "");
