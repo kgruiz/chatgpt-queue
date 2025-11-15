@@ -13,6 +13,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "tsc --noEmit",
     "test:storage": "tsx scripts/storage-manager-harness.ts",
+    "test:models": "tsx scripts/model-menu-harness.ts",
     "postinstall": "wxt prepare"
   },
   "keywords": [
