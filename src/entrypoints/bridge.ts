@@ -1,4 +1,8 @@
-(() => {
+// @ts-nocheck
+
+import { defineUnlistedScript } from "#imports";
+
+export default defineUnlistedScript(() => {
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
     const msg = e.data;
@@ -82,4 +86,4 @@
       window.postMessage({ type: 'CQ_SET_PROMPT_DONE' }, '*');
     }
   }, false);
-})();
+});

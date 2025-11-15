@@ -22,18 +22,18 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 
 ### Chromium browsers (Chrome 133+, Edge, Brave, Arc)
 
-1. Clone or download this repository.
-2. Open `chrome://extensions` (Arc/Brave/Edge will redirect automatically) and switch **Developer mode** on.
-3. Click **Load unpacked** and choose the nested `chatgpt-queue/` directory.
-4. Keep Developer mode enabled so the unpacked extension stays active.
+1. Clone or download this repository, then run `pnpm install`.
+2. Launch the WXT dev server with `pnpm dev`. It rebuilds to `.output/chrome-mv3` whenever you save.
+3. Open `chrome://extensions` (Arc/Brave/Edge redirect automatically), enable **Developer mode**, then click **Load unpacked** and point at `.output/chrome-mv3`.
+4. Keep Developer mode enabled so the unpacked extension stays active. When you're ready to package, run `pnpm build` (or `pnpm zip`) and load the freshly built `.output/chrome-mv3` bundle.
 
 > Note: Chrome 133+ and its siblings now disable unpacked extensions unless Developer Mode remains on. Google announced the policy change in the [December 20, 2024 Chromium Extensions PSA](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/cTdMVtxxooY), so make sure that toggle stays enabled while you develop or run chatgpt-queue.
 
 ### Firefox (temporary add-on)
 
-1. Open `about:debugging`.
-2. Select **This Firefox** -> **Load Temporary Add-on...**.
-3. Choose `manifest.json`.
+1. Run `pnpm install` followed by `pnpm build:firefox` (or `pnpm dev:firefox` for a watch build). WXT writes to `.output/firefox-mv3`.
+2. Open `about:debugging`.
+3. Select **This Firefox** -> **Load Temporary Add-on...** and choose `manifest.json` from `.output/firefox-mv3`.
 4. If your Firefox build lacks MV3 service workers, edit the manifest first so the background section uses `"scripts": ["bg.js"]`.
 
 ## Usage
@@ -97,19 +97,20 @@ All queue content, attachments, and the paused/collapsed state live in `chrome.s
 
 ## Development
 
-Project structure:
+Project structure (managed by [WXT](https://wxt.dev/)):
 
-- `chatgpt-queue/manifest.json` - MV3 manifest and permissions.
-- `chatgpt-queue/bg.js` - Background service worker relaying keyboard commands and toolbar clicks.
-- `chatgpt-queue/content.js` - Queue UI, automation logic, attachment handling, and model selection.
-- `chatgpt-queue/bridge.js` - ProseMirror helper that reliably replaces the ChatGPT composer content.
-- `chatgpt-queue/styles.css` - Styling for the floating queue and inline buttons.
+- `src/entrypoints/content.ts` - Queue UI, automation logic, attachment handling, and model selection.
+- `src/entrypoints/background.ts` - Background service worker relaying keyboard commands and toolbar clicks.
+- `src/entrypoints/bridge.ts` - ProseMirror helper injected into the page's main world for reliable composer edits.
+- `src/styles/content.css` - Styling for the floating queue and inline buttons; imported by the content entrypoint.
+- `wxt.config.ts` - Single source of truth for the MV3 manifest, permissions, and commands.
 
 Workflow:
 
-1. Make your edits inside the `chatgpt-queue/` directory.
-2. Visit `chrome://extensions`, click **Reload** on the unpacked entry, and refresh your ChatGPT tab.
-3. Watch DevTools for selector warnings if the ChatGPT UI changes; update `SEL.*` in `content.js` whenever necessary.
+1. Install dependencies once with `pnpm install`, then run `pnpm dev` (or `pnpm dev:firefox`) to start WXT's watch/build loop.
+2. Load the generated `.output/<browser>-mv3` folder as an unpacked extension. WXT will keep rebuilding there and trigger reloads.
+3. Keep your edits inside `src/`; WXT rebundles automatically and surfaces type errors via `pnpm typecheck`.
+4. When selectors break, update the relevant helpers (mostly in `src/entrypoints/content.ts`) and rerun `pnpm build` to verify production output.
 
 ## Troubleshooting
 

@@ -1,3 +1,16 @@
+// @ts-nocheck
+
+import "../styles/content.css";
+import { defineContentScript } from "#imports";
+
+export default defineContentScript({
+    matches: [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+    ],
+    runAt: "document_idle",
+    cssInjectionMode: "manifest",
+    main() {
 (() => {
     const STATE = {
         running: false,
@@ -6247,4 +6260,6 @@
         .finally(() => {
             scheduleHeaderModelSync(0);
         });
-})();
+    })();
+    },
+});
