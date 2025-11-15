@@ -1030,6 +1030,8 @@
                     const recall = overlap / Math.max(headerTokens.length, 1);
                     const tokenScore = Math.round(80 * (precision * 0.4 + recall * 0.6));
                     score = Math.max(score, tokenScore);
+                } else {
+                    score -= 20;
                 }
             }
         });
