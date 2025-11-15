@@ -16,6 +16,12 @@ import {
 import { createQueueHelpers } from "../lib/queue";
 import { createInitialState } from "../lib/state";
 import {
+    enqueueQueueEntry,
+    removeQueueEntry,
+    reorderQueueEntry,
+    setQueuePauseState,
+} from "../lib/state/queue";
+import {
     CONVERSATION_ID_REGEX,
     LEGACY_STORAGE_KEY,
     encodePathForStorage,
@@ -3650,9 +3656,8 @@ export default defineContentScript({
         });
 
     const deleteQueueEntry = (index) => {
-        if (!Number.isInteger(index)) return false;
-        if (index < 0 || index >= STATE.queue.length) return false;
-        STATE.queue.splice(index, 1);
+        const removed = removeQueueEntry(STATE, index);
+        if (!removed) return false;
         save();
         refreshAll();
         return true;
@@ -4119,24 +4124,11 @@ export default defineContentScript({
         }
     }
 
-    const normalizePauseReason = (value) =>
-        typeof value === "string" ? value.trim() : "";
-
     function setPaused(next, { reason } = {}) {
-        const target = !!next;
-        const normalizedReason = target ? normalizePauseReason(reason) : "";
-        const alreadyMatched =
-            STATE.paused === target &&
-            (target ? STATE.pauseReason === normalizedReason : true);
-        if (alreadyMatched) return;
-        STATE.paused = target;
+        const result = setQueuePauseState(STATE, next, { reason });
+        if (!result.changed) return;
         if (STATE.paused) {
-            STATE.pauseReason = normalizedReason;
-            STATE.pausedAt = Date.now();
             cancelAutoDispatch();
-        } else {
-            STATE.pauseReason = "";
-            STATE.pausedAt = null;
         }
         refreshControls();
         save();
@@ -5268,9 +5260,7 @@ export default defineContentScript({
     }
 
     function moveItem(from, to) {
-        if (to < 0 || to >= STATE.queue.length || from === to) return;
-        const [entry] = STATE.queue.splice(from, 1);
-        STATE.queue.splice(to, 0, entry);
+        if (!reorderQueueEntry(STATE, from, to)) return;
         save();
         refreshAll();
     }
@@ -5336,7 +5326,7 @@ export default defineContentScript({
             thinking,
         });
 
-        STATE.queue.push({
+        const entryIndex = enqueueQueueEntry(STATE, {
             text,
             attachments: attachments.map((attachment) =>
                 cloneAttachment(attachment),
@@ -5348,7 +5338,7 @@ export default defineContentScript({
 
         console.info("[cq][debug] queueComposerInput stored entry", {
             queueSize: STATE.queue.length,
-            lastIndex: STATE.queue.length - 1,
+            lastIndex: entryIndex,
             modelId,
             modelLabel,
             thinking,
