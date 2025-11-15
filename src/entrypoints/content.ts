@@ -15,6 +15,7 @@ import {
 } from "../lib/attachments";
 import { createQueueHelpers } from "../lib/queue";
 import { createInitialState } from "../lib/state";
+import { createQueueStateEmitter } from "../lib/state/events";
 import {
     enqueueQueueEntry,
     removeQueueEntry,
@@ -44,6 +45,18 @@ export default defineContentScript({
     main() {
 (() => {
     const STATE = createInitialState();
+    const STATE_EVENTS = createQueueStateEmitter(STATE);
+
+    const emitStateChange = (
+        reason = "state:change",
+        detail,
+    ) => {
+        STATE_EVENTS.emit(reason, detail);
+    };
+
+    STATE_EVENTS.subscribe(() => {
+        refreshAll();
+    });
     const SEL = {
         editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
         send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',
@@ -2980,8 +2993,12 @@ export default defineContentScript({
         const newSignature = JSON.stringify(
             STATE.models.map((model) => ({ id: model.id, label: model.label })),
         );
-        if (queueUpdated || newSignature !== previousSignature) {
-            refreshAll();
+        const signatureChanged = newSignature !== previousSignature;
+        if (queueUpdated || signatureChanged) {
+            emitStateChange("models:update", {
+                queueUpdated,
+                signatureChanged,
+            });
         } else {
             refreshControls();
         }
@@ -3659,7 +3676,7 @@ export default defineContentScript({
         const removed = removeQueueEntry(STATE, index);
         if (!removed) return false;
         save();
-        refreshAll();
+        emitStateChange("queue:delete", { index });
         return true;
     };
 
@@ -3718,7 +3735,7 @@ export default defineContentScript({
             typeof cq?.pauseReason === "string" ? cq.pauseReason : "";
         STATE.pausedAt =
             typeof cq?.pausedAt === "number" ? cq.pausedAt : null;
-        refreshAll();
+        emitStateChange("state:hydrate");
         hydrated = true;
         refreshVisibility();
     };
@@ -3775,7 +3792,7 @@ export default defineContentScript({
             if (entry.thinking) {
                 entry.thinking = null;
                 scheduleSave();
-                refreshAll();
+                emitStateChange("queue:entry-thinking-reset", { index });
             }
             return;
         }
@@ -3785,7 +3802,10 @@ export default defineContentScript({
         entry.thinking = nextValue;
         scheduleSave();
         closeThinkingDropdown();
-        refreshAll();
+        emitStateChange("queue:entry-thinking", {
+            index,
+            value: nextValue,
+        });
     };
 
     const applyModelSelectionToEntry = (index, model) => {
@@ -3798,8 +3818,11 @@ export default defineContentScript({
         if (!supportsThinkingForModel(entry.model, entry.modelLabel)) {
             entry.thinking = null;
         }
-        refreshAll();
         scheduleSave();
+        emitStateChange("queue:entry-model", {
+            index,
+            modelId: entry.model,
+        });
     };
 
     const openQueueEntryModelDropdown = async (index, anchor) => {
@@ -4187,7 +4210,7 @@ export default defineContentScript({
         STATE.busy = false;
         STATE.phase = "idle";
         hydrated = false;
-        refreshAll();
+        emitStateChange("state:reset");
     };
 
     function shouldAutoDispatch() {
@@ -4656,7 +4679,10 @@ export default defineContentScript({
             }
         });
         save();
-        refreshAll();
+        emitStateChange("queue:attachments-add", {
+            index,
+            added: attachments.length,
+        });
     }
 
     function removeEntryAttachment(index, id) {
@@ -4668,7 +4694,7 @@ export default defineContentScript({
         if (next.length !== entry.attachments.length) {
             entry.attachments = next;
             save();
-            refreshAll();
+            emitStateChange("queue:attachments-remove", { index, id });
         }
     }
 
@@ -5141,6 +5167,15 @@ export default defineContentScript({
         return false;
     }
 
+    const restoreEntryAfterSendFailure = (index, entry, stage) => {
+        if (!entry) return;
+        STATE.busy = false;
+        STATE.phase = "idle";
+        STATE.queue.splice(index, 0, entry);
+        emitStateChange("queue:send-error", { index, stage });
+        save();
+    };
+
     async function sendFromQueue(index, { allowWhilePaused = false } = {}) {
         if (STATE.busy) return false;
         if (STATE.paused && !allowWhilePaused) return false;
@@ -5177,16 +5212,12 @@ export default defineContentScript({
         STATE.busy = true;
         STATE.phase = "sending";
         save();
-        refreshAll();
+        emitStateChange("queue:send-start", { index });
 
         if (desiredModel) {
             const modelApplied = await ensureModel(desiredModel);
             if (!modelApplied) {
-                STATE.busy = false;
-                STATE.phase = "idle";
-                STATE.queue.splice(index, 0, removed);
-                refreshAll();
-                save();
+                restoreEntryAfterSendFailure(index, removed, "model");
                 return false;
             }
         }
@@ -5194,42 +5225,26 @@ export default defineContentScript({
         if (desiredThinking) {
             const thinkingApplied = await selectThinkingTimeOption(desiredThinking);
             if (!thinkingApplied) {
-                STATE.busy = false;
-                STATE.phase = "idle";
-                STATE.queue.splice(index, 0, removed);
-                refreshAll();
-                save();
+                restoreEntryAfterSendFailure(index, removed, "thinking");
                 return false;
             }
         }
 
         const textSet = await setPrompt(promptText);
         if (!textSet) {
-            STATE.busy = false;
-            STATE.phase = "idle";
-            STATE.queue.splice(index, 0, removed);
-            refreshAll();
-            save();
+            restoreEntryAfterSendFailure(index, removed, "prompt");
             return false;
         }
 
         const attachmentsApplied = await applyAttachments(attachments);
         if (!attachmentsApplied) {
-            STATE.busy = false;
-            STATE.phase = "idle";
-            STATE.queue.splice(index, 0, removed);
-            refreshAll();
-            save();
+            restoreEntryAfterSendFailure(index, removed, "attachments");
             return false;
         }
 
         const readyToSend = await waitForSendReady();
         if (!readyToSend) {
-            STATE.busy = false;
-            STATE.phase = "idle";
-            STATE.queue.splice(index, 0, removed);
-            refreshAll();
-            save();
+            restoreEntryAfterSendFailure(index, removed, "ready");
             return false;
         }
 
@@ -5239,11 +5254,7 @@ export default defineContentScript({
 
         const launched = await waitForSendLaunch();
         if (!launched) {
-            STATE.busy = false;
-            STATE.phase = "idle";
-            STATE.queue.splice(index, 0, removed);
-            refreshAll();
-            save();
+            restoreEntryAfterSendFailure(index, removed, "launch");
             return false;
         }
 
@@ -5251,6 +5262,7 @@ export default defineContentScript({
 
         STATE.busy = false;
         STATE.phase = "idle";
+        emitStateChange("queue:send-complete", { index });
         refreshControls();
         save();
         if (STATE.queue.length === 0) {
@@ -5262,7 +5274,7 @@ export default defineContentScript({
     function moveItem(from, to) {
         if (!reorderQueueEntry(STATE, from, to)) return;
         save();
-        refreshAll();
+        emitStateChange("queue:reorder", { from, to });
     }
 
     function clearDragIndicator() {
@@ -5349,7 +5361,7 @@ export default defineContentScript({
         ed.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
         ed.dispatchEvent(new Event("input", { bubbles: true }));
         save();
-        refreshAll();
+        emitStateChange("queue:enqueue", { index: entryIndex });
         requestAnimationFrame(() => {
             list.scrollTop = list.scrollHeight;
         });
