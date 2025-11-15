@@ -1124,15 +1124,38 @@
         if (headerModelSyncInFlight) return;
         const label = applyHeaderLabelAliases(readCurrentModelLabelFromHeader());
         const signatures = extractHeaderLabelSignatures(label);
+        const signatureKey = signatures.join("|");
         logModelSyncEvent("start", {
             label,
             signatureCount: signatures.length,
         });
+        const overrideMatch = findHeaderLabelModelOverride(label);
+        if (overrideMatch) {
+            lastSyncedHeaderLabelSignature = signatureKey;
+            logModelSyncEvent("override-match", {
+                overrideId: overrideMatch.id,
+                overrideLabel: overrideMatch.label || null,
+                signatureKey,
+            });
+            if (
+                normalizeModelId(overrideMatch.id) !==
+                    normalizeModelId(currentModelId) ||
+                (overrideMatch.label &&
+                    overrideMatch.label !== currentModelLabel)
+            ) {
+                markModelSelected(overrideMatch.id, overrideMatch.label);
+                refreshControls();
+            } else {
+                logModelSyncEvent("override-match-unchanged", {
+                    overrideId: overrideMatch.id,
+                });
+            }
+            return;
+        }
         if (!signatures.length) {
             logModelSyncEvent("no-signatures", { label });
             return;
         }
-        const signatureKey = signatures.join("|");
         if (signatureKey === lastSyncedHeaderLabelSignature && currentModelId) {
             logModelSyncEvent("skip-unchanged", {
                 signatureKey,
@@ -1957,6 +1980,53 @@
         );
         if (alias) return alias.display;
         return trimmed;
+    };
+
+    const HEADER_LABEL_MODEL_MAP = [
+        {
+            signature: "5.1 instant",
+            modelId: "gpt-5-1-instant",
+            label: "Instant",
+        },
+        {
+            signature: "5.1 thinking",
+            modelId: "gpt-5-1-thinking",
+            label: "Thinking",
+        },
+        {
+            signature: "5.1 auto",
+            modelId: "gpt-5-1",
+            label: "Auto",
+        },
+        {
+            signature: "5 instant",
+            modelId: "gpt-5-instant",
+            label: "GPT-5 Instant",
+        },
+        {
+            signature: "5 thinking mini",
+            modelId: "gpt-5-t-mini",
+            label: "GPT-5 Thinking mini",
+        },
+    ];
+
+    const findHeaderLabelModelOverride = (label) => {
+        const signature = normalizeModelLabelSignature(label);
+        if (!signature) return null;
+        const entry = HEADER_LABEL_MODEL_MAP.find((item) => {
+            if (typeof item.test === "function") {
+                return item.test(signature);
+            }
+            if (item.signature) {
+                return item.signature === signature;
+            }
+            return false;
+        });
+        if (!entry) return null;
+        return {
+            id: entry.modelId,
+            label: entry.label || label,
+        };
     };
 
     const readCurrentModelLabelFromHeader = () => {
