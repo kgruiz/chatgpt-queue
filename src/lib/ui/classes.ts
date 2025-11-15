@@ -16,6 +16,7 @@ export const UI_CLASS = {
   queueList: "cq-queue",
   row: "cq-row",
   rowNext: "cq-row--next",
+  rowShadow: "shadow-short",
   rowIndicator: "cq-row-indicator",
   rowBody: "cq-row-body",
   rowTextarea: "cq-row-text",
@@ -25,6 +26,11 @@ export const UI_CLASS = {
   mediaThumb: "cq-media__thumb",
   mediaMeta: "cq-media__meta",
   mediaRemove: "cq-media__remove",
+  iconButton: "cq-icon-btn",
+  iconButtonSend: "cq-icon-btn--send",
+  iconButtonDelete: "cq-icon-btn--delete",
+  modelButton: "cq-composer-models-btn",
+  modelButtonValue: "cq-composer-models-btn__value",
 } as const;
 
 export type UIClassKey = keyof typeof UI_CLASS;
