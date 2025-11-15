@@ -14,6 +14,7 @@ import {
     waitForAttachmentsReady,
 } from "../lib/attachments";
 import { createQueueHelpers } from "../lib/queue";
+import { createInitialState } from "../lib/state";
 import {
     CONVERSATION_ID_REGEX,
     LEGACY_STORAGE_KEY,
@@ -34,20 +35,7 @@ export default defineContentScript({
     cssInjectionMode: "manifest",
     main() {
 (() => {
-    const STATE = {
-        running: false,
-        queue: [],
-        busy: false,
-        cooldownMs: 900,
-        collapsed: false,
-        phase: "idle",
-        models: [],
-        paused: false,
-        pauseReason: "",
-        pausedAt: null,
-        modelSections: [],
-        modelGroups: {},
-    };
+    const STATE = createInitialState();
     const SEL = {
         editor: '#prompt-textarea.ProseMirror[contenteditable="true"]',
         send: 'button[data-testid="send-button"], #composer-submit-button[aria-label="Send prompt"]',

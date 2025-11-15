@@ -105,6 +105,7 @@ Project structure (managed by [WXT](https://wxt.dev/)):
 - `src/lib/attachments.ts` - Attachment normalization, gathering, and cleanup helpers shared by queue logic.
 - `src/lib/queue.ts` - Queue-entry normalization/cloning helpers with thinking-level awareness.
 - `src/lib/storage.ts` - Conversation identifier utilities shared across persistence logic.
+- `src/lib/state.ts` - Factory for the shared queue state object imported across entrypoints.
 - `src/styles/content.css` - Styling for the floating queue and inline buttons; imported by the content entrypoint.
 - `wxt.config.ts` - Single source of truth for the MV3 manifest, permissions, and commands.
 
