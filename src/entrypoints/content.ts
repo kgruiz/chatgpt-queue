@@ -14,6 +14,15 @@ import {
     waitForAttachmentsReady,
 } from "../lib/attachments";
 import { createQueueHelpers } from "../lib/queue";
+import {
+    CONVERSATION_ID_REGEX,
+    LEGACY_STORAGE_KEY,
+    STORAGE_PREFIX,
+    encodePathForStorage,
+    hostToken,
+    resolveConversationIdentifier,
+    storageKeyForIdentifier,
+} from "../lib/storage";
 import { sleep } from "../lib/utils";
 
 export default defineContentScript({
@@ -235,44 +244,6 @@ export default defineContentScript({
         arrowup: { glyph: "↑", aria: "Arrow Up" },
         arrowdown: { glyph: "↓", aria: "Arrow Down" },
     };
-
-    const LEGACY_STORAGE_KEY = "cq";
-    const STORAGE_PREFIX = "cq:";
-    const CONVERSATION_ID_REGEX = /\/c\/([0-9a-f-]+)/i;
-
-    const hostToken = () => {
-        if (
-            typeof location === "object" &&
-            typeof location.host === "string" &&
-            location.host
-        ) {
-            return location.host.toLowerCase();
-        }
-        return "chatgpt.com";
-    };
-
-    const encodePathForStorage = (value) => {
-        if (typeof value !== "string" || value.length === 0) return "%2F";
-        return encodeURIComponent(value);
-    };
-
-    const resolveConversationIdentifier = () => {
-        const host = hostToken();
-        const pathname =
-            typeof location === "object" &&
-            typeof location.pathname === "string" &&
-            location.pathname.length
-                ? location.pathname
-                : "/";
-        const match = pathname.match(CONVERSATION_ID_REGEX);
-        if (match && match[1]) {
-            return `${host}::chat::${match[1].toLowerCase()}`;
-        }
-        return `${host}::path::${encodePathForStorage(pathname)}`;
-    };
-
-    const storageKeyForIdentifier = (identifier) =>
-        `${STORAGE_PREFIX}${identifier || "global"}`;
 
     const resolveShortcutKeys = (entry) => {
         const keys = isApplePlatform ? entry.macKeys : entry.otherKeys;

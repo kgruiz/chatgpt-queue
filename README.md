@@ -102,6 +102,9 @@ Project structure (managed by [WXT](https://wxt.dev/)):
 - `src/entrypoints/content.ts` - Queue UI, automation logic, attachment handling, and model selection.
 - `src/entrypoints/background.ts` - Background service worker relaying keyboard commands and toolbar clicks.
 - `src/entrypoints/bridge.ts` - ProseMirror helper injected into the page's main world for reliable composer edits.
+- `src/lib/attachments.ts` - Attachment normalization, gathering, and cleanup helpers shared by queue logic.
+- `src/lib/queue.ts` - Queue-entry normalization/cloning helpers with thinking-level awareness.
+- `src/lib/storage.ts` - Conversation identifier utilities shared across persistence logic.
 - `src/styles/content.css` - Styling for the floating queue and inline buttons; imported by the content entrypoint.
 - `wxt.config.ts` - Single source of truth for the MV3 manifest, permissions, and commands.
 
