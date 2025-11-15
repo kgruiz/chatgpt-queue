@@ -853,9 +853,6 @@
         "gpt5-mini": "gpt-5-t-mini",
     };
 
-    const MODEL_LIST_CACHE_MAX_MS = 90 * 1000;
-    let lastModelFetchAt = 0;
-    let lastModelFetchSource = null;
 
     const isModelDebugEnabled = () => {
         try {
@@ -1271,7 +1268,6 @@
 
     let currentModelId = null;
     let currentModelLabel = "";
-    let modelsPromise = null;
     let composerControlGroup = null;
     let composerQueueButton = null;
     let composerHoldButton = null;
@@ -1981,6 +1977,81 @@
         if (alias) return alias.display;
         return trimmed;
     };
+
+    const STATIC_MODEL_DEFINITIONS = [
+        {
+            id: "gpt-5-1",
+            label: "Auto",
+            description: "Decides how long to think",
+            section: "GPT-5.1",
+        },
+        {
+            id: "gpt-5-1-instant",
+            label: "Instant",
+            description: "Answers right away",
+            section: "GPT-5.1",
+        },
+        {
+            id: "gpt-5-1-thinking",
+            label: "Thinking",
+            description: "Thinks longer for better answers",
+            section: "GPT-5.1",
+        },
+        {
+            id: "gpt-5-pro",
+            label: "Pro",
+            description: "Research-grade intelligence",
+            section: "GPT-5",
+        },
+        {
+            id: "gpt-5-instant",
+            label: "GPT-5 Instant",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "gpt-5-t-mini",
+            label: "GPT-5 Thinking mini",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "gpt-5-thinking",
+            label: "GPT-5 Thinking",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "gpt-4o",
+            label: "GPT-4o",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "gpt-4-1",
+            label: "GPT-4.1",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "gpt-4-5",
+            label: "GPT-4.5",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "o3",
+            label: "o3",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+        {
+            id: "o4-mini",
+            label: "o4-mini",
+            group: "legacy",
+            groupLabel: "Legacy models",
+        },
+    ];
 
     const HEADER_LABEL_MODEL_MAP = [
         {
@@ -3242,204 +3313,6 @@
         return updated;
     };
 
-    const resolveMenuItemTexts = (item) => {
-        if (!(item instanceof HTMLElement)) {
-            return { label: "", description: "" };
-        }
-        const contentRoot = item.querySelector(".min-w-0") || item;
-        const elementChildren = Array.from(contentRoot.children).filter(
-            (child) => child instanceof HTMLElement,
-        );
-        let label = "";
-        let description = "";
-        if (elementChildren.length) {
-            label = (elementChildren[0].textContent || "").trim();
-            for (let i = 1; i < elementChildren.length; i += 1) {
-                const text = (elementChildren[i].textContent || "").trim();
-                if (text) {
-                    description = text;
-                    break;
-                }
-            }
-        }
-        return {
-            label: label || getModelNodeLabel(item) || "",
-            description,
-        };
-    };
-
-    const findMenuSectionLabel = (item) => {
-        let node = item?.previousElementSibling || null;
-        while (node instanceof HTMLElement) {
-            if (node.classList.contains("__menu-label")) {
-                const text = node.textContent || "";
-                return text.trim();
-            }
-            node = node.previousElementSibling;
-        }
-        return "";
-    };
-
-    const resolveMenuGroupKey = (label, fallback = "") => {
-        const normalizedLabel = normalizeModelId(label || "");
-        if (normalizedLabel) return normalizedLabel;
-        if (fallback) {
-            const fallbackNormalized = normalizeModelId(fallback);
-            if (fallbackNormalized) return fallbackNormalized;
-        }
-        return `submenu-${Date.now().toString(36)}-${Math.random()
-            .toString(36)
-            .slice(2, 6)}`;
-    };
-
-    const parseModelItems = (menu, options = {}) => {
-        const items = [];
-        const seen = new Set();
-        const candidates = menu.querySelectorAll(
-            '[role="menuitem"][data-testid]',
-        );
-        candidates.forEach((item) => {
-            if (!(item instanceof HTMLElement)) return;
-            if (seen.has(item)) return;
-            seen.add(item);
-            const testId = item.getAttribute("data-testid") || "";
-            if (!testId.startsWith("model-switcher-")) return;
-            const id = testId.replace(/^model-switcher-/, "");
-            if (!id || id.endsWith("-submenu")) return;
-            const disabled =
-                item.getAttribute("aria-disabled") === "true" ||
-                item.matches('[data-disabled="true"]');
-            if (disabled) return;
-            const { label, description } = resolveMenuItemTexts(item);
-            const hasCheckIcon = !!item.querySelector(
-                '.trailing svg, [data-testid="check-icon"], svg[aria-hidden="false"]',
-            );
-            const selected =
-                item.getAttribute("data-state") === "checked" ||
-                item.getAttribute("aria-checked") === "true" ||
-                item.getAttribute("aria-pressed") === "true" ||
-                hasCheckIcon;
-            const orderRef = options.orderRef || { value: 0 };
-            const sectionLabel = options.section || findMenuSectionLabel(item) || "";
-            const order = Number(orderRef.value) || 0;
-            orderRef.value = order + 1;
-            items.push({
-                id,
-                label,
-                description,
-                selected,
-                section: sectionLabel,
-                group: options.groupKey || null,
-                groupLabel: options.groupLabel || null,
-                order,
-            });
-        });
-        return items;
-    };
-
-    const waitForMenuItems = async (menu, timeoutMs = 1500, options = {}) => {
-        if (!(menu instanceof HTMLElement)) return [];
-        const deadline = Date.now() + timeoutMs;
-        while (Date.now() < deadline) {
-            const items = parseModelItems(menu, options);
-            if (items.length) return items;
-            await sleep(60);
-        }
-        return [];
-    };
-
-    const collectModelMenuItems = async (
-        menu,
-        visitedMenus = new Set(),
-        options = {},
-    ) => {
-        if (!(menu instanceof HTMLElement)) return [];
-        if (visitedMenus.has(menu)) return [];
-        visitedMenus.add(menu);
-        logModelDebug("collecting models from menu", {
-            menuId: menu.id || null,
-            visited: visitedMenus.size,
-        });
-        let items = [
-            ...parseModelItems(menu, {
-                orderRef: options.orderRef,
-                groupKey: options.groupKey,
-                groupLabel: options.groupLabel,
-            }),
-        ];
-        if (!items.length) {
-            logModelDebug("menu empty on first pass; waiting for items", {
-                menuId: menu.id || null,
-            });
-            items = await waitForMenuItems(menu, 1500, {
-                orderRef: options.orderRef,
-                groupKey: options.groupKey,
-                groupLabel: options.groupLabel,
-            });
-        }
-        logModelDebug("parsed menu items", {
-            menuId: menu.id || null,
-            count: items.length,
-        });
-        const submenuTriggers = menu.querySelectorAll(
-            '[role="menuitem"][data-testid$="-submenu"]',
-        );
-        for (const trigger of submenuTriggers) {
-            if (!(trigger instanceof HTMLElement)) continue;
-            const controlsId = trigger.getAttribute("aria-controls") || "";
-            logModelDebug("opening submenu trigger", {
-                testId: trigger.getAttribute("data-testid") || null,
-                controlsId,
-            });
-            const opened = await openSubmenuTrigger(trigger);
-            if (!opened && !controlsId) continue;
-            const submenuRoot = controlsId
-                ? await waitForElementById(controlsId, 800)
-                : null;
-            if (submenuRoot instanceof HTMLElement) {
-                const { label: submenuLabel } = resolveMenuItemTexts(trigger);
-                const groupKey = resolveMenuGroupKey(
-                    submenuLabel,
-                    trigger.getAttribute("data-testid") || controlsId || "submenu",
-                );
-                if (!submenuRoot.querySelector('[data-testid^="model-switcher-"]')) {
-                    await waitForMenuItems(submenuRoot, 1500, {
-                        orderRef: options.orderRef,
-                        groupKey,
-                        groupLabel: submenuLabel || "More models",
-                    });
-                }
-                const nestedItems = await collectModelMenuItems(
-                    submenuRoot,
-                    visitedMenus,
-                    {
-                        orderRef: options.orderRef,
-                        groupKey,
-                        groupLabel: submenuLabel || "More models",
-                    },
-                );
-                logModelDebug("submenu parsed", {
-                    menuId: submenuRoot.id || null,
-                    count: nestedItems.length,
-                });
-                items.push(...nestedItems);
-            }
-        }
-        return items;
-    };
-
-    const mergeModelOptions = (options) => {
-        const map = new Map();
-        options.forEach((option) => {
-            const key = normalizeModelId(option.id);
-            const existing = map.get(key);
-            if (!existing || option.selected) {
-                map.set(key, { ...option, id: option.id });
-            }
-        });
-        return Array.from(map.values());
-    };
-
     const syncModelMenuStructure = (models = STATE.models) => {
         const sectionOrder = new Map();
         const groupOrder = new Map();
@@ -3473,112 +3346,69 @@
             }, {});
     };
 
-    const fetchModelOptionsFromMenu = async () => {
-        logModelDebug("attempting menu scrape for models");
-        const orderRef = { value: 0 };
-        const result = await useModelMenu(async (menu) =>
-            collectModelMenuItems(menu, new Set(), { orderRef }),
-        );
-        if (!Array.isArray(result)) return [];
-        logModelDebug("menu scrape result", {
-            count: result.length,
-            models: result.map((model) => ({
-                id: model.id,
-                label: model.label,
-            })),
+    const buildStaticModelList = (selectedId = null) => {
+        const normalizedSelected = normalizeModelId(selectedId || "");
+        let hasSelection = false;
+        const models = STATIC_MODEL_DEFINITIONS.map((model, index) => {
+            const normalizedId = normalizeModelId(model.id);
+            const selected =
+                normalizedSelected && normalizedId === normalizedSelected;
+            if (selected) hasSelection = true;
+            return {
+                ...model,
+                order: Number.isFinite(model.order) ? Number(model.order) : index,
+                selected,
+            };
         });
-        return mergeModelOptions(result);
-    };
-
-    const shouldUseCachedModelList = (options = {}) => {
-        if (options.force) return false;
-        if (!STATE.models.length) return false;
-        if (!lastModelFetchAt) return false;
-        if (lastModelFetchSource !== "menu") return false;
-        const age = Date.now() - lastModelFetchAt;
-        if (age < MODEL_LIST_CACHE_MAX_MS) {
-            logModelDebug("cache hit", {
-                source: lastModelFetchSource,
-                age,
-                count: STATE.models.length,
-            });
-            return true;
+        if (!hasSelection && models.length) {
+            models[0].selected = true;
         }
-        return false;
+        return models;
     };
 
     const ensureModelOptions = async (options = {}) => {
-        if (shouldUseCachedModelList(options)) return STATE.models;
-        if (modelsPromise) return modelsPromise;
+        const shouldRefresh = options.force || !STATE.models.length;
+        if (!shouldRefresh) return STATE.models;
         console.info("[cq][debug] ensureModelOptions:start", {
             timestamp: Date.now(),
-            hasStateModels: Array.isArray(STATE.models)
-                ? STATE.models.length
-                : "unknown",
+            source: "static",
             currentModelId,
             forced: !!options.force,
         });
-        modelsPromise = (async () => {
-            const models = await fetchModelOptionsFromMenu();
-            modelsPromise = null;
-            if (!models.length) {
-                console.info("[cq][debug] ensureModelOptions:menu-empty", {
-                    timestamp: Date.now(),
-                });
-                logModelDebug("menu scrape returned no models; keeping existing list", {
-                    existingCount: STATE.models.length,
-                });
-                return STATE.models;
-            }
-            lastModelFetchSource = "menu";
-            lastModelFetchAt = Date.now();
-            logModelDebug("model list refreshed", {
-                source: "menu",
-                count: models.length,
-                models: models.map((model) => ({
-                    id: model.id,
-                    label: model.label,
-                })),
-            });
-            const previousSignature = JSON.stringify(
-                STATE.models.map((model) => ({
-                    id: model.id,
-                    label: model.label,
-                })),
-            );
-            STATE.models = models;
-            syncModelMenuStructure(models);
-            const selected = models.find((model) => model.selected);
-            if (selected) {
-                markModelSelected(selected.id, selected.label);
-            } else if (models.length && !currentModelId) {
-                markModelSelected(models[0].id, models[0].label);
-            }
-            console.info("[cq][debug] ensureModelOptions:updated", {
-                timestamp: Date.now(),
-                currentModelId,
-                currentModelLabel,
-                modelCount: models.length,
-            });
-            const queueUpdated = applyDefaultModelToQueueIfMissing();
-            const newSignature = JSON.stringify(
-                models.map((model) => ({ id: model.id, label: model.label })),
-            );
-            if (queueUpdated || newSignature !== previousSignature) {
-                refreshAll();
-            }
-            return STATE.models;
-        })().catch((error) => {
-            modelsPromise = null;
-            console.warn("[cq] Failed to load model list", error);
-            console.info("[cq][debug] ensureModelOptions:error", {
-                timestamp: Date.now(),
-                message: error?.message,
-            });
-            logModelDebug("model refresh error", error);
-            return STATE.models;
+        const previousSignature = JSON.stringify(
+            STATE.models.map((model) => ({
+                id: model.id,
+                label: model.label,
+            })),
+        );
+        const preferredId =
+            currentModelId ||
+            STATE.models.find((model) => model.selected)?.id ||
+            STATIC_MODEL_DEFINITIONS[0]?.id ||
+            null;
+        STATE.models = buildStaticModelList(preferredId);
+        syncModelMenuStructure(STATE.models);
+        const selectedModel =
+            STATE.models.find((model) => model.selected) || STATE.models[0] || null;
+        if (selectedModel) {
+            setCurrentModel(selectedModel.id, selectedModel.label);
+        }
+        console.info("[cq][debug] ensureModelOptions:updated", {
+            timestamp: Date.now(),
+            currentModelId,
+            currentModelLabel,
+            modelCount: STATE.models.length,
         });
-        return modelsPromise;
+        const queueUpdated = applyDefaultModelToQueueIfMissing();
+        const newSignature = JSON.stringify(
+            STATE.models.map((model) => ({ id: model.id, label: model.label })),
+        );
+        if (queueUpdated || newSignature !== previousSignature) {
+            refreshAll();
+        } else {
+            refreshControls();
+        }
+        return STATE.models;
     };
 
     const findModelMenuItem = (menu, modelId) => {
