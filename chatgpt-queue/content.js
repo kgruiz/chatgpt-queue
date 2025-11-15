@@ -1070,6 +1070,20 @@
         }, delay);
     };
 
+    const logModelSyncEvent = (event, payload = {}) => {
+        try {
+            console.info("[cq][debug] headerModelSync", {
+                event,
+                timestamp: Date.now(),
+                currentModelId,
+                currentModelLabel,
+                ...payload,
+            });
+        } catch (_) {
+            /* ignored */
+        }
+    };
+
     const findModelMatchByLabelSignature = (signatureInput, models = STATE.models) => {
         const signatures = Array.isArray(signatureInput)
             ? signatureInput.filter(Boolean)
@@ -1108,15 +1122,31 @@
         if (headerModelSyncInFlight) return;
         const label = applyHeaderLabelAliases(readCurrentModelLabelFromHeader());
         const signatures = extractHeaderLabelSignatures(label);
-        if (!signatures.length) return;
-        const signatureKey = signatures.join("|");
-        if (signatureKey === lastSyncedHeaderLabelSignature && currentModelId)
+        logModelSyncEvent("start", {
+            label,
+            signatureCount: signatures.length,
+        });
+        if (!signatures.length) {
+            logModelSyncEvent("no-signatures", { label });
             return;
+        }
+        const signatureKey = signatures.join("|");
+        if (signatureKey === lastSyncedHeaderLabelSignature && currentModelId) {
+            logModelSyncEvent("skip-unchanged", {
+                signatureKey,
+                label,
+            });
+            return;
+        }
         headerModelSyncInFlight = true;
         try {
             const existingMatch = findModelMatchByLabelSignature(signatures);
             if (existingMatch) {
                 lastSyncedHeaderLabelSignature = signatureKey;
+                logModelSyncEvent("existing-match", {
+                    matchId: existingMatch.id,
+                    matchLabel: existingMatch.label || null,
+                });
                 if (
                     normalizeModelId(existingMatch.id) !==
                         normalizeModelId(currentModelId) ||
@@ -1125,21 +1155,40 @@
                 ) {
                     markModelSelected(existingMatch.id, existingMatch.label || label);
                     refreshControls();
+                } else {
+                    logModelSyncEvent("existing-match-unchanged", {
+                        matchId: existingMatch.id,
+                    });
                 }
                 return;
             }
+            logModelSyncEvent("existing-match-miss", {
+                signatureKey,
+                label,
+            });
             const cachedModels = await ensureModelOptions();
+            logModelSyncEvent("post-cache-fetch", {
+                cachedModelCount: cachedModels.length,
+            });
             let selectedMatch =
                 cachedModels.find((model) => model.selected) ||
                 findModelMatchByLabelSignature(signatures, cachedModels);
             if (!selectedMatch) {
+                logModelSyncEvent("refresh-model-list", {});
                 const refreshedModels = await ensureModelOptions({ force: true });
+                logModelSyncEvent("post-refresh-fetch", {
+                    refreshedModelCount: refreshedModels.length,
+                });
                 selectedMatch =
                     refreshedModels.find((model) => model.selected) ||
                     findModelMatchByLabelSignature(signatures, refreshedModels);
             }
             if (selectedMatch) {
                 lastSyncedHeaderLabelSignature = signatureKey;
+                logModelSyncEvent("selected-match", {
+                    matchId: selectedMatch.id,
+                    matchLabel: selectedMatch.label || null,
+                });
                 if (
                     normalizeModelId(selectedMatch.id) !==
                         normalizeModelId(currentModelId) ||
@@ -1148,7 +1197,16 @@
                 ) {
                     markModelSelected(selectedMatch.id, selectedMatch.label);
                     refreshControls();
+                } else {
+                    logModelSyncEvent("selected-match-unchanged", {
+                        matchId: selectedMatch.id,
+                    });
                 }
+            } else {
+                logModelSyncEvent("no-match-found", {
+                    signatureKey,
+                    label,
+                });
             }
         } catch (error) {
             console.info("[cq][debug] header model sync error", error);
