@@ -7,7 +7,7 @@ import {
     gatherComposerAttachments,
     hasImagesInDataTransfer,
 } from "../lib/attachments";
-import { enqueueQueueEntry } from "../lib/queue";
+import { enqueueQueueEntry } from "../lib/state/queue";
 import type { QueueState } from "../lib/state";
 import type { QueueStateChangeReason } from "../lib/state/events";
 import { sleep } from "../lib/utils";
