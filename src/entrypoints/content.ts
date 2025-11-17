@@ -51,6 +51,7 @@ import type {
     KeyboardShortcutEntry,
     QueueEntry,
     QueueModelDefinition,
+    QueueModelGroupMeta,
     ShortcutKeyToken,
     ThinkingLevel,
     ThinkingOption,
@@ -682,14 +683,16 @@ export default defineContentScript({
         return score;
     };
 
-    const supportsThinkingForModel = (modelId: string | null | undefined, label = ""): boolean => {
+    const supportsThinkingForModel = (
+        modelId: string | null | undefined,
+        label?: string | null,
+    ): boolean => {
         const canonical = modelId
             ? normalizeModelId(applyModelIdAlias(modelId))
             : "";
+        const normalizedLabel = typeof label === "string" ? label : "";
         const canonicalMatches = canonical.includes("thinking");
-        const labelMatches = typeof label === "string"
-            ? label.toLowerCase().includes("thinking")
-            : false;
+        const labelMatches = normalizedLabel.toLowerCase().includes("thinking");
         return canonicalMatches || labelMatches;
     };
 
@@ -917,7 +920,7 @@ export default defineContentScript({
     let composerModelSelectionPending = false;
     let lastLoggedMarkModelId: string | null = null;
     let lastLoggedMarkModelLabel = "";
-    let lastLoggedCurrentModelId = "__unset__";
+    let lastLoggedCurrentModelId: string | null = "__unset__";
     let lastLoggedCurrentModelLabel = "__unset__";
     let modelSwitcherObserver: MutationObserver | null = null;
     let observedModelSwitcherButton: HTMLButtonElement | null = null;
@@ -1677,7 +1680,7 @@ export default defineContentScript({
         return trimmed;
     };
 
-    const STATIC_MODEL_DEFINITIONS = [
+    const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         {
             id: "gpt-5-1",
             label: "Auto",
@@ -1802,7 +1805,7 @@ export default defineContentScript({
         if (!entry) return null;
         return {
             id: entry.modelId,
-            label: entry.label || label,
+            label: entry.label ?? label ?? "",
         };
     };
 
@@ -2086,16 +2089,19 @@ export default defineContentScript({
         document.body.appendChild(thinkingDropdown);
         positionThinkingDropdown();
         const handleClickOutside = (event: Event) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
             if (
                 !thinkingDropdown ||
-                thinkingDropdown.contains(event.target) ||
-                anchor.contains(event.target)
+                thinkingDropdown.contains(target) ||
+                anchor.contains(target)
             ) {
                 return;
             }
             closeThinkingDropdown();
         };
-        const handleEscape = (event) => {
+        const handleEscape = (event: KeyboardEvent | Event) => {
+            if (!(event instanceof KeyboardEvent)) return;
             if (event.key === "Escape") {
                 event.preventDefault();
                 closeThinkingDropdown();
@@ -2124,9 +2130,12 @@ export default defineContentScript({
         );
     };
 
-    const createQueueEntryThinkingPill = (entry, index) => {
-        if (!supportsThinkingForModel(entry?.model, entry?.modelLabel))
-            return null;
+    const createQueueEntryThinkingPill = (
+        entry: QueueEntry | null | undefined,
+        index: number,
+    ): HTMLElement | null => {
+        if (!entry) return null;
+        if (!supportsThinkingForModel(entry.model, entry.modelLabel)) return null;
         const container = document.createElement("div");
         container.className = "__composer-pill-composite group relative";
         container.classList.add(UI_CLASS.rowThinking);
@@ -2137,7 +2146,7 @@ export default defineContentScript({
         removeBtn.classList.add(UI_CLASS.rowThinkingRemove);
         removeBtn.setAttribute("aria-label", "Clear thinking level override");
         removeBtn.hidden = !entry.thinking;
-        removeBtn.addEventListener("click", (event) => {
+        removeBtn.addEventListener("click", (event: MouseEvent) => {
             event.preventDefault();
             event.stopPropagation();
             setEntryThinkingOption(index, "");
@@ -2158,8 +2167,10 @@ export default defineContentScript({
         pillButton.title = "Choose thinking level";
         const icon = document.createElement("div");
         icon.className = "__composer-pill-icon";
-        const iconId = entry?.thinking || getCurrentThinkingOption() || "extended";
-        icon.innerHTML = THINKING_OPTION_ICONS[iconId] || THINKING_OPTION_ICONS.extended;
+        const iconId: ThinkingLevel =
+            (entry.thinking || getCurrentThinkingOption() || "extended") as ThinkingLevel;
+        icon.innerHTML =
+            THINKING_OPTION_ICONS[iconId] || THINKING_OPTION_ICONS.extended;
         const labelSpan = document.createElement("span");
         labelSpan.className = "max-w-40 truncate [[data-collapse-labels]_&]:sr-only";
         labelSpan.textContent = resolveQueueEntryThinkingLabel(entry);
@@ -2188,9 +2199,14 @@ export default defineContentScript({
         return container;
     };
 
-    const mountComposerModelLabelBeforeDictate = (root) => {
+    const mountComposerModelLabelBeforeDictate = (
+        root: ParentNode | null,
+    ): boolean => {
         if (!composerModelLabelButton) return false;
-        const dictateButton = root.querySelector(
+        if (!root || typeof (root as ParentNode).querySelector !== "function") {
+            return false;
+        }
+        const dictateButton = (root as ParentNode).querySelector(
             'button[aria-label="Dictate button"]',
         );
         if (!(dictateButton instanceof HTMLElement)) return false;
@@ -2234,7 +2250,7 @@ export default defineContentScript({
         return true;
     };
 
-    const setCurrentModel = (id, label = "") => {
+    const setCurrentModel = (id: string | null, label = "") => {
         const pendingId = id || null;
         const pendingLabel = label || "";
         if (
@@ -2258,7 +2274,7 @@ export default defineContentScript({
         currentModelLabel = label || info?.label || currentModelLabel || id;
     };
 
-    const markModelSelected = (id, label = "") => {
+    const markModelSelected = (id: string, label = "") => {
         if (!id) return;
         const labelText = label || "";
         if (
@@ -2315,9 +2331,11 @@ export default defineContentScript({
         return updated;
     };
 
-    const syncModelMenuStructure = (models = STATE.models) => {
-        const sectionOrder = new Map();
-        const groupOrder = new Map();
+    const syncModelMenuStructure = (
+        models: QueueModelDefinition[] = STATE.models,
+    ) => {
+        const sectionOrder = new Map<string, number>();
+        const groupOrder = new Map<string, QueueModelGroupMeta>();
         models.forEach((model) => {
             const order = Number.isFinite(model?.order)
                 ? Number(model.order)
@@ -2342,19 +2360,21 @@ export default defineContentScript({
             .map(([name]) => name);
         STATE.modelGroups = Array.from(groupOrder.entries())
             .sort((a, b) => a[1].order - b[1].order)
-            .reduce((acc, [key, meta]) => {
+            .reduce<Record<string, QueueModelGroupMeta>>((acc, [key, meta]) => {
                 acc[key] = meta;
                 return acc;
             }, {});
     };
 
-    const buildStaticModelList = (selectedId = null) => {
+    const buildStaticModelList = (
+        selectedId: string | null = null,
+    ): QueueModelDefinition[] => {
         const normalizedSelected = normalizeModelId(selectedId || "");
         let hasSelection = false;
         const models = STATIC_MODEL_DEFINITIONS.map((model, index) => {
             const normalizedId = normalizeModelId(model.id);
             const selected =
-                normalizedSelected && normalizedId === normalizedSelected;
+                normalizedSelected !== "" && normalizedId === normalizedSelected;
             if (selected) hasSelection = true;
             return {
                 ...model,
@@ -2368,7 +2388,7 @@ export default defineContentScript({
         return models;
     };
 
-    const ensureModelOptions = async (options = {}) => {
+    const ensureModelOptions = async (options: { force?: boolean } = {}) => {
         const shouldRefresh = options.force || !STATE.models.length;
         if (!shouldRefresh) return STATE.models;
         console.info("[cq][debug] ensureModelOptions:start", {
@@ -2417,18 +2437,23 @@ export default defineContentScript({
         return STATE.models;
     };
 
-    const findModelMenuItem = (menu, modelId) => {
-        if (!menu || !modelId) return null;
-        const direct = menu.querySelector(
+    const findModelMenuItem = (
+        menu: Element | Document | null,
+        modelId: string | null,
+    ): Element | null => {
+        if (!menu || !modelId || typeof (menu as ParentNode).querySelector !== "function") {
+            return null;
+        }
+        const direct = (menu as ParentNode).querySelector(
             `[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`,
         );
         if (direct) return direct;
         const normalized = normalizeModelId(modelId);
         const candidates = Array.from(
-            menu.querySelectorAll(
+            (menu as ParentNode).querySelectorAll(
                 '[role="menuitem"][data-testid^="model-switcher-"]',
             ),
-        );
+        ) as Element[];
         for (const candidate of candidates) {
             const tid = candidate.getAttribute("data-testid") || "";
             const id = tid.replace(/^model-switcher-/, "");
@@ -2446,7 +2471,7 @@ export default defineContentScript({
         return null;
     };
 
-    const ensureModel = async (modelId) => {
+    const ensureModel = async (modelId: string | null | undefined) => {
         if (!modelId) return true;
         const targetModelId = applyModelIdAlias(modelId);
         await ensureModelOptions();
@@ -2475,7 +2500,7 @@ export default defineContentScript({
         document.getElementById("cq-model-debug")?.remove();
     };
 
-    const showModelDebugPopup = (models) => {
+    const showModelDebugPopup = (models: QueueModelDefinition[]) => {
         closeModelDebugPopup();
         const overlay = document.createElement("div");
         overlay.id = "cq-model-debug";
@@ -2637,10 +2662,10 @@ export default defineContentScript({
 
     let queueHeightRaf = 0;
     let lastQueueExpandedHeight = "";
-    let queueCollapseAnimation = null;
-    let lastRenderedCollapsed = null;
+    let queueCollapseAnimation: Animation | null = null;
+    let lastRenderedCollapsed: boolean | null = null;
 
-    function setQueueExpandedHeight(value) {
+    function setQueueExpandedHeight(value: string) {
         if (!(list instanceof HTMLElement)) return;
         if (lastQueueExpandedHeight === value) return;
         lastQueueExpandedHeight = value;
@@ -2683,7 +2708,7 @@ export default defineContentScript({
         measureQueueExpandedHeight();
     }
 
-    const parsePxValue = (value) => {
+    const parsePxValue = (value: string): number => {
         if (typeof value !== "string") return 0;
         const numeric = Number.parseFloat(value.replace(/[^0-9.\-]/g, ""));
         return Number.isFinite(numeric) ? numeric : 0;
@@ -2701,7 +2726,7 @@ export default defineContentScript({
         return list.scrollHeight || 0;
     }
 
-    function setQueueAnimationState(state) {
+    function setQueueAnimationState(state: string | null) {
         if (!(list instanceof HTMLElement)) return;
         if (state) {
             list.dataset.cqAnimState = state;
@@ -2710,7 +2735,9 @@ export default defineContentScript({
         }
     }
 
-    function cancelQueueAnimation({ preserveVisualState = false } = {}) {
+    function cancelQueueAnimation(
+        { preserveVisualState = false }: { preserveVisualState?: boolean } = {},
+    ) {
         if (!(list instanceof HTMLElement)) {
             queueCollapseAnimation = null;
             return null;
@@ -2735,7 +2762,7 @@ export default defineContentScript({
         return preservedHeight;
     }
 
-    function animateQueueContainer(targetCollapsed) {
+    function animateQueueContainer(targetCollapsed: boolean) {
         if (!(list instanceof HTMLElement)) return;
         flushQueueHeightSync();
         if (!CAN_USE_WEB_ANIMATIONS) {
@@ -2800,10 +2827,10 @@ export default defineContentScript({
     ];
     let threadLayoutSignature = "";
     let threadLayoutRaf = 0;
-    let threadLayoutObserver = null;
-    let observedLayoutNode = null;
+    let threadLayoutObserver: ResizeObserver | null = null;
+    let observedLayoutNode: HTMLElement | null = null;
 
-    const applyThreadLayoutVars = (source) => {
+    const applyThreadLayoutVars = (source: HTMLElement | null) => {
         if (!(source instanceof HTMLElement)) return;
         const computed = window.getComputedStyle(source);
         const values = THREAD_LAYOUT_VARS.map((token) =>
@@ -2822,7 +2849,7 @@ export default defineContentScript({
         });
     };
 
-    const scheduleThreadLayoutSync = (source) => {
+    const scheduleThreadLayoutSync = (source?: HTMLElement | null) => {
         const target = source || observedLayoutNode || composer();
         if (!(target instanceof HTMLElement)) return;
         if (threadLayoutRaf) cancelAnimationFrame(threadLayoutRaf);
@@ -2832,7 +2859,7 @@ export default defineContentScript({
         });
     };
 
-    const observeThreadLayoutSource = (node) => {
+    const observeThreadLayoutSource = (node: HTMLElement | null) => {
         if (!(node instanceof HTMLElement)) return;
         if (observedLayoutNode === node) {
             scheduleThreadLayoutSync(node);
@@ -2899,7 +2926,7 @@ export default defineContentScript({
         });
     }
 
-    const formatFollowUpLabel = (count) =>
+    const formatFollowUpLabel = (count: number): string =>
         `${count} follow-up${count === 1 ? "" : "s"}`;
 
     const refreshQueueLabel = () => {
@@ -2907,10 +2934,10 @@ export default defineContentScript({
         queueLabel.textContent = formatFollowUpLabel(STATE.queue.length);
     };
 
-    const getQueueRows = () =>
-        Array.from(list?.querySelectorAll?.(CQ_SELECTORS.row) || []);
+    const getQueueRows = (): HTMLElement[] =>
+        Array.from(list?.querySelectorAll?.(CQ_SELECTORS.row) || []) as HTMLElement[];
 
-    const focusQueueRow = (row) => {
+    const focusQueueRow = (row: Element | null): boolean => {
         if (!(row instanceof HTMLElement)) return false;
         const textarea = row.querySelector(CQ_SELECTORS.rowTextarea);
         if (!(textarea instanceof HTMLTextAreaElement)) return false;
@@ -2930,18 +2957,18 @@ export default defineContentScript({
         return true;
     };
 
-    const entryPreviewText = (entry, index) => {
+    const entryPreviewText = (entry: QueueEntry | null | undefined, index: number): string => {
         const raw =
             (typeof entry?.text === "string" ? entry.text : "").trim() ||
             `Follow-up #${(index ?? 0) + 1}`;
         return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
     };
 
-    const showDeleteConfirmDialog = (entry, index) =>
-        new Promise((resolve) => {
+    const showDeleteConfirmDialog = (entry: QueueEntry, index: number) =>
+        new Promise<boolean>((resolve) => {
             const title = "Delete follow-up?";
             const preview = entryPreviewText(entry, index);
-            const previousActive = document.activeElement;
+            const previousActive = document.activeElement as HTMLElement | null;
 
             const bodyLine = document.createElement("div");
             bodyLine.textContent = "This will delete ";
@@ -2959,14 +2986,14 @@ export default defineContentScript({
                 confirmTestId: "cq-delete-queue-confirm",
             });
 
-            const cleanup = (result) => {
+            const cleanup = (result: boolean) => {
                 modal.root.remove();
                 document.removeEventListener("keydown", onKeyDown, true);
                 previousActive?.focus?.({ preventScroll: true });
                 resolve(result);
             };
 
-            const onKeyDown = (event) => {
+            const onKeyDown = (event: KeyboardEvent) => {
                 if (event.key === "Escape") {
                     event.preventDefault();
                     cleanup(false);
@@ -3025,12 +3052,12 @@ export default defineContentScript({
         });
     };
 
-    let saveTimer;
+    let saveTimer: number | null = null;
     let hydrated = false; // gate UI visibility until persisted state is loaded
     let activeConversationIdentifier = resolveConversationIdentifier();
-    let dragIndex = null;
-    let dragOverItem = null;
-    let dragOverPosition = null;
+    let dragIndex: number | null = null;
+    let dragOverItem: HTMLElement | null = null;
+    let dragOverPosition: "before" | "after" | null = null;
 
     const storageManager = createStorageManager<PersistedQueueState>({
         legacyKey: LEGACY_STORAGE_KEY,
@@ -3176,25 +3203,30 @@ export default defineContentScript({
         });
 
     // DOM helpers ---------------------------------------------------------------
-    const q = (selector, root = document) => {
-        if (!root || typeof root.querySelector !== "function") return null;
+    const q = <T extends Element = HTMLElement>(
+        selector: string,
+        root: Document | Element | null = document,
+    ): T | null => {
+        if (!root || typeof (root as ParentNode & { querySelector?: unknown }).querySelector !== "function") {
+            return null;
+        }
         try {
-            return root.querySelector(selector);
+            return ((root as Document | Element).querySelector(selector) as T | null) || null;
         } catch (_) {
             return null;
         }
     };
-    const isVisible = (node) =>
+    const isVisible = (node: Element | null | undefined): node is HTMLElement =>
         node instanceof HTMLElement && node.offsetParent !== null;
-    const findSendButton = (root) => {
-        if (!root) return null;
-        const candidates = root.querySelectorAll(SEL.send);
+    const findSendButton = (root: Document | Element | null): HTMLButtonElement | null => {
+        if (!root || typeof (root as ParentNode).querySelectorAll !== "function") return null;
+        const candidates = (root as ParentNode).querySelectorAll(SEL.send);
         for (const candidate of candidates) {
             if (candidate instanceof HTMLElement && isVisible(candidate))
-                return candidate;
+                return candidate as HTMLButtonElement;
         }
         const fallback = candidates[0];
-        return fallback instanceof HTMLElement ? fallback : null;
+        return fallback instanceof HTMLElement ? (fallback as HTMLButtonElement) : null;
     };
     const composer = () => {
         const preset = q(SEL.composer);
@@ -3211,19 +3243,19 @@ export default defineContentScript({
     };
     const isGenerating = () => !!q(SEL.stop, composer());
 
-    function findEditor() {
-        return q(SEL.editor);
+    function findEditor(): HTMLElement | null {
+        return q<HTMLElement>(SEL.editor);
     }
 
-    function editorView() {
+    function editorView(): unknown {
         const ed = findEditor();
         if (!ed) return null;
         return ed.pmViewDesc?.editorView || ed._pmViewDesc?.editorView || null;
     }
 
-    function setPrompt(text) {
+    function setPrompt(text: string): Promise<boolean> {
         return new Promise((resolve) => {
-            const onMsg = (e) => {
+            const onMsg = (e: MessageEvent) => {
                 if (
                     e.source === window &&
                     e.data &&
@@ -3475,8 +3507,8 @@ export default defineContentScript({
         });
     }
 
-    let autoDispatchTimer = null;
-    let pendingManualSend = null;
+    let autoDispatchTimer: number | null = null;
+    let pendingManualSend: { entry: QueueEntry; allowWhilePaused: boolean } | null = null;
 
     const resetStateForNewConversation = () => {
         cancelAutoDispatch();
