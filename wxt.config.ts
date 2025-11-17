@@ -1,7 +1,17 @@
 import { defineConfig } from "wxt";
+import checker from "vite-plugin-checker";
 
 export default defineConfig({
   srcDir: "src",
+  vite: () => ({
+    plugins: [
+      checker({
+        typescript: {
+          tsconfigPath: "./tsconfig.json",
+        },
+      }),
+    ],
+  }),
   manifest: {
     name: "chatgpt-queue",
     description: "Queue prompts and auto-send after each reply finishes.",
