@@ -1,6 +1,10 @@
-node_modules/
-.output/
-dist/
-docs/
+node_modules
+.output
+dist
+build
+coverage
+.wxt
+.cache
+*.log
 pnpm-lock.yaml
-.wxt/
+TODO.md

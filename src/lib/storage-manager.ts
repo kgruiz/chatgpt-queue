@@ -18,7 +18,7 @@ export interface StorageAreaLike {
   remove(keys: string[] | string, callback?: () => void): void;
 }
 
-export interface StorageManagerOptions<TSnapshot> {
+export interface StorageManagerOptions {
   storageArea?: StorageAreaLike | null;
   storageKeyForIdentifier?: (identifier: string | null | undefined) => string;
   legacyKey?: string | null;
@@ -59,7 +59,7 @@ export interface StorageManager<TSnapshot> {
 }
 
 export const createStorageManager = <TSnapshot>(
-  options: StorageManagerOptions<TSnapshot> = {},
+  options: StorageManagerOptions = {},
 ): StorageManager<TSnapshot> => {
   const storageArea = resolveStorageArea(options.storageArea);
   const storageKeyForIdentifier = options.storageKeyForIdentifier || defaultStorageKeyForIdentifier;

@@ -22,10 +22,7 @@ import {
     setQueuePauseState,
 } from "../lib/state/queue";
 import {
-    CONVERSATION_ID_REGEX,
     LEGACY_STORAGE_KEY,
-    encodePathForStorage,
-    hostToken,
     resolveConversationIdentifier,
 } from "../lib/storage";
 import {
@@ -61,6 +58,7 @@ import type {
 declare global {
     interface Window {
         __CQ_DEBUG_MODELS?: boolean;
+        cqShowModelDebugPopup?: (models: QueueModelDefinition[]) => void;
     }
 }
 
@@ -72,7 +70,6 @@ export default defineContentScript({
     runAt: "document_idle",
     cssInjectionMode: "manifest",
     main() {
-(() => {
     const STATE = createInitialState();
     const STATE_EVENTS = createQueueStateEmitter(STATE);
 
@@ -118,14 +115,9 @@ export default defineContentScript({
     const PAUSE_SHORTCUT_LABEL = isApplePlatform
         ? "Command+Shift+P"
         : "Ctrl+Shift+P";
-    const PAUSE_SHORTCUT_DISPLAY = isApplePlatform ? "⌘⇧P" : "Ctrl+Shift+P";
-    const MODEL_LIST_SHORTCUT_LABEL = isApplePlatform
-        ? "⌘⇧H"
-        : "Ctrl+Shift+H";
     const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
     const THINKING_DROPDOWN_ID = "cq-thinking-dropdown";
     const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-    const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
     const THINKING_TIME_OPTIONS: ThinkingOption[] = [
         { id: "light", label: "Light", digit: "1" },
         { id: "standard", label: "Standard", digit: "2" },
@@ -914,7 +906,6 @@ export default defineContentScript({
     let composerHoldButton: HTMLButtonElement | null = null;
     let composerModelLabelButton: HTMLButtonElement | null = null;
     let composerModelLabelButtonValue: HTMLElement | null = null;
-    let composerModelLabelPlacement: HTMLElement | "controls" | null = null;
     let thinkingDropdown: HTMLElement | null = null;
     let thinkingDropdownAnchor: HTMLElement | null = null;
     let thinkingDropdownCleanup: Array<() => void> = [];
@@ -1165,7 +1156,7 @@ export default defineContentScript({
             const submenuTrigger = findClosedSubmenuTrigger(visitedSubmenus);
             if (submenuTrigger) {
                 visitedSubmenus.add(submenuTrigger);
-                const opened = await openSubmenuTrigger(submenuTrigger);
+                await openSubmenuTrigger(submenuTrigger);
                 continue;
             }
             await sleep(80);
@@ -2608,29 +2599,7 @@ export default defineContentScript({
         closeBtn.focus({ preventScroll: true });
     };
 
-    const listModelsForDebug = async ({ force = true } = {}) => {
-        try {
-            const models = await ensureModelOptions({ force });
-            if (!models.length) {
-                console.info("[cq] No models available to list yet.");
-                showModelDebugPopup([]);
-                return;
-            }
-            const printable = models.map((model) => ({
-                id: model.id,
-                label: model.label,
-                selected: !!model.selected,
-            }));
-            if (typeof console.table === "function") {
-                console.table(printable);
-            } else {
-                console.log("[cq] Models:", printable);
-            }
-            showModelDebugPopup(printable);
-        } catch (error) {
-            console.warn("[cq] Failed to list models", error);
-        }
-    };
+    window.cqShowModelDebugPopup = showModelDebugPopup;
 
     function injectBridge() {
         if (document.getElementById("cq-bridge")) return;
@@ -3266,12 +3235,6 @@ export default defineContentScript({
         return q<EditorElement>(SEL.editor);
     }
 
-    function editorView(): unknown {
-        const ed = findEditor();
-        if (!ed) return null;
-        return ed.pmViewDesc?.editorView || ed._pmViewDesc?.editorView || null;
-    }
-
     function setPrompt(text: string): Promise<boolean> {
         return new Promise((resolve) => {
             const onMsg = (e: MessageEvent) => {
@@ -3328,11 +3291,7 @@ export default defineContentScript({
         composerModelLabelButton.title = tooltip;
     }
 
-    function refreshControls(generatingOverride?: boolean) {
-        const generating =
-            typeof generatingOverride === "boolean"
-                ? generatingOverride
-                : isGenerating();
+    function refreshControls() {
         const manualSendEnabled = STATE.queue.length > 0 && !STATE.busy;
         refreshQueueLabel();
         if (elState) {
@@ -3363,7 +3322,6 @@ export default defineContentScript({
         ensureModelSwitcherObserver();
         const promptHasContent = hasComposerPrompt();
         const hasQueueItems = STATE.queue.length > 0;
-        const showComposerGroup = !promptHasContent || !hasQueueItems;
         if (composerControlGroup) {
             composerControlGroup.hidden = false;
         }
@@ -3939,7 +3897,7 @@ export default defineContentScript({
             !mountComposerModelLabelBeforeDictate(root) &&
             mountComposerModelLabelInControls()
         ) {
-            composerModelLabelPlacement = "controls";
+            /* noop */
         }
         if (!composerControlGroup.contains(composerHoldButton)) {
             composerControlGroup.appendChild(composerHoldButton);
@@ -4062,11 +4020,7 @@ export default defineContentScript({
             .catch(() => {});
     }
 
-    function renderQueue(generatingOverride?: boolean) {
-        const generating =
-            typeof generatingOverride === "boolean"
-                ? generatingOverride
-                : isGenerating();
+    function renderQueue() {
         const canManualSend = !STATE.running && !STATE.busy && !STATE.paused;
         closeThinkingDropdown();
         list.textContent = "";
@@ -4322,9 +4276,8 @@ export default defineContentScript({
     }
 
     function refreshAll() {
-        const generating = isGenerating();
-        refreshControls(generating);
-        renderQueue(generating);
+        refreshControls();
+        renderQueue();
         refreshVisibility();
     }
 
@@ -4521,7 +4474,7 @@ export default defineContentScript({
 
         clickSend();
         STATE.phase = "waiting";
-        refreshControls(true);
+        refreshControls();
 
         const launched = await waitForSendLaunch();
         if (!launched) {
@@ -5047,6 +5000,5 @@ export default defineContentScript({
         .finally(() => {
             scheduleHeaderModelSync(0);
         });
-    })();
     },
 });

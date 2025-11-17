@@ -17,8 +17,8 @@ const createFileList = (storage: File[]): FileList => {
       return storage.length;
     },
     item: (index: number) => storage[index] || null,
-    [Symbol.iterator]: function* () {
-      yield* storage;
+    [Symbol.iterator]: function () {
+      return storage[Symbol.iterator]();
     },
   };
   return list as FileList;
@@ -53,9 +53,8 @@ const createItemList = (storage: File[]): DataTransferItemList => {
       storage.splice(index, 1);
       items.splice(index, 1);
     },
-    item: (index: number) => items[index] || null,
-    [Symbol.iterator]: function* () {
-      yield* items;
+    [Symbol.iterator]: function () {
+      return items[Symbol.iterator]();
     },
   };
   return list as DataTransferItemList;
@@ -118,7 +117,7 @@ class FakeInputElement extends EventTarget {
   files: FileList | null = null;
   changeEvents = 0;
 
-  dispatchEvent(event: Event): boolean {
+  override dispatchEvent(event: Event): boolean {
     const result = super.dispatchEvent(event);
     if (event.type === "change") {
       this.changeEvents += 1;

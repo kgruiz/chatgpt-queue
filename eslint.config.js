@@ -12,6 +12,8 @@ export default [
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
+        project: "./tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
@@ -19,9 +21,27 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+      "@typescript-eslint/ban-ts-comment": [
+        "error",
+        { "ts-ignore": "allow-with-description" },
+      ],
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: true,
     },
   },
 ];
