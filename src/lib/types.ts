@@ -63,17 +63,3 @@ export interface KeyboardShortcutEntry {
   macKeys: ShortcutKeyToken[];
   otherKeys: ShortcutKeyToken[];
 }
-
-export type ModelMenuActionType =
-  | "open"
-  | "toggle"
-  | "close"
-  | "select"
-  | "sync";
-
-export interface ModelMenuAction {
-  type: ModelMenuActionType;
-  modelId?: string | null;
-  source?: "shortcut" | "click" | "sync" | "unknown";
-  timestamp: number;
-}

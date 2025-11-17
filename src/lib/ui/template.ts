@@ -127,9 +127,3 @@ export const svg = <K extends keyof SVGElementTagNameMap>(
   props?.ref?.(element);
   return element;
 };
-
-export const fragment = (...children: TemplateChild[]): DocumentFragment => {
-  const frag = document.createDocumentFragment();
-  appendChildren(frag, children);
-  return frag;
-};

@@ -44,8 +44,3 @@ export const UI_CLASS = {
   modelButton: "cq-composer-models-btn",
   modelButtonValue: "cq-composer-models-btn__value",
 } as const;
-
-export type UIClassKey = keyof typeof UI_CLASS;
-export type UIClassValue = (typeof UI_CLASS)[UIClassKey];
-
-export const uiClass = (key: UIClassKey): UIClassValue => UI_CLASS[key];
