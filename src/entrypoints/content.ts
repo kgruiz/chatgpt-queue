@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import "../styles/content.css";
 import { defineContentScript } from "#imports";
 import {
@@ -13,7 +11,10 @@ import {
 } from "../lib/attachments";
 import { createQueueHelpers } from "../lib/queue";
 import { createInitialState } from "../lib/state";
-import { createQueueStateEmitter } from "../lib/state/events";
+import {
+    createQueueStateEmitter,
+    type QueueStateChangeReason,
+} from "../lib/state/events";
 import {
     enqueueQueueEntry,
     removeQueueEntry,
@@ -46,6 +47,20 @@ import {
     createModelMenuController,
     MODEL_DROPDOWN_ID,
 } from "../lib/models/menu";
+import type {
+    KeyboardShortcutEntry,
+    QueueEntry,
+    QueueModelDefinition,
+    ShortcutKeyToken,
+    ThinkingLevel,
+    ThinkingOption,
+} from "../lib/types";
+
+declare global {
+    interface Window {
+        __CQ_DEBUG_MODELS?: boolean;
+    }
+}
 
 export default defineContentScript({
     matches: [
@@ -60,8 +75,8 @@ export default defineContentScript({
     const STATE_EVENTS = createQueueStateEmitter(STATE);
 
     const emitStateChange = (
-        reason = "state:change",
-        detail,
+        reason: QueueStateChangeReason = "state:change",
+        detail?: Record<string, unknown>,
     ) => {
         STATE_EVENTS.emit(reason, detail);
     };
@@ -92,10 +107,10 @@ export default defineContentScript({
 
     const navPlatform =
         typeof navigator === "object"
-            ? navigator.userAgentData?.platform ||
-              navigator.platform ||
-              navigator.userAgent ||
-              ""
+            ? ((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ||
+                navigator.platform ||
+                navigator.userAgent ||
+                "")
             : "";
     const isApplePlatform = /mac|iphone|ipad|ipod/i.test(navPlatform);
     const PAUSE_SHORTCUT_LABEL = isApplePlatform
@@ -109,23 +124,24 @@ export default defineContentScript({
     const THINKING_DROPDOWN_ID = "cq-thinking-dropdown";
     const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
     const MODEL_SHORTCUT_COUNT = MODEL_SHORTCUT_KEY_ORDER.length;
-    const THINKING_TIME_OPTIONS = [
+    const THINKING_TIME_OPTIONS: ThinkingOption[] = [
         { id: "light", label: "Light", digit: "1" },
         { id: "standard", label: "Standard", digit: "2" },
         { id: "extended", label: "Extended", digit: "3" },
         { id: "heavy", label: "Heavy", digit: "4" },
     ];
-    const THINKING_OPTION_MAP = THINKING_TIME_OPTIONS.reduce((map, option) => {
-        map[option.id] = option;
-        return map;
-    }, {});
+    const THINKING_OPTION_MAP: Record<ThinkingLevel, ThinkingOption> =
+        THINKING_TIME_OPTIONS.reduce<Record<ThinkingLevel, ThinkingOption>>((map, option) => {
+            map[option.id] = option;
+            return map;
+        }, {} as Record<ThinkingLevel, ThinkingOption>);
     const DEFAULT_THINKING_BUTTON_LABEL = "Thinking level";
     const DEFAULT_THINKING_OPTION_LABEL = "Use current thinking";
-    const THINKING_OPTION_ID_SET = new Set(
+    const THINKING_OPTION_ID_SET = new Set<ThinkingLevel>(
         THINKING_TIME_OPTIONS.map((option) => option.id),
     );
 
-    const THINKING_OPTION_ICONS = {
+    const THINKING_OPTION_ICONS: Record<ThinkingLevel, string> = {
         light: `
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
           <path d="M12.0837 0.00494385C12.4509 0.00511975 12.7488 0.302822 12.7488 0.669983C12.7488 1.03714 12.4509 1.33485 12.0837 1.33502H7.91675C7.54948 1.33502 7.25171 1.03725 7.25171 0.669983C7.25171 0.302714 7.54948 0.00494385 7.91675 0.00494385H12.0837Z"></path>
@@ -156,18 +172,21 @@ export default defineContentScript({
     const HEADER_LABEL_SEPARATORS = ["·", "|", "/", "-", "–", "—", "·", ":"];
 
 
-    const normalizeThinkingOptionId = (value) => {
+    const normalizeThinkingOptionId = (value: unknown): ThinkingLevel | null => {
         if (typeof value !== "string") return null;
         const normalized = value.trim().toLowerCase();
-        if (!THINKING_OPTION_ID_SET.has(normalized)) return null;
-        return normalized;
+        if (!THINKING_OPTION_ID_SET.has(normalized as ThinkingLevel)) return null;
+        return normalized as ThinkingLevel;
     };
 
     const { normalizeEntry, cloneEntry } = createQueueHelpers(
         normalizeThinkingOptionId,
     );
 
-    const labelForThinkingOption = (id, fallback = DEFAULT_THINKING_OPTION_LABEL) => {
+    const labelForThinkingOption = (
+        id: unknown,
+        fallback = DEFAULT_THINKING_OPTION_LABEL,
+    ): string => {
         const normalized = normalizeThinkingOptionId(id);
         if (!normalized) return fallback;
         return THINKING_OPTION_MAP[normalized]?.label || fallback;
@@ -176,11 +195,11 @@ export default defineContentScript({
 
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
-    const MODEL_SHORTCUT_ENTRIES = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
+    const MODEL_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
         const number = index === MODEL_SHORTCUT_KEY_ORDER.length - 1 ? 10 : index + 1;
         const label = `Select model ${number}`;
-        const macKeys = ["command", "option", key];
-        const otherKeys = ["control", "alt", key];
+        const macKeys: ShortcutKeyToken[] = ["command", "option", key];
+        const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
         return {
             id: `model-select-${number}`,
             label,
@@ -188,13 +207,13 @@ export default defineContentScript({
             otherKeys,
         };
     });
-    const THINKING_SHORTCUT_ENTRIES = THINKING_TIME_OPTIONS.map((option) => ({
+    const THINKING_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = THINKING_TIME_OPTIONS.map((option) => ({
         id: `thinking-${option.id}`,
         label: `Set thinking time: ${option.label}`,
-        macKeys: ["command", "control", option.digit],
-        otherKeys: ["control", "alt", option.digit],
+        macKeys: ["command", "control", option.digit || ""] as ShortcutKeyToken[],
+        otherKeys: ["control", "alt", option.digit || ""] as ShortcutKeyToken[],
     }));
-    const KEYBOARD_SHORTCUT_ENTRIES = [
+    const KEYBOARD_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = [
         {
             id: "queue-add",
             label: "Queue current input",
@@ -253,7 +272,7 @@ export default defineContentScript({
         ...THINKING_SHORTCUT_ENTRIES,
     ];
 
-    const KEY_DISPLAY_MAP = {
+    const KEY_DISPLAY_MAP: Record<string, { glyph: string; aria: string }> = {
         option: { glyph: "⌥", aria: "Option" },
         command: { glyph: "⌘", aria: "Command" },
         meta: { glyph: "⌘", aria: "Command" },
@@ -270,12 +289,12 @@ export default defineContentScript({
         arrowdown: { glyph: "↓", aria: "Arrow Down" },
     };
 
-    const resolveShortcutKeys = (entry) => {
+    const resolveShortcutKeys = (entry: KeyboardShortcutEntry): ShortcutKeyToken[] => {
         const keys = isApplePlatform ? entry.macKeys : entry.otherKeys;
         return Array.isArray(keys) && keys.length ? [...keys] : [];
     };
 
-    const resolveKeyDisplay = (token) => {
+    const resolveKeyDisplay = (token: ShortcutKeyToken) => {
         if (typeof token !== "string") {
             return { glyph: "?", aria: "Key" };
         }
@@ -287,7 +306,7 @@ export default defineContentScript({
         return { glyph: label, aria: label };
     };
 
-    function buildShortcutKeyGroup(tokens) {
+    function buildShortcutKeyGroup(tokens: ShortcutKeyToken[]): HTMLDivElement {
         const wrapper = document.createElement("div");
         wrapper.className =
             "inline-flex whitespace-pre *:inline-flex *:font-sans";
@@ -304,7 +323,7 @@ export default defineContentScript({
         return wrapper;
     }
 
-    function widenShortcutPopover(list) {
+    function widenShortcutPopover(list: HTMLDListElement | null) {
         if (!(list instanceof HTMLDListElement)) return;
         const popover = list.closest(".popover");
         if (!(popover instanceof HTMLElement)) return;
@@ -317,11 +336,11 @@ export default defineContentScript({
         popover.style.width = widthExpr;
     }
 
-    function ensureShortcutColumns(list) {
+    function ensureShortcutColumns(list: HTMLDListElement): HTMLDivElement | null {
         if (!(list instanceof HTMLDListElement)) return null;
         const popover = list.closest(".popover");
         if (!(popover instanceof HTMLElement)) return null;
-        let wrapper = popover.querySelector("[data-cq-shortcut-wrapper]");
+        let wrapper = popover.querySelector<HTMLElement>("[data-cq-shortcut-wrapper]");
         if (!wrapper) {
             wrapper = document.createElement("div");
             wrapper.dataset.cqShortcutWrapper = "true";
@@ -342,9 +361,9 @@ export default defineContentScript({
         list.style.gridColumn = "1 / 2";
         list.style.width = "100%";
         list.style.margin = "0";
-        let queueColumn = wrapper.querySelector("[data-cq-queue-column]");
+        let queueColumn = wrapper.querySelector<HTMLDivElement>("[data-cq-queue-column]");
         if (!queueColumn) {
-            queueColumn = document.createElement("div");
+            queueColumn = document.createElement("div") as HTMLDivElement;
             queueColumn.dataset.cqQueueColumn = "true";
             queueColumn.style.gridColumn = "2 / 3";
             queueColumn.style.width = "100%";
@@ -359,7 +378,7 @@ export default defineContentScript({
         return queueColumn;
     }
 
-    function injectQueueShortcutsIntoList(list) {
+    function injectQueueShortcutsIntoList(list: HTMLDListElement | null) {
         if (!(list instanceof HTMLDListElement)) return;
         const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
             id: entry.id,
@@ -405,7 +424,7 @@ export default defineContentScript({
         queueColumn.appendChild(grid);
     }
 
-    function findShortcutListFromHeading(heading) {
+    function findShortcutListFromHeading(heading: HTMLElement | null): HTMLDListElement | null {
         let current = heading?.parentElement || null;
         while (current && current !== document.body) {
             const list = current.querySelector?.("dl");
@@ -418,8 +437,8 @@ export default defineContentScript({
     }
 
     function refreshKeyboardShortcutPopover() {
-        const seen = new Set();
-        const headings = document.querySelectorAll("h2");
+        const seen = new Set<HTMLDListElement>();
+        const headings = document.querySelectorAll<HTMLElement>("h2");
         headings.forEach((heading) => {
             if (!(heading instanceof HTMLElement)) return;
             const label = heading.textContent?.trim().toLowerCase();
@@ -438,20 +457,20 @@ export default defineContentScript({
         });
     }
 
-    const escapeCss = (value) => {
+    const escapeCss = (value: unknown): string => {
         const str = String(value ?? "");
         if (typeof CSS !== "undefined" && typeof CSS.escape === "function")
             return CSS.escape(str);
         return str.replace(/[^a-zA-Z0-9_\-]/g, (ch) => `\\${ch}`);
     };
 
-    const normalizeModelId = (value) =>
+    const normalizeModelId = (value: unknown): string =>
         String(value ?? "")
             .trim()
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-");
 
-    const MODEL_ID_ALIASES = {
+    const MODEL_ID_ALIASES: Record<string, string> = {
         auto: "gpt-5-1",
         "gpt5": "gpt-5-1",
         "gpt-5": "gpt-5-1",
@@ -460,7 +479,7 @@ export default defineContentScript({
     };
 
 
-    const isModelDebugEnabled = () => {
+    const isModelDebugEnabled = (): boolean => {
         try {
             if (typeof window !== "object") return false;
             if (typeof window.__CQ_DEBUG_MODELS === "boolean") {
@@ -473,7 +492,7 @@ export default defineContentScript({
         }
     };
 
-    const logModelDebug = (...parts) => {
+    const logModelDebug = (...parts: unknown[]) => {
         if (!isModelDebugEnabled()) return;
         try {
             if (typeof console === "object" && typeof console.info === "function") {
@@ -484,7 +503,7 @@ export default defineContentScript({
         }
     };
 
-    const isElementVisible = (element) => {
+    const isElementVisible = (element: Element | null): element is HTMLElement => {
         if (!(element instanceof HTMLElement)) return false;
         const style = window.getComputedStyle(element);
         if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
@@ -495,9 +514,9 @@ export default defineContentScript({
         return rect.width > 0 && rect.height > 0;
     };
 
-    const queryModelSwitcherButtons = () =>
+    const queryModelSwitcherButtons = (): HTMLButtonElement[] =>
         Array.from(
-            document.querySelectorAll(
+            document.querySelectorAll<HTMLButtonElement>(
                 'button[data-testid="model-switcher-dropdown-button"]',
             ),
         );
@@ -515,12 +534,12 @@ export default defineContentScript({
         return buttons[0];
     };
 
-    const applyModelIdAlias = (value) => {
+    const applyModelIdAlias = (value: string | null | undefined): string => {
         const normalized = normalizeModelId(value);
-        return MODEL_ID_ALIASES[normalized] || value;
+        return MODEL_ID_ALIASES[normalized] || String(value ?? "");
     };
 
-    const normalizeModelLabelSignature = (value) =>
+    const normalizeModelLabelSignature = (value: unknown): string =>
         String(value || "")
             .replace(/chatgpt/gi, "")
             .replace(/[•·|/:\-–—]+/g, " ")
@@ -528,13 +547,14 @@ export default defineContentScript({
             .trim()
             .toLowerCase();
 
-    const extractHeaderLabelSignatures = (label) => {
-        const signatures = new Set();
+    const extractHeaderLabelSignatures = (label: string | null | undefined): string[] => {
+        const signatures = new Set<string>();
         const base = normalizeModelLabelSignature(label);
         if (base) signatures.add(base);
-        const parts = [label];
+        const safeLabel = String(label ?? "");
+        const parts = [safeLabel];
         HEADER_LABEL_SEPARATORS.forEach((sep) => {
-            label.split(sep).forEach((part) => parts.push(part));
+            safeLabel.split(sep).forEach((part) => parts.push(part));
         });
         parts.forEach((part) => {
             const sig = normalizeModelLabelSignature(part);
@@ -543,7 +563,7 @@ export default defineContentScript({
         return Array.from(signatures);
     };
 
-    const tokenizeSignature = (signature) => {
+    const tokenizeSignature = (signature: string | null | undefined): string[] => {
         if (!signature) return [];
         return signature
             .split(" ")
@@ -551,20 +571,28 @@ export default defineContentScript({
             .filter(Boolean);
     };
 
-    const collectDigitsFromValue = (value) => {
+    const collectDigitsFromValue = (value: unknown): string[] => {
         if (!value) return [];
         return (String(value).match(/\d+/g) || []).map((digit) => digit.trim()).filter(Boolean);
     };
 
-    const buildModelSignatureMeta = (model) => {
+    interface ModelSignatureMeta {
+        labelSignature: string;
+        descriptionSignature: string;
+        idSignature: string;
+        tokens: Set<string>;
+        digits: Set<string>;
+    }
+
+    const buildModelSignatureMeta = (model: QueueModelDefinition): ModelSignatureMeta => {
         const labelSignature = normalizeModelLabelSignature(model?.label);
         const descriptionSignature = normalizeModelLabelSignature(model?.description);
         const idSignature = normalizeModelLabelSignature(model?.id);
-        const tokens = new Set();
+        const tokens = new Set<string>();
         [labelSignature, descriptionSignature, idSignature].forEach((signature) => {
             tokenizeSignature(signature).forEach((token) => tokens.add(token));
         });
-        const digits = new Set();
+        const digits = new Set<string>();
         [labelSignature, descriptionSignature, idSignature, model?.id].forEach((signature) => {
             collectDigitsFromValue(signature).forEach((digit) => digits.add(digit));
         });
@@ -578,11 +606,11 @@ export default defineContentScript({
     };
 
     const scoreModelSignatureMatch = (
-        headerSignatures,
-        headerTokensList,
-        headerDigits,
-        meta,
-    ) => {
+        headerSignatures: string[],
+        headerTokensList: string[][],
+        headerDigits: Set<string>,
+        meta: ModelSignatureMeta,
+    ): number => {
         let score = 0;
         headerSignatures.forEach((signature, index) => {
             if (!signature) return;
@@ -654,7 +682,7 @@ export default defineContentScript({
         return score;
     };
 
-    const supportsThinkingForModel = (modelId, label = "") => {
+    const supportsThinkingForModel = (modelId: string | null | undefined, label = ""): boolean => {
         const canonical = modelId
             ? normalizeModelId(applyModelIdAlias(modelId))
             : "";
@@ -665,7 +693,7 @@ export default defineContentScript({
         return canonicalMatches || labelMatches;
     };
 
-    const scheduleHeaderModelSync = (delay = HEADER_MODEL_SYNC_DEBOUNCE_MS) => {
+    const scheduleHeaderModelSync = (delay: number = HEADER_MODEL_SYNC_DEBOUNCE_MS) => {
         if (headerModelSyncTimer) {
             window.clearTimeout(headerModelSyncTimer);
         }
@@ -675,7 +703,7 @@ export default defineContentScript({
         }, delay);
     };
 
-    const logModelSyncEvent = (event, payload = {}) => {
+    const logModelSyncEvent = (event: string, payload: Record<string, unknown> = {}) => {
         try {
             console.info("[cq][debug] headerModelSync", {
                 event,
@@ -689,17 +717,20 @@ export default defineContentScript({
         }
     };
 
-    const findModelMatchByLabelSignature = (signatureInput, models = STATE.models) => {
-        const signatures = Array.isArray(signatureInput)
-            ? signatureInput.filter(Boolean)
-            : [signatureInput].filter(Boolean);
+    const findModelMatchByLabelSignature = (
+        signatureInput: string | string[] | null | undefined,
+        models: QueueModelDefinition[] = STATE.models,
+    ): QueueModelDefinition | null => {
+        const signatures = (Array.isArray(signatureInput) ? signatureInput : [signatureInput]).filter(
+            (value): value is string => typeof value === "string" && value.trim().length > 0,
+        );
         if (!signatures.length || !Array.isArray(models)) return null;
         const headerTokensList = signatures.map((signature) => tokenizeSignature(signature));
-        const headerDigits = new Set();
+        const headerDigits = new Set<string>();
         signatures.forEach((signature) => {
             collectDigitsFromValue(signature).forEach((digit) => headerDigits.add(digit));
         });
-        let bestModel = null;
+        let bestModel: QueueModelDefinition | null = null;
         let bestScore = 0;
         models.forEach((model) => {
             const meta = buildModelSignatureMeta(model);
@@ -872,39 +903,39 @@ export default defineContentScript({
         scheduleHeaderModelSync(0);
     };
 
-    let currentModelId = null;
+    let currentModelId: string | null = null;
     let currentModelLabel = "";
-    let composerControlGroup = null;
-    let composerQueueButton = null;
-    let composerHoldButton = null;
-    let composerModelLabelButton = null;
-    let composerModelLabelButtonValue = null;
-    let composerModelLabelPlacement = null;
-    let thinkingDropdown = null;
-    let thinkingDropdownAnchor = null;
-    let thinkingDropdownCleanup = [];
+    let composerControlGroup: HTMLElement | null = null;
+    let composerQueueButton: HTMLButtonElement | null = null;
+    let composerHoldButton: HTMLButtonElement | null = null;
+    let composerModelLabelButton: HTMLButtonElement | null = null;
+    let composerModelLabelButtonValue: HTMLElement | null = null;
+    let composerModelLabelPlacement: HTMLElement | null = null;
+    let thinkingDropdown: HTMLElement | null = null;
+    let thinkingDropdownAnchor: HTMLElement | null = null;
+    let thinkingDropdownCleanup: Array<() => void> = [];
     let composerModelSelectionPending = false;
-    let lastLoggedMarkModelId = null;
+    let lastLoggedMarkModelId: string | null = null;
     let lastLoggedMarkModelLabel = "";
     let lastLoggedCurrentModelId = "__unset__";
     let lastLoggedCurrentModelLabel = "__unset__";
-    let modelSwitcherObserver = null;
-    let observedModelSwitcherButton = null;
+    let modelSwitcherObserver: MutationObserver | null = null;
+    let observedModelSwitcherButton: HTMLButtonElement | null = null;
     let headerModelSyncTimer = 0;
     let headerModelSyncInFlight = false;
     let lastSyncedHeaderLabelSignature = "";
 
-    const getModelNodeLabel = (node) => {
+    const getModelNodeLabel = (node: Element | null | undefined): string => {
         if (!node) return "";
         const text = node.textContent || "";
         const lines = text
             .split("\n")
-            .map((line) => line.trim())
+            .map((line: string) => line.trim())
             .filter(Boolean);
         return lines[0] || text.trim();
     };
 
-    const findModelMenuRoot = () => {
+    const findModelMenuRoot = (): HTMLElement | null => {
         const selectors = [
             "[data-radix-menu-content]",
             "[data-radix-dropdown-menu-content]",
@@ -916,14 +947,14 @@ export default defineContentScript({
             if (root.id === MODEL_DROPDOWN_ID || root.closest(`#${MODEL_DROPDOWN_ID}`)) {
                 continue;
             }
-            if (root.querySelector('[data-testid^="model-switcher-"]'))
-                return root;
+                if (root.querySelector('[data-testid^="model-switcher-"]'))
+                    return root;
         }
         return null;
     };
 
-    const waitForModelMenu = (timeoutMs = 1500) =>
-        new Promise((resolve) => {
+    const waitForModelMenu = (timeoutMs = 1500): Promise<HTMLElement | null> =>
+        new Promise<HTMLElement | null>((resolve) => {
             const start = performance.now();
             logModelDebug("waitForModelMenu:start", {
                 timeoutMs,
@@ -950,14 +981,17 @@ export default defineContentScript({
             tick();
         });
 
-    const getActiveFocusableElement = () => {
+    const getActiveFocusableElement = (): HTMLElement | null => {
 
         if (!(document.activeElement instanceof HTMLElement)) return null;
 
         return document.activeElement;
     };
 
-    const restoreFocusIfAllowed = (element, guard) => {
+    const restoreFocusIfAllowed = (
+        element: Element | null,
+        guard?: () => boolean,
+    ): boolean => {
 
         if (!(element instanceof HTMLElement)) return false;
 
@@ -970,7 +1004,9 @@ export default defineContentScript({
         return true;
     };
 
-    const useModelMenu = async (operation) => {
+    const useModelMenu = async <T>(
+        operation: (menu: HTMLElement, button: HTMLButtonElement) => Promise<T> | T,
+    ): Promise<T | null> => {
         const button = findPreferredModelSwitcherButton();
         if (!button) {
             logModelDebug("useModelMenu:button-missing");
@@ -1009,7 +1045,7 @@ export default defineContentScript({
             wasOpen,
             menuId: menu.id || null,
         });
-        let result;
+        let result: T | null = null;
         try {
             result = await operation(menu, button);
         } finally {
@@ -1033,8 +1069,11 @@ export default defineContentScript({
         return result;
     };
 
-    const waitForElementById = (id, timeoutMs = 1000) =>
-        new Promise((resolve) => {
+    const waitForElementById = (
+        id: string | null | undefined,
+        timeoutMs = 1000,
+    ): Promise<HTMLElement | null> =>
+        new Promise<HTMLElement | null>((resolve) => {
             if (!id) {
                 resolve(null);
                 return;
@@ -1045,7 +1084,7 @@ export default defineContentScript({
                 return;
             }
             let done = false;
-            const finish = (value) => {
+            const finish = (value: HTMLElement | null) => {
                 if (done) return;
                 done = true;
                 observer.disconnect();
@@ -1060,7 +1099,7 @@ export default defineContentScript({
             const timer = setTimeout(() => finish(null), timeoutMs);
         });
 
-    const lookupMenuItemAcrossRoots = (modelId) => {
+    const lookupMenuItemAcrossRoots = (modelId: string): HTMLElement | null => {
         const selector = `[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`;
         for (const root of document.querySelectorAll("[data-radix-menu-content]")) {
             if (
@@ -1069,13 +1108,13 @@ export default defineContentScript({
             ) {
                 continue;
             }
-            const match = root.querySelector(selector);
+            const match = root.querySelector<HTMLElement>(selector);
             if (match) return match;
         }
         return null;
     };
 
-    const findClosedSubmenuTrigger = (visited) => {
+    const findClosedSubmenuTrigger = (visited: Set<HTMLElement>): HTMLElement | null => {
         const submenus = document.querySelectorAll(
             '[role="menuitem"][data-testid$="-submenu"]',
         );
@@ -1088,7 +1127,7 @@ export default defineContentScript({
         return null;
     };
 
-    const openSubmenuTrigger = async (trigger) => {
+    const openSubmenuTrigger = async (trigger: HTMLElement | null): Promise<boolean> => {
         if (!(trigger instanceof HTMLElement)) return false;
         const alreadyOpen = trigger.getAttribute("aria-expanded") === "true";
         const controlsId = trigger.getAttribute("aria-controls") || "";
@@ -1105,9 +1144,13 @@ export default defineContentScript({
         return trigger.getAttribute("aria-expanded") === "true";
     };
 
-    const waitForModelMenuItem = async (menu, modelId, timeoutMs = 2000) => {
+    const waitForModelMenuItem = async (
+        menu: HTMLElement,
+        modelId: string,
+        timeoutMs = 2000,
+    ): Promise<HTMLElement | null> => {
         const deadline = performance.now() + timeoutMs;
-        const visitedSubmenus = new Set();
+        const visitedSubmenus = new Set<HTMLElement>();
         while (performance.now() < deadline) {
             const existing =
                 findModelMenuItem(menu, modelId) ||
@@ -1126,11 +1169,11 @@ export default defineContentScript({
         return null;
     };
 
-    const isModelSwitcherOpen = (button) =>
+    const isModelSwitcherOpen = (button: HTMLElement | null) =>
         button?.getAttribute("aria-expanded") === "true" ||
         button?.dataset.state === "open";
 
-    const dispatchPointerAndMousePress = (target) => {
+    const dispatchPointerAndMousePress = (target: Element | null) => {
         if (!(target instanceof HTMLElement)) return false;
         const rect = target.getBoundingClientRect();
         const clientX = rect.left + rect.width / 2;
@@ -1206,7 +1249,7 @@ export default defineContentScript({
         return true;
     };
 
-    const dispatchHoverSequence = (target) => {
+    const dispatchHoverSequence = (target: Element | null) => {
         if (!(target instanceof HTMLElement)) return false;
         const rect = target.getBoundingClientRect();
         const clientX = rect.left + rect.width / 2;
@@ -1232,7 +1275,7 @@ export default defineContentScript({
         return true;
     };
 
-    const dispatchKeyboardEnterPress = (target) => {
+    const dispatchKeyboardEnterPress = (target: Element | null) => {
         if (!(target instanceof HTMLElement)) return false;
         const keyOpts = {
             bubbles: true,
@@ -1247,10 +1290,10 @@ export default defineContentScript({
         return true;
     };
 
-    const isDropdownVisiblyOpen = (button) =>
+    const isDropdownVisiblyOpen = (button: HTMLElement | null) =>
         isModelSwitcherOpen(button) || !!findModelMenuRoot();
 
-    const setModelSwitcherOpenState = (button, shouldOpen = true) => {
+    const setModelSwitcherOpenState = (button: HTMLElement | null, shouldOpen = true) => {
         if (!(button instanceof HTMLElement)) return false;
         const desired = !!shouldOpen;
         if (desired === isDropdownVisiblyOpen(button)) {
@@ -1292,7 +1335,7 @@ export default defineContentScript({
         return success;
     };
 
-    const openModelSwitcherDropdown = () => {
+    const openModelSwitcherDropdown = (): boolean => {
         modelMenuController.close();
         const button = findPreferredModelSwitcherButton();
         if (!(button instanceof HTMLElement)) return false;
@@ -1302,7 +1345,7 @@ export default defineContentScript({
         return true;
     };
 
-    const activateMenuItem = (item) => {
+    const activateMenuItem = (item: Element | null): boolean => {
         if (!(item instanceof HTMLElement)) return false;
         item.focus?.({ preventScroll: true });
         dispatchPointerAndMousePress(item);
@@ -1318,26 +1361,26 @@ export default defineContentScript({
     const normalizeThinkingText = (value = "") =>
         String(value || "").trim().toLowerCase();
 
-    const THINKING_OPTION_LABEL_MAP = THINKING_TIME_OPTIONS.reduce(
+    const THINKING_OPTION_LABEL_MAP: Record<ThinkingLevel, string> = THINKING_TIME_OPTIONS.reduce(
         (map, option) => {
             map[option.id] = normalizeThinkingText(option.label);
             return map;
         },
-        {},
+        {} as Record<ThinkingLevel, string>,
     );
 
-    const resolveThinkingOptionFromText = (value = "") => {
+    const resolveThinkingOptionFromText = (value = ""): ThinkingLevel | null => {
         const normalized = normalizeThinkingText(value);
         if (!normalized) return null;
         for (const [id, label] of Object.entries(THINKING_OPTION_LABEL_MAP)) {
-            if (label && normalized.includes(label)) return id;
+            if (label && normalized.includes(label)) return id as ThinkingLevel;
         }
         return null;
     };
 
-    const findThinkingChipButton = () => {
+    const findThinkingChipButton = (): HTMLButtonElement | null => {
         const selector = "button.__composer-pill";
-        for (const button of document.querySelectorAll(selector)) {
+        for (const button of document.querySelectorAll<HTMLButtonElement>(selector)) {
             if (!(button instanceof HTMLElement)) continue;
             const text = button.textContent || "";
             if (normalizeThinkingText(text).includes("thinking")) {
@@ -1362,7 +1405,7 @@ export default defineContentScript({
         return null;
     };
 
-    const findThinkingMenuRoot = () => {
+    const findThinkingMenuRoot = (): HTMLElement | null => {
         const menus = document.querySelectorAll(
             '[role="menu"][data-radix-menu-content]'
         );
@@ -1377,10 +1420,10 @@ export default defineContentScript({
         return null;
     };
 
-    const isThinkingMenuOpen = () => !!findThinkingMenuRoot();
+    const isThinkingMenuOpen = (): boolean => !!findThinkingMenuRoot();
 
-    const waitForThinkingMenu = (timeoutMs = 1200) =>
-        new Promise((resolve) => {
+    const waitForThinkingMenu = (timeoutMs = 1200): Promise<HTMLElement | null> =>
+        new Promise<HTMLElement | null>((resolve) => {
             const start = performance.now();
             const tick = () => {
                 const menu = findThinkingMenuRoot();
@@ -1397,7 +1440,9 @@ export default defineContentScript({
             tick();
         });
 
-    const useThinkingMenu = async (operation) => {
+    const useThinkingMenu = async <T>(
+        operation: (menu: HTMLElement, button: HTMLButtonElement) => Promise<T> | T,
+    ): Promise<T | null> => {
         const button = findThinkingChipButton();
         if (!(button instanceof HTMLElement)) return null;
         const wasOpen = isThinkingMenuOpen();
@@ -1411,7 +1456,7 @@ export default defineContentScript({
             }
             return null;
         }
-        let result;
+        let result: T | null = null;
         try {
             result = await operation(menu, button);
         } finally {
@@ -1422,7 +1467,10 @@ export default defineContentScript({
         return result;
     };
 
-    const findThinkingMenuItem = (menu, optionId) => {
+    const findThinkingMenuItem = (
+        menu: HTMLElement,
+        optionId: ThinkingLevel,
+    ): HTMLElement | null => {
         if (!(menu instanceof HTMLElement)) return null;
         const desired = THINKING_OPTION_LABEL_MAP[optionId];
         if (!desired) return null;
@@ -1437,7 +1485,7 @@ export default defineContentScript({
         return null;
     };
 
-    const selectThinkingTimeOption = async (optionId) => {
+    const selectThinkingTimeOption = async (optionId: ThinkingLevel): Promise<boolean> => {
         if (!THINKING_OPTION_LABEL_MAP[optionId]) return false;
         const result = await useThinkingMenu(async (menu) => {
             const item = findThinkingMenuItem(menu, optionId);
@@ -1448,7 +1496,7 @@ export default defineContentScript({
         return !!result;
     };
 
-    const setComposerModelSelectionBusy = (isBusy) => {
+    const setComposerModelSelectionBusy = (isBusy: boolean) => {
         if (!(composerModelLabelButton instanceof HTMLElement)) return;
         if (isBusy) {
             composerModelLabelButton.dataset.cqModelSelecting = "true";
@@ -1459,7 +1507,9 @@ export default defineContentScript({
         }
     };
 
-    const handleComposerModelSelection = async (model) => {
+    const handleComposerModelSelection = async (
+        model: QueueModelDefinition | null,
+    ): Promise<boolean> => {
         if (!model || !model.id || composerModelSelectionPending) return false;
         composerModelSelectionPending = true;
         modelMenuController.close();
@@ -1482,7 +1532,7 @@ export default defineContentScript({
         }
     };
 
-    const getModelById = (id) => {
+    const getModelById = (id: string | null | undefined): QueueModelDefinition | null => {
         if (!id) return null;
         const normalized = normalizeModelId(id);
         return (
@@ -1492,7 +1542,7 @@ export default defineContentScript({
         );
     };
 
-    const labelForModel = (id, fallback = "") => {
+    const labelForModel = (id: string | null | undefined, fallback = ""): string => {
         if (!id) return fallback || "";
         const info = getModelById(id);
         if (info?.label) return info.label;
@@ -1505,11 +1555,11 @@ export default defineContentScript({
     };
 
     const resolveModelDropdownHeading = (
-        models = STATE.models,
-        preferredId = null,
-    ) => {
+        models: QueueModelDefinition[] = STATE.models,
+        selectedModelId?: string | null,
+    ): string => {
         const slugCandidate =
-            preferredId ||
+            selectedModelId ||
             currentModelId ||
             models.find((model) => model.selected)?.id ||
             STATE.models[0]?.id ||
@@ -1541,8 +1591,8 @@ export default defineContentScript({
         return slugCandidate.toUpperCase();
     };
 
-    const dedupeModelsForDisplay = (models) => {
-        const map = new Map();
+    const dedupeModelsForDisplay = (models: QueueModelDefinition[]): QueueModelDefinition[] => {
+        const map = new Map<string, QueueModelDefinition>();
         models.forEach((model) => {
             if (!model?.id) return;
             const canonicalKey = normalizeModelId(applyModelIdAlias(model.id));
@@ -1571,7 +1621,7 @@ export default defineContentScript({
         return Array.from(map.values());
     };
 
-    const resolveModelOrder = (model) =>
+    const resolveModelOrder = (model: QueueModelDefinition): number =>
         Number.isFinite(model?.order)
             ? Number(model.order)
             : Number.MAX_SAFE_INTEGER;
@@ -1586,8 +1636,8 @@ export default defineContentScript({
     });
 
     const openModelDropdownForAnchor = async (
-        anchor,
-        { selectedModelId = null, onSelect } = {},
+        anchor: HTMLElement,
+        { selectedModelId = null, onSelect }: { selectedModelId?: string | null; onSelect?: (model: QueueModelDefinition) => void } = {},
     ) => {
         if (!(anchor instanceof HTMLElement)) return;
         try {
@@ -1605,14 +1655,19 @@ export default defineContentScript({
         }
     };
 
-    const HEADER_LABEL_ALIASES = [
+    interface HeaderLabelAliasRule {
+        test: (value: string) => boolean;
+        display: string;
+    }
+
+    const HEADER_LABEL_ALIASES: HeaderLabelAliasRule[] = [
         {
             test: (value) => /^5$/i.test(value),
             display: "Auto",
         },
     ];
 
-    const applyHeaderLabelAliases = (label) => {
+    const applyHeaderLabelAliases = (label: string | null | undefined): string => {
         const trimmed = String(label || "").trim();
         if (!trimmed) return "";
         const alias = HEADER_LABEL_ALIASES.find((entry) =>
@@ -1697,7 +1752,14 @@ export default defineContentScript({
         },
     ];
 
-    const HEADER_LABEL_MODEL_MAP = [
+    interface HeaderLabelModelRule {
+        signature?: string;
+        modelId: string;
+        label: string;
+        test?: (value: string) => boolean;
+    }
+
+    const HEADER_LABEL_MODEL_MAP: HeaderLabelModelRule[] = [
         {
             signature: "5.1 instant",
             modelId: "gpt-5-1-instant",
@@ -1725,7 +1787,7 @@ export default defineContentScript({
         },
     ];
 
-    const findHeaderLabelModelOverride = (label) => {
+    const findHeaderLabelModelOverride = (label: string | null | undefined): { id: string; label: string } | null => {
         const signature = normalizeModelLabelSignature(label);
         if (!signature) return null;
         const entry = HEADER_LABEL_MODEL_MAP.find((item) => {
@@ -1792,10 +1854,10 @@ export default defineContentScript({
     };
 
     const registerThinkingDropdownCleanup = (
-        target,
-        event,
-        handler,
-        options,
+        target: EventTarget | null | undefined,
+        event: string,
+        handler: EventListenerOrEventListenerObject,
+        options?: AddEventListenerOptions | boolean,
     ) => {
         if (!target || typeof target.addEventListener !== "function") return;
         target.addEventListener(event, handler, options);
@@ -1877,7 +1939,9 @@ export default defineContentScript({
         }
     };
 
-    const buildThinkingDropdown = ({ selectedId = null, onSelect } = {}) => {
+    const buildThinkingDropdown = (
+        { selectedId = null, onSelect }: { selectedId?: string | null; onSelect?: (value: ThinkingLevel | null) => void } = {},
+    ) => {
         const wrapper = document.createElement("div");
         wrapper.id = THINKING_DROPDOWN_ID;
         wrapper.dataset.radixPopperContentWrapper = "";
@@ -1978,13 +2042,13 @@ export default defineContentScript({
                 trailing.appendChild(placeholder);
             }
             item.appendChild(trailing);
-            const triggerSelection = (event) => {
+            const triggerSelection = (event: Event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 onSelect?.(option.id);
             };
             item.addEventListener("click", triggerSelection);
-            item.addEventListener("keydown", (event) => {
+            item.addEventListener("keydown", (event: KeyboardEvent) => {
                 const key = event.key || "";
                 if (key === "Enter" || key === " " || key === "Spacebar") {
                     triggerSelection(event);
@@ -1997,7 +2061,7 @@ export default defineContentScript({
         return wrapper;
     };
 
-    const openQueueEntryThinkingDropdown = (index, anchor) => {
+    const openQueueEntryThinkingDropdown = (index: number, anchor: HTMLElement) => {
         if (!(anchor instanceof HTMLElement)) return;
         const entry = STATE.queue[index];
         if (
@@ -2021,7 +2085,7 @@ export default defineContentScript({
         });
         document.body.appendChild(thinkingDropdown);
         positionThinkingDropdown();
-        const handleClickOutside = (event) => {
+        const handleClickOutside = (event: Event) => {
             if (
                 !thinkingDropdown ||
                 thinkingDropdown.contains(event.target) ||
@@ -3030,7 +3094,7 @@ export default defineContentScript({
         return resolveCurrentModelButtonValue() || "Select model";
     };
 
-    const resolveQueueEntryThinkingLabel = (entry) => {
+    const resolveQueueEntryThinkingLabel = (entry: QueueEntry): string => {
         const sourceId = entry?.thinking || getCurrentThinkingOption();
         const normalized = normalizeThinkingOptionId(sourceId);
         if (!normalized) return DEFAULT_THINKING_BUTTON_LABEL;
@@ -3040,7 +3104,10 @@ export default defineContentScript({
         return `${label} thinking`;
     };
 
-    const setEntryThinkingOption = (index, value) => {
+    const setEntryThinkingOption = (
+        index: number,
+        value: string | ThinkingLevel | null | undefined,
+    ) => {
         const entry = STATE.queue[index];
         if (!entry) return;
         if (!supportsThinkingForModel(entry.model, entry.modelLabel)) {
@@ -3063,7 +3130,7 @@ export default defineContentScript({
         });
     };
 
-    const applyModelSelectionToEntry = (index, model) => {
+    const applyModelSelectionToEntry = (index: number, model: QueueModelDefinition) => {
         if (!model?.id) return;
         const entry = STATE.queue[index];
         if (!entry) return;
@@ -3210,7 +3277,7 @@ export default defineContentScript({
         composerModelLabelButton.title = tooltip;
     }
 
-    function refreshControls(generatingOverride) {
+    function refreshControls(generatingOverride?: boolean) {
         const generating =
             typeof generatingOverride === "boolean"
                 ? generatingOverride

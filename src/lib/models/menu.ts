@@ -574,8 +574,9 @@ export const createModelMenuController = (
       if (anchor?.contains(event.target as Node)) return;
       close();
     };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+    const handleEscape = (event: Event) => {
+      const key = (event as KeyboardEvent).key;
+      if (key === "Escape") {
         event.preventDefault();
         close();
         anchor?.focus?.();

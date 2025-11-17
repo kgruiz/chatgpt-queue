@@ -112,7 +112,7 @@ export const createStorageManager = <TSnapshot>(
   const loadSnapshot = (
     identifier: string | null | undefined,
   ): Promise<TSnapshot | null> =>
-    new Promise((resolve) => {
+    new Promise<TSnapshot | null>((resolve) => {
       if (!storageArea?.get) {
         resolve(null);
         return;

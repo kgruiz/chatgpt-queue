@@ -30,7 +30,7 @@ const tokenizeClassNames = (value: string | string[]): string[] => {
     .filter((token) => token.length > 0);
 };
 
-const assignClasses = (element: Element, props?: TemplateProps) => {
+const assignClasses = <T extends Element>(element: T, props?: TemplateProps<T>) => {
   if (!props) return;
   const tokens = [
     ...tokenizeClassNames(props.className || []),
@@ -43,7 +43,7 @@ const assignClasses = (element: Element, props?: TemplateProps) => {
   }
 };
 
-const assignAttributes = (element: Element, props?: TemplateProps) => {
+const assignAttributes = <T extends Element>(element: T, props?: TemplateProps<T>) => {
   if (!props?.attrs) return;
   Object.entries(props.attrs).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -55,7 +55,10 @@ const assignAttributes = (element: Element, props?: TemplateProps) => {
   });
 };
 
-const assignDataset = (element: HTMLElement | SVGElement, props?: TemplateProps) => {
+const assignDataset = <T extends HTMLElement | SVGElement>(
+  element: T,
+  props?: TemplateProps<T>,
+) => {
   if (!props?.dataset || !(element instanceof HTMLElement)) return;
   Object.entries(props.dataset).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -82,7 +85,7 @@ const appendChildren = (node: Node, children: TemplateChild[]) => {
   }
 };
 
-const assignContent = (element: Element, props?: TemplateProps) => {
+const assignContent = <T extends Element>(element: T, props?: TemplateProps<T>) => {
   if (!props) return;
   if (typeof props.html === "string") {
     element.innerHTML = props.html;

@@ -1,5 +1,11 @@
 export type ThinkingLevel = "light" | "standard" | "extended" | "heavy";
 
+export interface ThinkingOption {
+  id: ThinkingLevel;
+  label: string;
+  digit?: string;
+}
+
 export interface Attachment {
   id: string;
   name: string;
@@ -26,9 +32,48 @@ export interface QueueModelDefinition {
   groupLabel?: string;
   order?: number;
   selected?: boolean;
+  modelLabel?: string;
 }
 
 export interface QueueModelGroupMeta {
   label: string;
   order: number;
+}
+
+export type ShortcutKeyToken =
+  | "option"
+  | "command"
+  | "meta"
+  | "shift"
+  | "control"
+  | "ctrl"
+  | "alt"
+  | "enter"
+  | "return"
+  | "delete"
+  | "p"
+  | "period"
+  | "arrowup"
+  | "arrowdown"
+  | string;
+
+export interface KeyboardShortcutEntry {
+  id: string;
+  label: string;
+  macKeys: ShortcutKeyToken[];
+  otherKeys: ShortcutKeyToken[];
+}
+
+export type ModelMenuActionType =
+  | "open"
+  | "toggle"
+  | "close"
+  | "select"
+  | "sync";
+
+export interface ModelMenuAction {
+  type: ModelMenuActionType;
+  modelId?: string | null;
+  source?: "shortcut" | "click" | "sync" | "unknown";
+  timestamp: number;
 }
