@@ -124,7 +124,8 @@ export const createStorageManager = <TSnapshot>(
         storageArea.get(keys, (result: Record<string, unknown> = {}) => {
           const error = readRuntimeError();
           if (error) reportError("load", error);
-          let snapshot = (result[storageKey] as TSnapshot | undefined) || null;
+          let snapshot: TSnapshot | null =
+            (result[storageKey] as TSnapshot | undefined) ?? null;
           if (!snapshot) {
             snapshot = migrateLegacyValue(result, storageKey);
           }

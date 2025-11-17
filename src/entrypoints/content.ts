@@ -48,6 +48,7 @@ import {
     MODEL_DROPDOWN_ID,
 } from "../lib/models/menu";
 import type {
+    Attachment,
     KeyboardShortcutEntry,
     QueueEntry,
     QueueModelDefinition,
@@ -913,7 +914,7 @@ export default defineContentScript({
     let composerHoldButton: HTMLButtonElement | null = null;
     let composerModelLabelButton: HTMLButtonElement | null = null;
     let composerModelLabelButtonValue: HTMLElement | null = null;
-    let composerModelLabelPlacement: HTMLElement | null = null;
+    let composerModelLabelPlacement: HTMLElement | "controls" | null = null;
     let thinkingDropdown: HTMLElement | null = null;
     let thinkingDropdownAnchor: HTMLElement | null = null;
     let thinkingDropdownCleanup: Array<() => void> = [];
@@ -1533,6 +1534,14 @@ export default defineContentScript({
             setComposerModelSelectionBusy(false);
             composerModelSelectionPending = false;
         }
+    };
+
+    const openComposerModelDropdown = async (): Promise<void> => {
+        if (!(composerModelLabelButton instanceof HTMLElement)) return;
+        await openModelDropdownForAnchor(composerModelLabelButton, {
+            selectedModelId: currentModelId,
+            onSelect: (model) => handleComposerModelSelection(model),
+        });
     };
 
     const getModelById = (id: string | null | undefined): QueueModelDefinition | null => {
@@ -2440,11 +2449,11 @@ export default defineContentScript({
     const findModelMenuItem = (
         menu: Element | Document | null,
         modelId: string | null,
-    ): Element | null => {
+    ): HTMLElement | null => {
         if (!menu || !modelId || typeof (menu as ParentNode).querySelector !== "function") {
             return null;
         }
-        const direct = (menu as ParentNode).querySelector(
+        const direct = (menu as ParentNode).querySelector<HTMLElement>(
             `[role="menuitem"][data-testid="model-switcher-${escapeCss(modelId)}"]`,
         );
         if (direct) return direct;
@@ -2453,7 +2462,7 @@ export default defineContentScript({
             (menu as ParentNode).querySelectorAll(
                 '[role="menuitem"][data-testid^="model-switcher-"]',
             ),
-        ) as Element[];
+        ) as HTMLElement[];
         for (const candidate of candidates) {
             const tid = candidate.getAttribute("data-testid") || "";
             const id = tid.replace(/^model-switcher-/, "");
@@ -2881,10 +2890,10 @@ export default defineContentScript({
 
     window.addEventListener("resize", () => scheduleThreadLayoutSync());
 
-    const locateCanvasPanel = () => {
-        const marked = document.querySelector("[data-cq-canvas-panel='true']");
+    const locateCanvasPanel = (): HTMLElement | null => {
+        const marked = document.querySelector<HTMLElement>("[data-cq-canvas-panel='true']");
         if (marked) return marked;
-        const candidate = document.querySelector(
+        const candidate = document.querySelector<HTMLElement>(
             'div.bg-token-bg-primary.absolute.start-0.z-20.h-full.overflow-hidden[style*="calc("][style*="translateX"]',
         );
         if (candidate && candidate.querySelector("section.popover")) {
@@ -3018,7 +3027,7 @@ export default defineContentScript({
             });
         });
 
-    const deleteQueueEntry = (index) => {
+    const deleteQueueEntry = (index: number): boolean => {
         const removed = removeQueueEntry(STATE, index);
         if (!removed) return false;
         save();
@@ -3026,7 +3035,7 @@ export default defineContentScript({
         return true;
     };
 
-    const focusAfterDeletion = (index) => {
+    const focusAfterDeletion = (index: number) => {
         requestAnimationFrame(() => {
             const rows = getQueueRows();
             if (!rows.length) {
@@ -3038,7 +3047,10 @@ export default defineContentScript({
         });
     };
 
-    const requestDeleteEntry = (index, { skipConfirm = false } = {}) => {
+    const requestDeleteEntry = (
+        index: number,
+        { skipConfirm = false }: { skipConfirm?: boolean } = {},
+    ) => {
         if (!Number.isInteger(index)) return;
         if (skipConfirm) {
             if (deleteQueueEntry(index)) focusAfterDeletion(index);
@@ -3052,7 +3064,7 @@ export default defineContentScript({
         });
     };
 
-    let saveTimer: number | null = null;
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
     let hydrated = false; // gate UI visibility until persisted state is loaded
     let activeConversationIdentifier = resolveConversationIdentifier();
     let dragIndex: number | null = null;
@@ -3067,9 +3079,8 @@ export default defineContentScript({
     });
 
     // Persist ------------------------------------------------------------------
-    const applyPersistedState = (snapshot) => {
-        const cq =
-            snapshot && typeof snapshot === "object" ? snapshot : null;
+    const applyPersistedState = (snapshot: PersistedQueueState | null) => {
+        const cq = snapshot && typeof snapshot === "object" ? snapshot : null;
         STATE.running = false; // Always queue mode, never auto-send
         STATE.queue = Array.isArray(cq?.queue)
             ? cq.queue.map((item) => normalizeEntry(item))
@@ -3086,7 +3097,7 @@ export default defineContentScript({
         refreshVisibility();
     };
 
-    const persistable = () => ({
+    const persistable = (): PersistedQueueState => ({
         running: STATE.running,
         queue: STATE.queue.map((entry) => cloneEntry(entry)),
         collapsed: STATE.collapsed,
@@ -3095,7 +3106,7 @@ export default defineContentScript({
         pausedAt: STATE.pausedAt,
     });
 
-    const save = (identifier = activeConversationIdentifier) => {
+    const save = (identifier: string | null | undefined = activeConversationIdentifier) => {
         storageManager.saveSnapshot(identifier, persistable());
     };
     const scheduleSave = () => {
@@ -3106,7 +3117,7 @@ export default defineContentScript({
         }, 150);
     };
 
-    const resolveQueueEntryModelLabel = (entry) => {
+    const resolveQueueEntryModelLabel = (entry: QueueEntry | null | undefined) => {
         if (!entry) return resolveCurrentModelButtonValue() || "Select model";
         if (entry.model) {
             return labelForModel(entry.model, entry.modelLabel || entry.model);
@@ -3174,7 +3185,10 @@ export default defineContentScript({
         });
     };
 
-    const openQueueEntryModelDropdown = async (index, anchor) => {
+    const openQueueEntryModelDropdown = async (
+        index: number,
+        anchor: HTMLElement | null,
+    ) => {
         if (!Number.isInteger(index)) return;
         const entry = STATE.queue[index];
         if (!entry || !(anchor instanceof HTMLElement)) return;
@@ -3228,23 +3242,28 @@ export default defineContentScript({
         const fallback = candidates[0];
         return fallback instanceof HTMLElement ? (fallback as HTMLButtonElement) : null;
     };
-    const composer = () => {
-        const preset = q(SEL.composer);
+    const composer = (): HTMLElement | null => {
+        const preset = q<HTMLElement>(SEL.composer);
         if (preset) return preset;
-        const sendButton = q(SEL.send);
+        const sendButton = q<HTMLElement>(SEL.send);
         if (sendButton) {
-            const scoped = sendButton.closest(
+            const scoped = sendButton.closest<HTMLElement>(
                 "form, [data-testid], [data-type], [class]",
             );
             if (scoped) return scoped;
         }
         const ed = findEditor();
-        return ed?.closest("form, [data-testid], [data-type], [class]") || null;
+        return (ed?.closest("form, [data-testid], [data-type], [class]") as HTMLElement | null) || null;
     };
     const isGenerating = () => !!q(SEL.stop, composer());
 
-    function findEditor(): HTMLElement | null {
-        return q<HTMLElement>(SEL.editor);
+    type EditorElement = HTMLElement & {
+        pmViewDesc?: { editorView?: unknown };
+        _pmViewDesc?: { editorView?: unknown };
+    };
+
+    function findEditor(): EditorElement | null {
+        return q<EditorElement>(SEL.editor);
     }
 
     function editorView(): unknown {
@@ -3372,7 +3391,7 @@ export default defineContentScript({
         ui.classList.toggle("is-busy", STATE.busy);
         ui.classList.toggle("is-paused", STATE.paused);
         if (list) {
-            list.querySelectorAll('button[data-action="send"]').forEach(
+            list.querySelectorAll<HTMLButtonElement>('button[data-action="send"]').forEach(
                 (button) => {
                     button.disabled = !manualSendEnabled;
                     if (!manualSendEnabled) {
@@ -3441,7 +3460,7 @@ export default defineContentScript({
         scheduleQueueHeightSync();
     }
 
-    function setCollapsed(collapsed, persist = true) {
+    function setCollapsed(collapsed: boolean, persist = true) {
         const next = !!collapsed;
         const focusInQueue =
             next &&
@@ -3458,8 +3477,8 @@ export default defineContentScript({
         }
     }
 
-    function setPaused(next, { reason } = {}) {
-        const result = setQueuePauseState(STATE, next, { reason });
+    function setPaused(next: boolean, { reason }: { reason?: string | null } = {}) {
+        const result = setQueuePauseState(STATE, next, { reason: reason ?? undefined });
         if (!result.changed) return;
         if (STATE.paused) {
             cancelAutoDispatch();
@@ -3471,12 +3490,12 @@ export default defineContentScript({
         }
     }
 
-    function togglePaused(reason) {
+    function togglePaused(reason?: string | null) {
         if (!hydrated) return;
         setPaused(!STATE.paused, { reason });
     }
 
-    function autoSize(textarea) {
+    function autoSize(textarea: HTMLTextAreaElement | null | undefined) {
         if (!(textarea instanceof HTMLTextAreaElement)) return;
         textarea.style.height = "auto";
         const height = Math.min(200, textarea.scrollHeight || 24);
@@ -3484,7 +3503,10 @@ export default defineContentScript({
         scheduleQueueHeightSync();
     }
 
-    function insertTextAtCursor(textarea, text) {
+    function insertTextAtCursor(
+        textarea: HTMLTextAreaElement | null | undefined,
+        text: string,
+    ) {
         if (!textarea || typeof text !== "string" || text.length === 0) return;
         const { selectionStart, selectionEnd, value } = textarea;
         const before = value.slice(0, selectionStart);
@@ -3507,7 +3529,7 @@ export default defineContentScript({
         });
     }
 
-    let autoDispatchTimer: number | null = null;
+    let autoDispatchTimer: ReturnType<typeof setTimeout> | null = null;
     let pendingManualSend: { entry: QueueEntry; allowWhilePaused: boolean } | null = null;
 
     const resetStateForNewConversation = () => {
@@ -3579,7 +3601,7 @@ export default defineContentScript({
         }, delay);
     }
 
-    function requestSend(index, { manual = false } = {}) {
+    function requestSend(index: number, { manual = false }: { manual?: boolean } = {}) {
         if (!Number.isInteger(index) || index < 0) return;
         const allowWhilePaused = !!manual;
         if (STATE.paused && !allowWhilePaused) return;
@@ -3596,12 +3618,16 @@ export default defineContentScript({
     }
     const THREAD_HOST_SELECTOR = "[class*='thread-content']";
 
-    const findThreadContentHost = (rootNode, container, anchor) => {
+    const findThreadContentHost = (
+        rootNode: Element | null,
+        container: Element | null,
+        anchor: Element | null,
+    ): HTMLElement | null => {
         if (rootNode instanceof HTMLElement) {
-            const closestHost = rootNode.closest(THREAD_HOST_SELECTOR);
+            const closestHost = rootNode.closest(THREAD_HOST_SELECTOR) as HTMLElement | null;
             if (closestHost) return closestHost;
         }
-        const scopes = [];
+        const scopes: HTMLElement[] = [];
         if (anchor instanceof HTMLElement) scopes.push(anchor);
         if (container instanceof HTMLElement) scopes.push(container);
         for (const scope of scopes) {
@@ -3617,7 +3643,7 @@ export default defineContentScript({
         return null;
     };
 
-    const firstNonQueueChild = (parent) => {
+    const firstNonQueueChild = (parent: HTMLElement | null) => {
         if (!parent) return null;
         let child = parent.firstChild;
         while (child) {
@@ -3629,10 +3655,10 @@ export default defineContentScript({
 
     function ensureMounted() {
         const root = composer();
-        if (!root) return;
+        if (!root || !(root instanceof HTMLElement)) return;
         ensureComposerControls(root);
         ensureComposerInputListeners(root);
-        let container = root.closest("#thread-bottom-container");
+        let container = root.closest<HTMLElement>("#thread-bottom-container");
         if (!container) {
             // walk up until we hit something that looks like the prompt container
             let current = root.parentElement;
@@ -3662,7 +3688,7 @@ export default defineContentScript({
         if (!container) {
             container = document.body;
         }
-        let anchor = container.querySelector("#thread-bottom");
+        let anchor = container.querySelector<HTMLElement>("#thread-bottom");
         if (!anchor) {
             anchor = root;
             while (
@@ -3718,7 +3744,7 @@ export default defineContentScript({
         observeThreadLayoutSource(layoutSource || container);
     }
 
-    function deriveQueueButtonClasses(sendButton) {
+    function deriveQueueButtonClasses(sendButton: HTMLElement | null) {
         const baseTokens = new Set([
             UI_CLASS.composerQueueButton,
             "relative",
@@ -3747,15 +3773,17 @@ export default defineContentScript({
         return Array.from(baseTokens).join(" ");
     }
 
-    function ensureComposerControls(rootParam) {
-        const root = rootParam || composer();
+    function ensureComposerControls(rootParam?: HTMLElement | Document | null) {
+        const root = (rootParam || composer()) as HTMLElement | Document | null;
         if (!root) return;
         const sendButton = findSendButton(root);
         const voiceButton = q(SEL.voice, root);
         const SPEECH_BUTTON_CONTAINER_SELECTOR =
             '[data-testid="composer-speech-button-container"]';
 
-        const resolveAnchor = (node) => {
+        const resolveAnchor = (
+            node: Element | null,
+        ): { anchor: HTMLElement | null; parent: HTMLElement | null } => {
             if (!(node instanceof HTMLElement)) {
                 return { anchor: null, parent: null };
             }
@@ -3941,8 +3969,8 @@ export default defineContentScript({
         }
     }
 
-    function ensureComposerInputListeners(rootParam) {
-        const root = rootParam || composer();
+    function ensureComposerInputListeners(rootParam?: HTMLElement | Document | null) {
+        const root = (rootParam || composer()) as HTMLElement | Document | null;
         if (!root) return;
         const ed = findEditor();
         if (!ed || ed.dataset.cqQueueBound === "true") return;
@@ -3977,7 +4005,7 @@ export default defineContentScript({
     }
 
 
-    function addAttachmentsToEntry(index, attachments) {
+    function addAttachmentsToEntry(index: number, attachments: Attachment[]) {
         if (!Array.isArray(attachments) || attachments.length === 0) return;
         const entry = STATE.queue[index];
         if (!entry) return;
@@ -3996,7 +4024,7 @@ export default defineContentScript({
         });
     }
 
-    function removeEntryAttachment(index, id) {
+    function removeEntryAttachment(index: number, id: string) {
         const entry = STATE.queue[index];
         if (!entry || !Array.isArray(entry.attachments)) return;
         const next = entry.attachments.filter(
@@ -4009,7 +4037,14 @@ export default defineContentScript({
         }
     }
 
-    function handleAttachmentPaste(event, { type, index, textarea }) {
+    function handleAttachmentPaste(
+        event: ClipboardEvent,
+        {
+            type,
+            index,
+            textarea,
+        }: { type: "entry" | "composer"; index?: number; textarea?: HTMLTextAreaElement | null },
+    ) {
         const dataTransfer = event.clipboardData;
         if (!hasImagesInDataTransfer(dataTransfer)) return;
         event.preventDefault();
@@ -4027,7 +4062,7 @@ export default defineContentScript({
             .catch(() => {});
     }
 
-    function renderQueue(generatingOverride) {
+    function renderQueue(generatingOverride?: boolean) {
         const generating =
             typeof generatingOverride === "boolean"
                 ? generatingOverride
@@ -4042,7 +4077,7 @@ export default defineContentScript({
 
         // Render queue in reverse order (next item at bottom)
         const reversedQueue = [...STATE.queue].reverse();
-        const textareasToSize = [];
+        const textareasToSize: HTMLTextAreaElement[] = [];
         reversedQueue.forEach((entry, reversedIndex) => {
             const index = STATE.queue.length - 1 - reversedIndex;
             const { row, indicator, body, textarea, actions } =
@@ -4299,31 +4334,31 @@ export default defineContentScript({
 
         return new Promise((resolve) => {
             let finished = false;
-            let observer;
-            let timer;
+            let observer: MutationObserver | null = null;
+            let timer: ReturnType<typeof setTimeout> | null = null;
             const done = () => {
                 if (finished) return;
                 finished = true;
                 observer?.disconnect();
-                if (timer !== undefined) clearTimeout(timer);
+                if (timer) clearTimeout(timer);
                 setTimeout(() => resolve(true), STATE.cooldownMs);
             };
             const isIdle = () => {
-                const stopBtn = q(SEL.stop, root);
+                const stopBtn = q<HTMLButtonElement>(SEL.stop, root);
                 if (
                     stopBtn &&
                     !stopBtn.disabled &&
                     stopBtn.offsetParent !== null
                 )
                     return false;
-                const sendBtn = q(SEL.send, root);
+                const sendBtn = q<HTMLButtonElement>(SEL.send, root);
                 if (
                     sendBtn &&
                     !sendBtn.disabled &&
                     sendBtn.offsetParent !== null
                 )
                     return true;
-                const voiceBtn = q(SEL.voice, root);
+                const voiceBtn = q<HTMLButtonElement>(SEL.voice, root);
                 if (
                     voiceBtn &&
                     !voiceBtn.disabled &&
@@ -4393,7 +4428,11 @@ export default defineContentScript({
         return false;
     }
 
-    const restoreEntryAfterSendFailure = (index, entry, stage) => {
+    const restoreEntryAfterSendFailure = (
+        index: number,
+        entry: QueueEntry,
+        stage: string,
+    ) => {
         if (!entry) return;
         STATE.busy = false;
         STATE.phase = "idle";
@@ -4402,7 +4441,10 @@ export default defineContentScript({
         save();
     };
 
-    async function sendFromQueue(index, { allowWhilePaused = false } = {}) {
+    async function sendFromQueue(
+        index: number,
+        { allowWhilePaused = false }: { allowWhilePaused?: boolean } = {},
+    ) {
         if (STATE.busy) return false;
         if (STATE.paused && !allowWhilePaused) return false;
         if (STATE.queue.length === 0) return false;
@@ -4500,7 +4542,7 @@ export default defineContentScript({
         return true;
     }
 
-    function moveItem(from, to) {
+    function moveItem(from: number, to: number) {
         if (!reorderQueueEntry(STATE, from, to)) return;
         save();
         emitStateChange("queue:reorder", { from, to });
@@ -4605,11 +4647,11 @@ export default defineContentScript({
         return true;
     }
 
-    list.addEventListener("click", (event) => {
+    list.addEventListener("click", (event: MouseEvent) => {
         const target =
             event.target instanceof HTMLElement ? event.target : null;
         if (!target) return;
-        const attachmentBtn = target.closest("button[data-attachment-remove]");
+        const attachmentBtn = target.closest<HTMLButtonElement>("button[data-attachment-remove]");
         if (attachmentBtn) {
             const id = attachmentBtn.dataset.attachmentRemove;
             const entryAttr = attachmentBtn.dataset.entryIndex;
@@ -4621,7 +4663,7 @@ export default defineContentScript({
             }
             return;
         }
-        const button = target.closest("button[data-action]");
+        const button = target.closest<HTMLButtonElement>("button[data-action]");
         if (!button) return;
         const index = Number(button.dataset.index);
         if (!Number.isInteger(index)) return;
@@ -4635,10 +4677,10 @@ export default defineContentScript({
         }
     });
 
-    list.addEventListener("dragstart", (event) => {
+    list.addEventListener("dragstart", (event: DragEvent) => {
         const target =
             event.target instanceof HTMLElement
-                ? event.target.closest(CQ_SELECTORS.row)
+                ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
                 : null;
         if (!target) return;
         const index = Number(target.dataset.index);
@@ -4664,13 +4706,13 @@ export default defineContentScript({
         clearDragIndicator();
     });
 
-    list.addEventListener("dragover", (event) => {
+    list.addEventListener("dragover", (event: DragEvent) => {
         if (dragIndex === null) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(CQ_SELECTORS.row)
+                ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
                 : null;
         if (!item) {
             clearDragIndicator();
@@ -4697,21 +4739,21 @@ export default defineContentScript({
         }
     });
 
-    list.addEventListener("dragleave", (event) => {
+    list.addEventListener("dragleave", (event: DragEvent) => {
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(CQ_SELECTORS.row)
+                ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
                 : null;
         if (item && item === dragOverItem) clearDragIndicator();
     });
 
-    list.addEventListener("drop", (event) => {
+    list.addEventListener("drop", (event: DragEvent) => {
         if (dragIndex === null) return;
         event.preventDefault();
         let newIndex = dragIndex;
         const item =
             event.target instanceof HTMLElement
-                ? event.target.closest(CQ_SELECTORS.row)
+                ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
                 : null;
         if (item) {
             const overIndex = Number(item.dataset.index);
@@ -4731,7 +4773,7 @@ export default defineContentScript({
         dragIndex = null;
     });
 
-    const matchesPauseShortcut = (event) => {
+    const matchesPauseShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (!event.shiftKey) return false;
         if (event.altKey) return false;
@@ -4743,7 +4785,7 @@ export default defineContentScript({
         return event.ctrlKey && !event.metaKey;
     };
 
-    const matchesQueueToggleShortcut = (event) => {
+    const matchesQueueToggleShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (!event.shiftKey) return false;
         if (event.altKey) return false;
@@ -4757,7 +4799,7 @@ export default defineContentScript({
         return event.ctrlKey && !event.metaKey;
     };
 
-    const matchesHoldShortcut = (event) => {
+    const matchesHoldShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (event.key !== "Enter") return false;
         const hasAlt = event.altKey;
@@ -4769,7 +4811,7 @@ export default defineContentScript({
         return hasAlt && hasCtrl && !hasMeta;
     };
 
-    const matchesShortcutPopoverToggle = (event) => {
+    const matchesShortcutPopoverToggle = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
         if (normalized !== "/" && normalized !== "?") return false;
@@ -4779,14 +4821,14 @@ export default defineContentScript({
         return event.ctrlKey && !event.metaKey && !event.altKey;
     };
 
-    const matchesQueueNavigationShortcut = (event) => {
+    const matchesQueueNavigationShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (!event.altKey) return false;
         if (event.ctrlKey || event.metaKey || event.shiftKey) return false;
         return event.key === "ArrowDown" || event.key === "ArrowUp";
     };
 
-    const matchesModelListingShortcut = (event) => {
+    const matchesModelListingShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (!event.shiftKey || event.altKey) return false;
         const normalized =
@@ -4797,9 +4839,47 @@ export default defineContentScript({
         return metaOnly || ctrlOnly;
     };
 
+    const resolveModelShortcutIndex = (event: KeyboardEvent | null): number | null => {
+        if (!event || typeof event.key !== "string") return null;
+        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        const usesMetaCombo = isApplePlatform ? event.metaKey : event.ctrlKey;
+        const usesAltCombo = isApplePlatform ? event.altKey : event.altKey;
+        if (!usesMetaCombo || !usesAltCombo) return null;
+        const index = MODEL_SHORTCUT_KEY_ORDER.indexOf(normalized);
+        return index >= 0 ? index : null;
+    };
+
+    const handleModelShortcut = async (index: number) => {
+        const orderedModels = dedupeModelsForDisplay([...STATE.models]).sort(
+            (a, b) => resolveModelOrder(a) - resolveModelOrder(b),
+        );
+        const target = orderedModels[index];
+        if (!target) return;
+        await handleComposerModelSelection(target);
+    };
+
+    const resolveThinkingShortcut = (event: KeyboardEvent | null): ThinkingLevel | null => {
+        if (!event || typeof event.key !== "string") return null;
+        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key.toLowerCase();
+        const usesCombo = isApplePlatform
+            ? event.metaKey && event.ctrlKey
+            : event.ctrlKey && event.altKey;
+        if (!usesCombo) return null;
+        const option = THINKING_TIME_OPTIONS.find((entry) => entry.digit === normalized);
+        return option ? option.id : null;
+    };
+
+    const handleThinkingShortcut = async (optionId: ThinkingLevel) => {
+        const applied = await selectThinkingTimeOption(optionId);
+        if (applied) {
+            emitStateChange("thinking:shortcut", { optionId });
+            scheduleControlRefresh();
+        }
+    };
+
     document.addEventListener(
         "keydown",
-        (event) => {
+        (event: KeyboardEvent) => {
             if (matchesPauseShortcut(event)) {
                 event.preventDefault();
                 togglePaused();
@@ -4833,17 +4913,17 @@ export default defineContentScript({
 
     document.addEventListener(
         "keydown",
-        (event) => {
+        (event: KeyboardEvent) => {
             if (!matchesQueueNavigationShortcut(event)) return;
             if (!STATE.queue.length) return;
-            const rows = getQueueRows();
-            if (!rows.length) return;
-            const activeElement = document.activeElement;
-            const composerNode = composer();
-            const activeRow =
-                activeElement instanceof HTMLElement
-                    ? activeElement.closest(CQ_SELECTORS.row)
-                    : null;
+        const rows = getQueueRows();
+        if (!rows.length) return;
+        const activeElement = document.activeElement;
+        const composerNode = composer();
+        const activeRow =
+            activeElement instanceof HTMLElement
+                ? (activeElement.closest(CQ_SELECTORS.row) as HTMLElement | null)
+                : null;
             const withinComposer =
                 composerNode instanceof HTMLElement &&
                 composerNode.contains(activeElement);
@@ -4867,7 +4947,7 @@ export default defineContentScript({
         true,
     );
 
-    document.addEventListener("keyup", (event) => {
+    document.addEventListener("keyup", (event: KeyboardEvent) => {
         if (event.repeat) return;
         if (!matchesShortcutPopoverToggle(event)) return;
         scheduleShortcutPopoverRefreshBurst();
@@ -4926,14 +5006,17 @@ export default defineContentScript({
     window.addEventListener("hashchange", handleConversationChangeIfNeeded);
 
     if (typeof history === "object" && history) {
-        ["pushState", "replaceState"].forEach((method) => {
+        (["pushState", "replaceState"] as const).forEach((method) => {
             const original = history[method];
             if (typeof original !== "function") return;
-            history[method] = function cqPatchedHistoryMethod(...args) {
+            history[method] = function cqPatchedHistoryMethod(
+                this: History,
+                ...args: Parameters<History[typeof method]>
+            ) {
                 const result = original.apply(this, args);
                 handleConversationChangeIfNeeded();
                 return result;
-            };
+            } as History[typeof method];
         });
     }
 
@@ -4957,6 +5040,7 @@ export default defineContentScript({
     ensureMounted();
     refreshKeyboardShortcutPopover();
     refreshVisibility();
+
     loadPersistedState()
         .then(() => ensureModelOptions())
         .catch(() => {})
