@@ -5,8 +5,8 @@
   "type": "module",
   "license": "GPL-3.0-only",
   "scripts": {
-    "dev": "wxt dev",
-    "dev:firefox": "wxt dev -b firefox",
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
