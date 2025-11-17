@@ -46,11 +46,9 @@ import {
 } from "../lib/models/menu";
 import type {
     Attachment,
-    KeyboardShortcutEntry,
     QueueEntry,
     QueueModelDefinition,
     QueueModelGroupMeta,
-    ShortcutKeyToken,
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
@@ -64,6 +62,7 @@ import {
     q,
     waitForElementById,
 } from "./dom-adapters";
+import { initShortcuts } from "./shortcuts";
 
 declare global {
     interface Window {
@@ -182,271 +181,6 @@ export default defineContentScript({
         if (!normalized) return fallback;
         return THINKING_OPTION_MAP[normalized]?.label || fallback;
     };
-
-
-    const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
-    const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
-    const MODEL_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = MODEL_SHORTCUT_KEY_ORDER.map((key, index) => {
-        const number = index === MODEL_SHORTCUT_KEY_ORDER.length - 1 ? 10 : index + 1;
-        const label = `Select model ${number}`;
-        const macKeys: ShortcutKeyToken[] = ["command", "option", key];
-        const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
-        return {
-            id: `model-select-${number}`,
-            label,
-            macKeys,
-            otherKeys,
-        };
-    });
-    const THINKING_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = THINKING_TIME_OPTIONS.map((option) => ({
-        id: `thinking-${option.id}`,
-        label: `Set thinking time: ${option.label}`,
-        macKeys: ["command", "control", option.digit || ""] as ShortcutKeyToken[],
-        otherKeys: ["control", "alt", option.digit || ""] as ShortcutKeyToken[],
-    }));
-    const KEYBOARD_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = [
-        {
-            id: "queue-add",
-            label: "Queue current input",
-            macKeys: ["option", "enter"],
-            otherKeys: ["alt", "enter"],
-        },
-        {
-            id: "queue-hold",
-            label: "Queue input & pause",
-            macKeys: ["option", "command", "enter"],
-            otherKeys: ["alt", "control", "enter"],
-        },
-        {
-            id: "queue-pause",
-            label: "Pause/resume queue",
-            macKeys: ["shift", "command", "p"],
-            otherKeys: ["shift", "control", "p"],
-        },
-        {
-            id: "queue-collapse",
-            label: "Toggle queue list",
-            macKeys: ["shift", "command", "."],
-            otherKeys: ["shift", "control", "."],
-        },
-        {
-            id: "queue-focus-prev",
-            label: "Focus previous follow-up",
-            macKeys: ["option", "arrowup"],
-            otherKeys: ["alt", "arrowup"],
-        },
-        {
-            id: "queue-focus-next",
-            label: "Focus next follow-up",
-            macKeys: ["option", "arrowdown"],
-            otherKeys: ["alt", "arrowdown"],
-        },
-        {
-            id: "queue-send-focused",
-            label: "Send focused follow-up",
-            macKeys: ["enter"],
-            otherKeys: ["enter"],
-        },
-        {
-            id: "queue-delete-focused",
-            label: "Delete focused follow-up",
-            macKeys: ["shift", "delete"],
-            otherKeys: ["shift", "delete"],
-        },
-        {
-            id: "queue-delete-focused-skip",
-            label: "Delete focused follow-up (no confirmation)",
-            macKeys: ["option", "shift", "delete"],
-            otherKeys: ["alt", "shift", "delete"],
-        },
-        ...MODEL_SHORTCUT_ENTRIES,
-        ...THINKING_SHORTCUT_ENTRIES,
-    ];
-
-    const KEY_DISPLAY_MAP: Record<string, { glyph: string; aria: string }> = {
-        option: { glyph: "⌥", aria: "Option" },
-        command: { glyph: "⌘", aria: "Command" },
-        meta: { glyph: "⌘", aria: "Command" },
-        shift: { glyph: "⇧", aria: "Shift" },
-        control: { glyph: isApplePlatform ? "⌃" : "Ctrl", aria: "Control" },
-        ctrl: { glyph: isApplePlatform ? "⌃" : "Ctrl", aria: "Control" },
-        alt: { glyph: "Alt", aria: "Alt" },
-        enter: { glyph: "⏎", aria: "Enter" },
-        return: { glyph: "⏎", aria: "Return" },
-        delete: { glyph: "⌫", aria: "Delete" },
-        p: { glyph: "P", aria: "P" },
-        period: { glyph: ".", aria: "Period" },
-        arrowup: { glyph: "↑", aria: "Arrow Up" },
-        arrowdown: { glyph: "↓", aria: "Arrow Down" },
-    };
-
-    const resolveShortcutKeys = (entry: KeyboardShortcutEntry): ShortcutKeyToken[] => {
-        const keys = isApplePlatform ? entry.macKeys : entry.otherKeys;
-        return Array.isArray(keys) && keys.length ? [...keys] : [];
-    };
-
-    const resolveKeyDisplay = (token: ShortcutKeyToken) => {
-        if (typeof token !== "string") {
-            return { glyph: "?", aria: "Key" };
-        }
-        const normalized = token.toLowerCase();
-        if (KEY_DISPLAY_MAP[normalized]) {
-            return KEY_DISPLAY_MAP[normalized];
-        }
-        const label = token.length === 1 ? token.toUpperCase() : token;
-        return { glyph: label, aria: label };
-    };
-
-    function buildShortcutKeyGroup(tokens: ShortcutKeyToken[]): HTMLDivElement {
-        const wrapper = document.createElement("div");
-        wrapper.className =
-            "inline-flex whitespace-pre *:inline-flex *:font-sans";
-        tokens.forEach((token) => {
-            const { glyph, aria } = resolveKeyDisplay(token);
-            const kbd = document.createElement("kbd");
-            if (aria) kbd.setAttribute("aria-label", aria);
-            const span = document.createElement("span");
-            span.className = "min-w-[1em]";
-            span.textContent = glyph;
-            kbd.appendChild(span);
-            wrapper.appendChild(kbd);
-        });
-        return wrapper;
-    }
-
-    function widenShortcutPopover(list: HTMLDListElement | null) {
-        if (!(list instanceof HTMLDListElement)) return;
-        const popover = list.closest(".popover");
-        if (!(popover instanceof HTMLElement)) return;
-        if (popover.dataset.cqShortcutWide === "true") return;
-        const available = Math.max(320, window.innerWidth - 24);
-        if (available < 420) return;
-        popover.dataset.cqShortcutWide = "true";
-        const widthExpr = "min(880px, calc(100vw - 48px))";
-        popover.style.maxWidth = widthExpr;
-        popover.style.width = widthExpr;
-    }
-
-    function ensureShortcutColumns(list: HTMLDListElement): HTMLDivElement | null {
-        if (!(list instanceof HTMLDListElement)) return null;
-        const popover = list.closest(".popover");
-        if (!(popover instanceof HTMLElement)) return null;
-        let wrapper = popover.querySelector<HTMLElement>("[data-cq-shortcut-wrapper]");
-        if (!wrapper) {
-            wrapper = document.createElement("div");
-            wrapper.dataset.cqShortcutWrapper = "true";
-            wrapper.style.display = "grid";
-            wrapper.style.gridTemplateColumns =
-                "minmax(0, 1fr) minmax(0, 1.6fr)";
-            wrapper.style.gap = "0 24px";
-            wrapper.style.width = "100%";
-            wrapper.style.alignItems = "start";
-            const parent = list.parentElement;
-            if (parent) {
-                parent.insertBefore(wrapper, list);
-            }
-            wrapper.appendChild(list);
-        } else if (list.parentElement !== wrapper) {
-            wrapper.appendChild(list);
-        }
-        list.style.gridColumn = "1 / 2";
-        list.style.width = "100%";
-        list.style.margin = "0";
-        let queueColumn = wrapper.querySelector<HTMLDivElement>("[data-cq-queue-column]");
-        if (!queueColumn) {
-            queueColumn = document.createElement("div") as HTMLDivElement;
-            queueColumn.dataset.cqQueueColumn = "true";
-            queueColumn.style.gridColumn = "2 / 3";
-            queueColumn.style.width = "100%";
-            queueColumn.style.alignSelf = "end";
-            queueColumn.style.display = "flex";
-            queueColumn.style.flexDirection = "column";
-            queueColumn.style.gap = "12px";
-            queueColumn.style.paddingRight = "10px";
-            queueColumn.style.paddingBottom = "8px";
-            wrapper.appendChild(queueColumn);
-        }
-        return queueColumn;
-    }
-
-    function injectQueueShortcutsIntoList(list: HTMLDListElement | null) {
-        if (!(list instanceof HTMLDListElement)) return;
-        const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
-            id: entry.id,
-            label: entry.label,
-            keys: resolveShortcutKeys(entry),
-        })).filter((entry) => entry.keys.length > 0);
-        if (!shortcuts.length) return;
-        widenShortcutPopover(list);
-        const queueColumn = ensureShortcutColumns(list);
-        if (!queueColumn) return;
-        if (queueColumn.dataset.cqShortcutPopulated === "true") return;
-        queueColumn.dataset.cqShortcutPopulated = "true";
-        queueColumn.textContent = "";
-        const heading = document.createElement("div");
-        heading.dataset.cqShortcutOrigin = "queue";
-        heading.textContent = KEYBOARD_SHORTCUT_SECTION_LABEL;
-        heading.className = "text-token-text-tertiary uppercase text-xs";
-        heading.style.letterSpacing = "0.08em";
-        heading.style.marginTop = "8px";
-        heading.style.marginBottom = "8px";
-        queueColumn.appendChild(heading);
-        const grid = document.createElement("div");
-        grid.dataset.cqShortcutOrigin = "queue";
-        grid.style.display = "grid";
-        grid.style.gridTemplateColumns = "minmax(0, 1fr) max-content";
-        grid.style.columnGap = "24px";
-        grid.style.rowGap = "12px";
-        grid.style.width = "100%";
-        shortcuts.forEach((shortcut) => {
-            const label = document.createElement("span");
-            label.dataset.cqShortcutOrigin = "queue";
-            label.textContent = shortcut.label;
-            label.style.fontSize = "0.9rem";
-            label.style.lineHeight = "1.2";
-            label.style.alignSelf = "center";
-            grid.appendChild(label);
-            const keys = buildShortcutKeyGroup(shortcut.keys);
-            keys.dataset.cqShortcutOrigin = "queue";
-            keys.classList.add("text-token-text-secondary");
-            keys.style.justifySelf = "end";
-            grid.appendChild(keys);
-        });
-        queueColumn.appendChild(grid);
-    }
-
-    function findShortcutListFromHeading(heading: HTMLElement | null): HTMLDListElement | null {
-        let current = heading?.parentElement || null;
-        while (current && current !== document.body) {
-            const list = current.querySelector?.("dl");
-            if (list instanceof HTMLDListElement) {
-                return list;
-            }
-            current = current.parentElement;
-        }
-        return null;
-    }
-
-    function refreshKeyboardShortcutPopover() {
-        const seen = new Set<HTMLDListElement>();
-        const headings = document.querySelectorAll<HTMLElement>("h2");
-        headings.forEach((heading) => {
-            if (!(heading instanceof HTMLElement)) return;
-            const label = heading.textContent?.trim().toLowerCase();
-            if (label !== "keyboard shortcuts") return;
-            const list = findShortcutListFromHeading(heading);
-            if (list && !seen.has(list)) {
-                seen.add(list);
-                injectQueueShortcutsIntoList(list);
-            }
-        });
-    }
-
-    function scheduleShortcutPopoverRefreshBurst() {
-        SHORTCUT_POPOVER_REFRESH_DELAYS.forEach((delay) => {
-            setTimeout(() => refreshKeyboardShortcutPopover(), delay);
-        });
-    }
 
     const escapeCss = (value: unknown): string => {
         const str = String(value ?? "");
@@ -4645,207 +4379,27 @@ export default defineContentScript({
         dragIndex = null;
     });
 
-    const matchesPauseShortcut = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        if (!event.shiftKey) return false;
-        if (event.altKey) return false;
-        const key = event.key.toLowerCase();
-        if (key !== "p") return false;
-        if (isApplePlatform) {
-            return event.metaKey && !event.ctrlKey;
-        }
-        return event.ctrlKey && !event.metaKey;
-    };
-
-    const matchesQueueToggleShortcut = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        if (!event.shiftKey) return false;
-        if (event.altKey) return false;
-        const key = event.key;
-        const code = event.code;
-        const isPeriodKey = key === "." || key === ">" || code === "Period";
-        if (!isPeriodKey) return false;
-        if (isApplePlatform) {
-            return event.metaKey && !event.ctrlKey;
-        }
-        return event.ctrlKey && !event.metaKey;
-    };
-
-    const matchesHoldShortcut = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        if (event.key !== "Enter") return false;
-        const hasAlt = event.altKey;
-        const hasMeta = event.metaKey;
-        const hasCtrl = event.ctrlKey;
-        if (isApplePlatform) {
-            return hasAlt && hasMeta && !hasCtrl;
-        }
-        return hasAlt && hasCtrl && !hasMeta;
-    };
-
-    const matchesShortcutPopoverToggle = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        if (normalized !== "/" && normalized !== "?") return false;
-        if (isApplePlatform) {
-            return event.metaKey && !event.ctrlKey && !event.altKey;
-        }
-        return event.ctrlKey && !event.metaKey && !event.altKey;
-    };
-
-    const matchesQueueNavigationShortcut = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        if (!event.altKey) return false;
-        if (event.ctrlKey || event.metaKey || event.shiftKey) return false;
-        return event.key === "ArrowDown" || event.key === "ArrowUp";
-    };
-
-    const matchesModelListingShortcut = (event: KeyboardEvent) => {
-        if (!event || typeof event.key !== "string") return false;
-        if (!event.shiftKey || event.altKey) return false;
-        const normalized =
-            event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        if (normalized !== "h") return false;
-        const metaOnly = event.metaKey && !event.ctrlKey;
-        const ctrlOnly = event.ctrlKey && !event.metaKey;
-        return metaOnly || ctrlOnly;
-    };
-
-    const resolveModelShortcutIndex = (event: KeyboardEvent | null): number | null => {
-        if (!event || typeof event.key !== "string") return null;
-        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        const usesMetaCombo = isApplePlatform ? event.metaKey : event.ctrlKey;
-        const usesAltCombo = isApplePlatform ? event.altKey : event.altKey;
-        if (!usesMetaCombo || !usesAltCombo) return null;
-        const index = MODEL_SHORTCUT_KEY_ORDER.indexOf(normalized);
-        return index >= 0 ? index : null;
-    };
-
-    const handleModelShortcut = async (index: number) => {
-        const orderedModels = dedupeModelsForDisplay([...STATE.models]).sort(
-            (a, b) => resolveModelOrder(a) - resolveModelOrder(b),
-        );
-        const target = orderedModels[index];
-        if (!target) return;
-        await handleComposerModelSelection(target);
-    };
-
-    const resolveThinkingShortcut = (event: KeyboardEvent | null): ThinkingLevel | null => {
-        if (!event || typeof event.key !== "string") return null;
-        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key.toLowerCase();
-        const usesCombo = isApplePlatform
-            ? event.metaKey && event.ctrlKey
-            : event.ctrlKey && event.altKey;
-        if (!usesCombo) return null;
-        const option = THINKING_TIME_OPTIONS.find((entry) => entry.digit === normalized);
-        return option ? option.id : null;
-    };
-
-    const handleThinkingShortcut = async (optionId: ThinkingLevel) => {
-        const applied = await selectThinkingTimeOption(optionId);
-        if (applied) {
-            emitStateChange("thinking:shortcut", { optionId });
-            scheduleControlRefresh();
-        }
-    };
-
-    document.addEventListener(
-        "keydown",
-        (event: KeyboardEvent) => {
-            if (matchesPauseShortcut(event)) {
-                event.preventDefault();
-                togglePaused();
-                return;
-            }
-            if (matchesQueueToggleShortcut(event)) {
-                event.preventDefault();
-                setCollapsed(!STATE.collapsed);
-                return;
-            }
-            if (matchesModelListingShortcut(event)) {
-                event.preventDefault();
-                openModelSwitcherDropdown();
-                return;
-            }
-            const modelShortcutIndex = resolveModelShortcutIndex(event);
-            if (modelShortcutIndex) {
-                event.preventDefault();
-                void handleModelShortcut(modelShortcutIndex);
-                return;
-            }
-            const thinkingShortcut = resolveThinkingShortcut(event);
-            if (thinkingShortcut) {
-                event.preventDefault();
-                void handleThinkingShortcut(thinkingShortcut);
-                return;
-            }
-        },
-        true,
-    );
-
-    document.addEventListener(
-        "keydown",
-        (event: KeyboardEvent) => {
-            if (!matchesQueueNavigationShortcut(event)) return;
-            if (!STATE.queue.length) return;
-        const rows = getQueueRows();
-        if (!rows.length) return;
-        const activeElement = document.activeElement;
-        const composerNode = composer();
-        const activeRow =
-            activeElement instanceof HTMLElement
-                ? (activeElement.closest(CQ_SELECTORS.row) as HTMLElement | null)
-                : null;
-            const withinComposer =
-                composerNode instanceof HTMLElement &&
-                composerNode.contains(activeElement);
-            if (!activeRow && !withinComposer) return;
-            event.preventDefault();
-            const direction = event.key === "ArrowDown" ? 1 : -1;
-            if (!activeRow) {
-                const targetIndex = direction > 0 ? 0 : rows.length - 1;
-                focusQueueRow(rows[targetIndex]);
-                return;
-            }
-            const currentIndex = rows.indexOf(activeRow);
-            if (currentIndex === -1) return;
-            const nextIndex = currentIndex + direction;
-            if (nextIndex < 0 || nextIndex >= rows.length) {
-                focusComposerEditor();
-                return;
-            }
-            focusQueueRow(rows[nextIndex]);
-        },
-        true,
-    );
-
-    document.addEventListener("keyup", (event: KeyboardEvent) => {
-        if (event.repeat) return;
-        if (!matchesShortcutPopoverToggle(event)) return;
-        scheduleShortcutPopoverRefreshBurst();
+    const shortcuts = initShortcuts({
+        state: STATE,
+        isApplePlatform,
+        modelShortcutOrder: MODEL_SHORTCUT_KEY_ORDER,
+        thinkingOptions: THINKING_TIME_OPTIONS,
+        getQueueRows,
+        focusQueueRow,
+        focusComposerEditor,
+        getComposerNode: composer,
+        togglePaused,
+        setCollapsed,
+        openModelSwitcherDropdown,
+        dedupeModelsForDisplay,
+        resolveModelOrder,
+        handleComposerModelSelection,
+        selectThinkingTimeOption,
+        emitStateChange,
+        scheduleControlRefresh,
+        queueFromComposer,
+        queueComposerInput,
     });
-
-    // Shortcut inside page -----------------------------------------------------
-    document.addEventListener(
-        "keydown",
-        (event) => {
-            if (matchesHoldShortcut(event)) {
-                event.preventDefault();
-                queueFromComposer({ hold: true });
-                return;
-            }
-            if (event.key !== "Enter") return;
-            const altOnly =
-                event.altKey &&
-                !event.metaKey &&
-                !event.ctrlKey &&
-                !event.shiftKey;
-            if (!altOnly) return;
-            event.preventDefault();
-            void queueComposerInput();
-        },
-        true,
-    );
 
     // Commands from background --------------------------------------------------
     chrome.runtime?.onMessage.addListener((msg) => {
@@ -4895,13 +4449,14 @@ export default defineContentScript({
     window.addEventListener("beforeunload", () => {
         clearInterval(conversationChangeInterval);
         persistActiveConversationState();
+        shortcuts.dispose();
     });
 
     // Handle SPA changes and rerenders -----------------------------------------
     const rootObserver = new MutationObserver(() => {
         scheduleControlRefresh();
         ensureMounted();
-        refreshKeyboardShortcutPopover();
+        shortcuts.refreshPopover();
         handleConversationChangeIfNeeded();
     });
     rootObserver.observe(document.documentElement, {
@@ -4910,7 +4465,7 @@ export default defineContentScript({
     });
 
     ensureMounted();
-    refreshKeyboardShortcutPopover();
+    shortcuts.refreshPopover();
     refreshVisibility();
 
     loadPersistedState()
