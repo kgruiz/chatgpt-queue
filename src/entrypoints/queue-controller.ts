@@ -1,7 +1,6 @@
 import { cloneAttachment } from "../lib/attachments";
 import { setQueuePauseState, removeQueueEntry, reorderQueueEntry } from "../lib/state/queue";
 import type { QueueState } from "../lib/state";
-import type { QueueStateChangeReason } from "../lib/state/events";
 import { UI_CLASS } from "../lib/ui/classes";
 import { createQueueShell } from "../lib/ui/header";
 import { createConfirmModal } from "../lib/ui/modal";
@@ -22,13 +21,11 @@ import type {
 import { composer, CQ_SELECTORS, findEditor, isGenerating } from "./dom-adapters";
 import type { ComposerController } from "./composer-controller";
 import type { ModelController } from "./model-controller";
+import type { Emit, QueueElements } from "./types";
 
 export interface QueueControllerContext {
     state: QueueState;
-    emitStateChange: (
-        reason?: QueueStateChangeReason,
-        detail?: Record<string, unknown>,
-    ) => void;
+    emitStateChange: Emit;
     saveState: (identifier?: string | null) => void;
     scheduleSaveState: () => void;
     modelController: ModelController;
@@ -66,6 +63,7 @@ export interface QueueController {
     ensureMounted: () => void;
     scheduleQueueHeightSync: () => void;
     flushQueueHeightSync: () => void;
+    dispose: () => void;
 }
 
 const QUEUE_VIEWPORT_MAX_HEIGHT = 220;
@@ -144,6 +142,14 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         );
     }
 
+    const elements: QueueElements = {
+        ui,
+        list,
+        collapseToggle,
+        inlineHeader,
+        pauseToggle,
+    };
+
     let hydrated = false;
     let canvasModeActive = false;
     let queueHeightRaf = 0;
@@ -160,6 +166,29 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
     let dragIndex: number | null = null;
     let dragOverItem: HTMLElement | null = null;
     let dragOverPosition: "before" | "after" | null = null;
+
+    const disposables: Array<() => void> = [];
+
+    const addCleanup = (cleanup: () => void) => {
+        disposables.push(cleanup);
+    };
+
+    const bind = (
+        target: EventTarget | null | undefined,
+        event: string,
+        handler: EventListenerOrEventListenerObject,
+        options?: AddEventListenerOptions | boolean,
+    ) => {
+        if (!target || typeof (target as EventTarget).addEventListener !== "function") return;
+        target.addEventListener(event, handler, options);
+        addCleanup(() => {
+            try {
+                target.removeEventListener(event, handler, options);
+            } catch (_) {
+                /* noop */
+            }
+        });
+    };
 
     const setHydrated = (next: boolean) => {
         hydrated = !!next;
@@ -240,7 +269,9 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         scheduleThreadLayoutSync(node);
     };
 
-    window.addEventListener("resize", () => scheduleThreadLayoutSync());
+    const handleWindowResize = () => scheduleThreadLayoutSync();
+
+    bind(window, "resize", handleWindowResize);
 
     const setQueueExpandedHeight = (value: string) => {
         if (!(list instanceof HTMLElement)) return;
@@ -1474,32 +1505,32 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
 
     const attachListListeners = () => {
         if (!list) return;
-        list.addEventListener("click", onListClick);
-        list.addEventListener("dragstart", onListDragStart);
-        list.addEventListener("dragend", onListDragEnd);
-        list.addEventListener("dragover", onListDragOver);
-        list.addEventListener("dragleave", onListDragLeave);
-        list.addEventListener("drop", onListDrop);
+        bind(list, "click", onListClick);
+        bind(list, "dragstart", onListDragStart);
+        bind(list, "dragend", onListDragEnd);
+        bind(list, "dragover", onListDragOver);
+        bind(list, "dragleave", onListDragLeave);
+        bind(list, "drop", onListDrop);
     };
 
     attachListListeners();
 
     if (collapseToggle) {
-        collapseToggle.addEventListener("click", (event) => {
+        bind(collapseToggle, "click", (event) => {
             event.preventDefault();
             setCollapsed(!STATE.collapsed);
         });
     }
 
     if (inlineHeader) {
-        inlineHeader.addEventListener("click", (event) => {
+        bind(inlineHeader, "click", (event) => {
             if (event.target !== inlineHeader) return;
             setCollapsed(!STATE.collapsed);
         });
     }
 
     if (pauseToggle) {
-        pauseToggle.addEventListener("click", (event) => {
+        bind(pauseToggle, "click", (event) => {
             event.preventDefault();
             togglePaused();
         });
@@ -1510,12 +1541,39 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         scheduleControlRefresh();
     };
 
+    const dispose = () => {
+        cancelAutoDispatch();
+        if (queueCollapseAnimation) {
+            queueCollapseAnimation.cancel();
+            queueCollapseAnimation = null;
+        }
+        if (queueHeightRaf) {
+            cancelAnimationFrame(queueHeightRaf);
+            queueHeightRaf = 0;
+        }
+        if (threadLayoutRaf) {
+            cancelAnimationFrame(threadLayoutRaf);
+            threadLayoutRaf = 0;
+        }
+        if (threadLayoutObserver) {
+            threadLayoutObserver.disconnect();
+            threadLayoutObserver = null;
+        }
+        canvasObserver.disconnect();
+        observedLayoutNode = null;
+        disposables.splice(0).forEach((cleanup) => {
+            try {
+                cleanup();
+            } catch (_) {
+                /* noop */
+            }
+        });
+        ui?.remove();
+        dock?.remove();
+    };
+
     return {
-        ui,
-        list,
-        collapseToggle,
-        inlineHeader,
-        pauseToggle,
+        ...elements,
         getQueueRows,
         focusQueueRow,
         focusComposerEditor,
@@ -1537,5 +1595,6 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         ensureMounted,
         scheduleQueueHeightSync,
         flushQueueHeightSync,
+        dispose,
     };
 };

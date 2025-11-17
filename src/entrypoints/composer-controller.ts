@@ -9,7 +9,6 @@ import {
 } from "../lib/attachments";
 import { enqueueQueueEntry } from "../lib/state/queue";
 import type { QueueState } from "../lib/state";
-import type { QueueStateChangeReason } from "../lib/state/events";
 import { sleep } from "../lib/utils";
 import { UI_CLASS } from "../lib/ui/classes";
 import type {
@@ -20,13 +19,11 @@ import type {
     ThinkingOption,
 } from "../lib/types";
 import { SEL, composer, findEditor, findSendButton, isGenerating, q } from "./dom-adapters";
+import type { ComposerElements, Emit } from "./types";
 
 export interface ComposerControllerContext {
     state: QueueState;
-    emitStateChange: (
-        reason?: QueueStateChangeReason,
-        detail?: Record<string, unknown>,
-    ) => void;
+    emitStateChange: Emit;
     saveState: (identifier?: string | null) => void;
     refreshControls: () => void;
     scheduleControlRefresh: () => void;
@@ -94,6 +91,7 @@ export interface ComposerController {
     ) => void;
     updateComposerControlsState: (options: { promptHasContent: boolean; hasQueueItems: boolean }) => void;
     closeThinkingDropdown: () => void;
+    dispose: () => void;
 }
 
 const THINKING_DROPDOWN_ID = "cq-thinking-dropdown";
@@ -161,6 +159,22 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     let thinkingDropdown: HTMLElement | null = null;
     let thinkingDropdownAnchor: HTMLElement | null = null;
     let thinkingDropdownCleanup: Array<() => void> = [];
+    const editorListenerCleanup: Array<() => void> = [];
+
+    const resolveComposerElements = (
+        preferredRoot?: HTMLElement | Document | null,
+    ): ComposerElements => {
+        const root = (preferredRoot as HTMLElement | null | undefined) || composer();
+        const searchRoot = (root as HTMLElement | Document | null) || document;
+
+        return {
+            root,
+            editor: findEditor(),
+            sendButton: findSendButton(searchRoot),
+            stopButton: q<HTMLButtonElement>(SEL.stop, searchRoot),
+            voiceButton: q<HTMLButtonElement>(SEL.voice, searchRoot),
+        };
+    };
     let composerModelSelectionPending = false;
 
     const normalizeThinkingOptionId = (value: unknown): ThinkingLevel | null => {
@@ -761,10 +775,8 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     };
 
     const ensureComposerControls = (rootParam?: HTMLElement | Document | null) => {
-        const root = (rootParam || composer()) as HTMLElement | Document | null;
+        const { root, sendButton, voiceButton } = resolveComposerElements(rootParam);
         if (!root) return;
-        const sendButton = findSendButton(root);
-        const voiceButton = q(SEL.voice, root);
         const SPEECH_BUTTON_CONTAINER_SELECTOR =
             '[data-testid="composer-speech-button-container"]';
 
@@ -960,17 +972,23 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     };
 
     const ensureComposerInputListeners = (rootParam?: HTMLElement | Document | null) => {
-        const root = (rootParam || composer()) as HTMLElement | Document | null;
-        if (!root) return;
-        const ed = findEditor();
-        if (!ed || ed.dataset.cqQueueBound === "true") return;
+        const { editor } = resolveComposerElements(rootParam);
+        if (!(editor instanceof HTMLElement)) return;
+        if (editor.dataset.cqQueueBound === "true") return;
         const notify = () => scheduleControlRefresh();
         ["input", "keyup", "paste", "cut", "compositionend"].forEach(
             (eventName) => {
-                ed.addEventListener(eventName, notify);
+                editor.addEventListener(eventName, notify);
+                editorListenerCleanup.push(() => {
+                    try {
+                        editor.removeEventListener(eventName, notify);
+                    } catch (_) {
+                        /* noop */
+                    }
+                });
             },
         );
-        ed.dataset.cqQueueBound = "true";
+        editor.dataset.cqQueueBound = "true";
     };
 
     const refreshComposerButtonsState = (
@@ -1311,6 +1329,20 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         return true;
     };
 
+    const dispose = () => {
+        closeThinkingDropdown();
+        editorListenerCleanup.splice(0).forEach((cleanup) => {
+            try {
+                cleanup();
+            } catch (_) {
+                /* noop */
+            }
+        });
+        if (composerControlGroup?.parentElement) {
+            composerControlGroup.parentElement.removeChild(composerControlGroup);
+        }
+    };
+
     return {
         ensureComposerControls,
         ensureComposerInputListeners,
@@ -1334,5 +1366,6 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         handleAttachmentPaste,
         updateComposerControlsState: refreshComposerButtonsState,
         closeThinkingDropdown,
+        dispose,
     };
 };

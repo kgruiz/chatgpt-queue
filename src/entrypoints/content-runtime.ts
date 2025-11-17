@@ -5,9 +5,7 @@ import { LEGACY_STORAGE_KEY, resolveConversationIdentifier } from "../lib/storag
 import {
     createStorageManager,
     type PersistedQueueState,
-    type StorageManager,
 } from "../lib/storage-manager";
-import type { QueueState } from "../lib/state";
 import type {
     QueueModelDefinition,
     ThinkingLevel,
@@ -18,35 +16,7 @@ import { initComposerController, type ComposerController } from "./composer-cont
 import { initModelController, type ModelController } from "./model-controller";
 import { initQueueController, type QueueController } from "./queue-controller";
 import { initShortcuts } from "./shortcuts";
-
-interface PlatformFlags {
-    isApplePlatform: boolean;
-    pauseShortcutLabel: string;
-    modelShortcutKeyOrder: string[];
-    navPlatform: string;
-}
-
-interface Dispatchers {
-    dispatchPointerAndMousePress: (target: Element | null) => boolean;
-    dispatchKeyboardEnterPress: (target: Element | null) => boolean;
-}
-
-interface ContentContext {
-    state: QueueState;
-    events: ReturnType<typeof createQueueStateEmitter>;
-    emitStateChange: (
-        reason?: QueueStateChangeReason,
-        detail?: Record<string, unknown>,
-    ) => void;
-    storageManager: StorageManager<PersistedQueueState>;
-    queueHelpers: ReturnType<typeof createQueueHelpers>;
-    platform: PlatformFlags;
-    dispatchers: Dispatchers;
-    ui: {
-        composerRoot: () => HTMLElement | null;
-    };
-    logger: Pick<Console, "log" | "warn" | "error">;
-}
+import type { Context, PlatformFlags } from "./types";
 
 type ShortcutHandles = ReturnType<typeof initShortcuts> | null;
 
@@ -193,7 +163,7 @@ const resolvePlatformFlags = (): PlatformFlags => {
     };
 };
 
-const createContentContext = (): ContentContext => {
+const createContentContext = (): Context => {
     const state = createInitialState();
     const events = createQueueStateEmitter(state);
 
@@ -232,7 +202,7 @@ const createContentContext = (): ContentContext => {
 };
 
 class ContentRuntime {
-    private readonly ctx: ContentContext;
+    private readonly ctx: Context;
 
     private modelController: ModelController | null = null;
 
@@ -506,8 +476,20 @@ class ContentRuntime {
         }
 
         this.persistActiveConversationState();
+        this.modelController?.dispose?.();
+        this.composerController?.dispose?.();
+        this.queueController?.dispose?.();
         this.shortcuts?.dispose();
+        this.shortcuts = null;
+        this.modelController = null;
+        this.composerController = null;
+        this.queueController = null;
         this.rootObserver?.disconnect();
+        this.rootObserver = null;
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = null;
+        }
     }
 
     private exposeDebugHooks() {

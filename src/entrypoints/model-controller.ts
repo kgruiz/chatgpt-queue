@@ -1,11 +1,11 @@
 import { createModelMenuController, MODEL_DROPDOWN_ID } from "../lib/models/menu";
 import type { QueueState } from "../lib/state";
-import type { QueueStateChangeReason } from "../lib/state/events";
 import type {
     QueueModelDefinition,
     QueueModelGroupMeta,
 } from "../lib/types";
 import { sleep } from "../lib/utils";
+import type { Emit, ModelElements } from "./types";
 
 declare global {
     interface Window {
@@ -16,10 +16,7 @@ declare global {
 
 export interface ModelControllerContext {
     state: QueueState;
-    emitStateChange: (
-        reason?: QueueStateChangeReason,
-        detail?: Record<string, unknown>,
-    ) => void;
+    emitStateChange: Emit;
     refreshControls: () => void;
     saveState: (identifier?: string | null) => void;
     dispatchPointerAndMousePress: (target: Element | null) => void;
@@ -55,6 +52,7 @@ export interface ModelController {
     getCurrentModelId: () => string | null;
     getCurrentModelLabel: () => string;
     showModelDebugPopup: (models: QueueModelDefinition[]) => void;
+    dispose: () => void;
 }
 
 const MODEL_BUTTON_FALLBACK_LABEL = "Detecting…";
@@ -101,6 +99,11 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         const normalized = normalizeModelId(value);
         return MODEL_ID_ALIASES[normalized] || String(value ?? "");
     };
+
+    const resolveModelElements = (): ModelElements => ({
+        switcherButtons: queryModelSwitcherButtons(),
+        menuRoot: findModelMenuRoot(),
+    });
 
     const supportsThinkingForModel = (
         modelId: string | null | undefined,
@@ -158,16 +161,16 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         );
 
     const findPreferredModelSwitcherButton = () => {
-        const buttons = queryModelSwitcherButtons();
-        const visible = buttons.filter((btn) => isElementVisible(btn));
-        if (!buttons.length) {
+        const { switcherButtons } = resolveModelElements();
+        const visible = switcherButtons.filter((btn) => isElementVisible(btn));
+        if (!switcherButtons.length) {
             logModelDebug("model switcher button missing", {
                 timestamp: Date.now(),
             });
             return null;
         }
         if (visible.length) return visible[0];
-        return buttons[0];
+        return switcherButtons[0];
     };
 
     const getActiveFocusableElement = (): HTMLElement | null => {
@@ -1446,6 +1449,17 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         },
     ) => openModelDropdownForAnchor(anchor, options || {});
 
+    const dispose = () => {
+        if (headerModelSyncTimer) {
+            window.clearTimeout(headerModelSyncTimer);
+            headerModelSyncTimer = 0;
+        }
+        disconnectModelSwitcherObserver();
+        modelMenuController.close();
+        closeModelDebugPopup();
+        window.cqShowModelDebugPopup = undefined;
+    };
+
     return {
         modelMenuController,
         normalizeModelId,
@@ -1466,6 +1480,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         getCurrentModelId,
         getCurrentModelLabel,
         showModelDebugPopup,
+        dispose,
     };
 };
 
