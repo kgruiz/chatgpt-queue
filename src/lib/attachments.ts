@@ -465,9 +465,13 @@ export const applyAttachmentsToComposer = async (
   attachments: Attachment[] | null | undefined,
   options: ApplyAttachmentsOptions = {},
 ): Promise<boolean> => {
+  const debugSend = process.env.CQ_DEBUG_SEND === "1";
   if (!root) return false;
   if (!attachments || attachments.length === 0) return true;
-  if (typeof DataTransfer === "undefined") return false;
+  if (typeof DataTransfer === "undefined") {
+    if (debugSend) console.warn("[cq][attachments] missing DataTransfer");
+    return false;
+  }
 
   const inputSelector = options.inputSelector || COMPOSER_INPUT_SELECTOR;
   const triggerSelector = options.triggerSelector || UPLOAD_TRIGGER_SELECTOR;
@@ -484,14 +488,20 @@ export const applyAttachmentsToComposer = async (
       input = root.querySelector(inputSelector);
     }
   }
-  if (!isHTMLInputNode(input)) return false;
+  if (!isHTMLInputNode(input)) {
+    if (debugSend) console.warn("[cq][attachments] missing file input");
+    return false;
+  }
 
   const dataTransfer = new DataTransfer();
   for (const attachment of attachments) {
     const file = await attachmentToFile(attachment);
     if (file) dataTransfer.items.add(file);
   }
-  if (dataTransfer.items.length === 0) return true;
+  if (dataTransfer.items.length === 0) {
+    if (debugSend) console.warn("[cq][attachments] dataTransfer empty");
+    return true;
+  }
 
   const baseCount = countComposerAttachments(root);
 
@@ -502,6 +512,7 @@ export const applyAttachmentsToComposer = async (
     await sleep(settleDelayMs);
     return true;
   } catch {
+    if (debugSend) console.warn("[cq][attachments] failed to apply files");
     return false;
   }
 };

@@ -222,7 +222,7 @@ class ContentRuntime {
 
     private conversationChangeInterval = 0;
 
-    constructor(ctx: ContentContext) {
+    constructor(ctx: Context) {
         this.ctx = ctx;
     }
 

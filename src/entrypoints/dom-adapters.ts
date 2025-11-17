@@ -6,7 +6,7 @@ export const SEL = {
     voice: 'button[data-testid="composer-speech-button"], button[aria-label="Start voice mode"]',
     stop: 'button[data-testid="stop-button"][aria-label="Stop streaming"]',
     composer:
-        'form[data-type="unified-composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
+        'form[data-type="unified-composer"], form[data-testid="composer"], div[data-testid="composer"], div[data-testid="composer-root"]',
 };
 
 export const CQ_SELECTORS = {

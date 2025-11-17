@@ -1377,7 +1377,8 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         });
     }
 
-    const onListClick = (event: MouseEvent) => {
+    const onListClick: EventListener = (event) => {
+        if (!(event instanceof MouseEvent)) return;
         const target =
             event.target instanceof HTMLElement ? event.target : null;
         if (!target) return;
@@ -1407,7 +1408,8 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         }
     };
 
-    const onListDragStart = (event: DragEvent) => {
+    const onListDragStart: EventListener = (event) => {
+        if (!(event instanceof DragEvent)) return;
         const target =
             event.target instanceof HTMLElement
                 ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
@@ -1428,7 +1430,7 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         target.classList.add(UI_CLASS.rowDragging);
     };
 
-    const onListDragEnd = () => {
+    const onListDragEnd: EventListener = () => {
         list.querySelector(`.${UI_CLASS.rowDragging}`)?.classList.remove(
             UI_CLASS.rowDragging,
         );
@@ -1436,7 +1438,8 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         clearDragIndicator();
     };
 
-    const onListDragOver = (event: DragEvent) => {
+    const onListDragOver: EventListener = (event) => {
+        if (!(event instanceof DragEvent)) return;
         if (dragIndex === null) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
@@ -1469,7 +1472,8 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         }
     };
 
-    const onListDragLeave = (event: DragEvent) => {
+    const onListDragLeave: EventListener = (event) => {
+        if (!(event instanceof DragEvent)) return;
         const item =
             event.target instanceof HTMLElement
                 ? (event.target.closest(CQ_SELECTORS.row) as HTMLElement | null)
@@ -1477,7 +1481,8 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         if (item && item === dragOverItem) clearDragIndicator();
     };
 
-    const onListDrop = (event: DragEvent) => {
+    const onListDrop: EventListener = (event) => {
+        if (!(event instanceof DragEvent)) return;
         if (dragIndex === null) return;
         event.preventDefault();
         let newIndex = dragIndex;
@@ -1569,7 +1574,6 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
             }
         });
         ui?.remove();
-        dock?.remove();
     };
 
     return {

@@ -47,7 +47,7 @@ export interface ComposerElements {
 }
 
 export interface QueueElements {
-    ui: HTMLElement | null;
+    ui: HTMLElement;
     list: HTMLElement | null;
     collapseToggle: HTMLButtonElement | null;
     inlineHeader: HTMLElement | null;

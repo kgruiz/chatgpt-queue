@@ -1198,6 +1198,12 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         return true;
     };
 
+    const debugSendFailure = (stage: string) => {
+        if (process.env.CQ_DEBUG_SEND === "1") {
+            console.warn(`[cq][sendFromQueue] failed at ${stage}`);
+        }
+    };
+
     const handleAttachmentPaste = (
         event: ClipboardEvent,
         {
@@ -1235,9 +1241,18 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         index: number,
         { allowWhilePaused = false }: { allowWhilePaused?: boolean } = {},
     ) => {
-        if (STATE.busy) return false;
-        if (STATE.paused && !allowWhilePaused) return false;
-        if (STATE.queue.length === 0) return false;
+        if (STATE.busy) {
+            debugSendFailure("busy");
+            return false;
+        }
+        if (STATE.paused && !allowWhilePaused) {
+            debugSendFailure("paused");
+            return false;
+        }
+        if (STATE.queue.length === 0) {
+            debugSendFailure("empty");
+            return false;
+        }
 
         if (isGenerating()) {
             clickStop();
@@ -1245,10 +1260,16 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         }
 
         const root = composer();
-        if (!root) return false;
+        if (!root) {
+            debugSendFailure("root");
+            return false;
+        }
 
         const entry = STATE.queue[index];
-        if (!entry) return false;
+        if (!entry) {
+            debugSendFailure("entry");
+            return false;
+        }
         const promptText = typeof entry.text === "string" ? entry.text : "";
         const attachments = Array.isArray(entry.attachments)
             ? entry.attachments.slice()
@@ -1276,6 +1297,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
             const modelApplied = await ensureModel(desiredModel);
             if (!modelApplied) {
                 restoreEntryAfterSendFailure(index, removed, "model");
+                debugSendFailure("model");
                 return false;
             }
         }
@@ -1284,6 +1306,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
             const thinkingApplied = await selectThinkingTimeOption(desiredThinking);
             if (!thinkingApplied) {
                 restoreEntryAfterSendFailure(index, removed, "thinking");
+                debugSendFailure("thinking");
                 return false;
             }
         }
@@ -1291,6 +1314,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         const textSet = await setPrompt(promptText);
         if (!textSet) {
             restoreEntryAfterSendFailure(index, removed, "prompt");
+            debugSendFailure("prompt");
             return false;
         }
 
@@ -1300,12 +1324,14 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         );
         if (!attachmentsApplied) {
             restoreEntryAfterSendFailure(index, removed, "attachments");
+            debugSendFailure("attachments");
             return false;
         }
 
         const readyToSend = await waitForSendReady();
         if (!readyToSend) {
             restoreEntryAfterSendFailure(index, removed, "ready");
+            debugSendFailure("ready");
             return false;
         }
 
@@ -1316,6 +1342,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         const launched = await waitForSendLaunch();
         if (!launched) {
             restoreEntryAfterSendFailure(index, removed, "launch");
+            debugSendFailure("launch");
             return false;
         }
 

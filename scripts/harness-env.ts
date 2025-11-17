@@ -21,7 +21,15 @@ export const setupHappyDom = () => {
   globalThis.HTMLInputElement = windowInstance.HTMLInputElement as unknown as typeof HTMLInputElement;
   globalThis.Node = windowInstance.Node as unknown as typeof Node;
   globalThis.MutationObserver = windowInstance.MutationObserver as unknown as typeof MutationObserver;
-  globalThis.navigator = windowInstance.navigator as Navigator;
+  globalThis.Blob = windowInstance.Blob as unknown as typeof Blob;
+  globalThis.File = windowInstance.File as unknown as typeof File;
+  globalThis.DataTransfer = windowInstance.DataTransfer as unknown as typeof DataTransfer;
+  Object.defineProperty(globalThis, "navigator", {
+    value: windowInstance.navigator as unknown as Navigator,
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
   globalThis.requestAnimationFrame = windowInstance.requestAnimationFrame.bind(
     windowInstance,
   ) as unknown as typeof requestAnimationFrame;
@@ -128,4 +136,3 @@ export const sampleModels: QueueModelDefinition[] = [
   { id: "canvas", label: "Canvas", group: "advanced", groupLabel: "Advanced tools", order: 100 },
   { id: "realtime", label: "Realtime", group: "advanced", order: 110 },
 ];
-
