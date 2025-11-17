@@ -16,10 +16,11 @@
     "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore",
     "typecheck": "tsc --noEmit && echo '\u001b[32m✔ TypeScript check passed\u001b[0m' || { echo '\u001b[31m✖ TypeScript check failed\u001b[0m'; exit 1; }",
     "check": "sh -c 'pnpm lint; L=$?; pnpm typecheck; T=$?; if [ \"$L\" -eq 0 ] && [ \"$T\" -eq 0 ]; then echo \"\\u001b[32m✔ Lint and TypeScript check passed\\u001b[0m\"; elif [ \"$L\" -ne 0 ] && [ \"$T\" -ne 0 ]; then echo \"\\u001b[31m✖ Both lint and TypeScript failed\\u001b[0m\"; elif [ \"$L\" -ne 0 ]; then echo \"\\u001b[31m✖ Lint failed\\u001b[0m\"; else echo \"\\u001b[31m✖ TypeScript check failed\\u001b[0m\"; fi'",
-    "test": "pnpm run typecheck && pnpm run test:storage && pnpm run test:models && pnpm run test:attachments",
+    "test": "pnpm run typecheck && pnpm run test:storage && pnpm run test:models && pnpm run test:attachments && pnpm run test:controllers",
     "test:storage": "tsx scripts/storage-manager-harness.ts",
     "test:models": "tsx scripts/model-menu-harness.ts",
     "test:attachments": "tsx scripts/attachments-harness.ts",
+    "test:controllers": "tsx scripts/controller-harness.ts",
     "postinstall": "wxt prepare"
   },
   "keywords": [
@@ -34,6 +35,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "eslint": "^9.39.1",
+    "happy-dom": "^20.0.10",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",

@@ -1,5 +1,9 @@
+import assert from "node:assert";
 import { deriveModelMenuLayout } from "../src/lib/models/menu";
+import { createInitialState } from "../src/lib/state";
 import type { QueueModelDefinition, QueueModelGroupMeta } from "../src/lib/types";
+import { initModelController } from "../src/entrypoints/model-controller";
+import { ensureModelSwitcherButton, sampleGroupMeta, sampleModels, setupHappyDom } from "./harness-env";
 
 const normalizeModelId = (value: string | null | undefined): string =>
   String(value || "")
@@ -30,26 +34,12 @@ const resolveHeading = (
   return String(base).toUpperCase();
 };
 
-const sampleGroupMeta: Record<string, QueueModelGroupMeta> = {
-  advanced: { label: "Advanced", order: 50 },
-};
-
-const sampleModels: QueueModelDefinition[] = [
-  { id: "gpt-5-1", label: "Auto", description: "Decides how long to think", section: "GPT-5.1", order: 0, selected: true },
-  { id: "gpt-5-1-instant", label: "Instant", description: "Answers right away", section: "GPT-5.1", order: 1 },
-  { id: "gpt-5-1-thinking", label: "Thinking", description: "Thinks longer", section: "GPT-5.1", order: 2 },
-  { id: "gpt-4o", label: "GPT-4o", section: "GPT-4", order: 10 },
-  { id: "gpt-4o-mini", label: "GPT-4o mini", section: "GPT-4", order: 11 },
-  { id: "canvas", label: "Canvas", group: "advanced", groupLabel: "Advanced tools", order: 100 },
-  { id: "realtime", label: "Realtime", group: "advanced", order: 110 },
-];
-
 const layout = deriveModelMenuLayout(sampleModels, {
   normalizeModelId,
   dedupeModels: dedupeModelsForDisplay,
   resolveModelOrder,
   resolveHeading,
-  getGroupMeta: (groupId) => sampleGroupMeta[groupId],
+  getGroupMeta: (groupId: string): QueueModelGroupMeta | undefined => sampleGroupMeta[groupId],
   selectedModelId: "gpt-5-1",
 });
 
@@ -71,3 +61,40 @@ layout.groups.forEach((group) => {
     console.log(`      - ${model.label || model.id}`);
   });
 });
+
+const env = setupHappyDom();
+ensureModelSwitcherButton(document);
+
+const state = createInitialState();
+state.models = sampleModels;
+state.modelGroups = sampleGroupMeta;
+
+const noop = () => {};
+const dispatchPointer = () => true;
+
+const controller = initModelController({
+  state,
+  emitStateChange: noop,
+  refreshControls: noop,
+  saveState: noop,
+  dispatchPointerAndMousePress: dispatchPointer,
+  dispatchKeyboardEnterPress: dispatchPointer,
+});
+
+const controllerLayout = deriveModelMenuLayout(sampleModels, {
+  normalizeModelId: controller.normalizeModelId,
+  dedupeModels: controller.dedupeModelsForDisplay,
+  resolveModelOrder: controller.resolveModelOrder,
+  resolveHeading,
+  getGroupMeta: (groupId: string) => sampleGroupMeta[groupId],
+  selectedModelId: "gpt-5-1",
+});
+
+assert.strictEqual(controllerLayout.heading, layout.heading, "model heading should remain stable");
+assert.strictEqual(controllerLayout.sections.length, layout.sections.length, "section count should match reference");
+assert.strictEqual(controllerLayout.groups.length, layout.groups.length, "group count should match reference");
+
+controller.dispose();
+env.cleanup();
+
+console.log("model menu harness passed");

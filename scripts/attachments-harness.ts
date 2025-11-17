@@ -3,6 +3,17 @@ import {
   collectImagesFromDataTransfer,
   hasImagesInDataTransfer,
 } from "../src/lib/attachments";
+import { createInitialState } from "../src/lib/state";
+import { initComposerController } from "../src/entrypoints/composer-controller";
+import { initModelController } from "../src/entrypoints/model-controller";
+import { initQueueController } from "../src/entrypoints/queue-controller";
+import {
+  buildComposerDom,
+  ensureModelSwitcherButton,
+  sampleGroupMeta,
+  sampleModels,
+  setupHappyDom,
+} from "./harness-env";
 import type { Attachment } from "../src/lib/types";
 
 const assert = (condition: unknown, message: string): void => {
@@ -202,10 +213,100 @@ const testApplyAttachments = async (attachments: Attachment[]) => {
   assert(root.input.changeEvents > 0, "composer input should emit change event");
 };
 
+const runComposerAttachmentSend = async (attachments: Attachment[]) => {
+  const env = setupHappyDom();
+  const composerFixture = buildComposerDom(document);
+  ensureModelSwitcherButton(document);
+
+  const state = createInitialState();
+  state.models = sampleModels;
+  state.modelGroups = sampleGroupMeta;
+
+  const noop = () => {};
+  const dispatchPointer = () => true;
+
+  const modelController = initModelController({
+    state,
+    emitStateChange: noop,
+    refreshControls: noop,
+    saveState: noop,
+    dispatchPointerAndMousePress: dispatchPointer,
+    dispatchKeyboardEnterPress: dispatchPointer,
+  });
+
+  const queueController = initQueueController({
+    state,
+    emitStateChange: noop,
+    saveState: noop,
+    scheduleSaveState: noop,
+    modelController,
+    pauseShortcutLabel: "Ctrl+Shift+P",
+  });
+
+  const composerController = initComposerController({
+    state,
+    emitStateChange: noop,
+    saveState: noop,
+    refreshControls: queueController.refreshControls,
+    scheduleControlRefresh: queueController.scheduleControlRefresh,
+    setPaused: queueController.setPaused,
+    labelForModel: modelController.labelForModel,
+    supportsThinkingForModel: modelController.supportsThinkingForModel,
+    getCurrentModelId: modelController.getCurrentModelId,
+    getCurrentModelLabel: modelController.getCurrentModelLabel,
+    ensureModel: modelController.ensureModel,
+    markModelSelected: modelController.markModelSelected,
+    openModelDropdownForAnchor: modelController.openModelDropdownForAnchor,
+    modelMenuController: modelController.modelMenuController,
+    activateMenuItem: modelController.activateMenuItem,
+    dispatchPointerAndMousePress: dispatchPointer,
+    queueList: queueController.list,
+    applyModelSelectionToEntry: queueController.applyModelSelectionToEntry,
+    setEntryThinkingOption: queueController.setEntryThinkingOption,
+    resolveQueueEntryThinkingLabel: queueController.resolveQueueEntryThinkingLabel,
+    addAttachmentsToEntry: queueController.addAttachmentsToEntry,
+  });
+
+  queueController.attachComposerController(composerController);
+  queueController.ensureMounted();
+  composerController.ensureComposerControls(composerFixture.root);
+  composerController.ensureComposerInputListeners(composerFixture.root);
+
+  composerFixture.sendButton.addEventListener("click", () => {
+    composerFixture.sendButton.disabled = true;
+    setTimeout(() => {
+      composerFixture.sendButton.disabled = false;
+    }, 10);
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type === "CQ_SET_PROMPT") {
+      window.postMessage({ type: "CQ_SET_PROMPT_DONE" }, "*");
+    }
+  });
+
+  state.queue.push({
+    text: "Queued with attachments",
+    attachments: attachments.map((attachment) => ({ ...attachment })),
+    model: null,
+    modelLabel: null,
+    thinking: null,
+  });
+
+  const sent = await composerController.sendFromQueue(0, { allowWhilePaused: true });
+  assert(sent, "composer controller should send queued entry with attachments");
+
+  composerController.dispose();
+  queueController.dispose();
+  modelController.dispose();
+  env.cleanup();
+};
+
 async function run() {
   testHasImages();
   const attachments = await testCollectImages();
   await testApplyAttachments(attachments);
+  await runComposerAttachmentSend(attachments);
   console.log("attachments harness passed");
 }
 
