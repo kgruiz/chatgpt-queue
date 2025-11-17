@@ -99,9 +99,10 @@ All queue content, attachments, and the paused/collapsed state live in `chrome.s
 
 Project structure (managed by [WXT](https://wxt.dev/)):
 
-- `src/entrypoints/content.ts` - Queue UI, automation logic, attachment handling, and model selection.
+- `src/entrypoints/content.ts` - Content script bootstrap that wires styles and calls the runtime.
 - `src/entrypoints/background.ts` - Background service worker relaying keyboard commands and toolbar clicks.
 - `src/entrypoints/bridge.ts` - ProseMirror helper injected into the page's main world for reliable composer edits.
+- `src/runtime/content-runtime.ts` - Queue UI, automation logic, attachment handling, and model/model-thinking selection.
 - `src/lib/attachments.ts` - Attachment normalization, gathering, and cleanup helpers shared by queue logic.
 - `src/lib/queue.ts` - Queue-entry normalization/cloning helpers with thinking-level awareness.
 - `src/lib/storage.ts` - Conversation identifier utilities shared across persistence logic.
@@ -115,7 +116,7 @@ Workflow:
 1. Install dependencies once with `pnpm install`, then run `pnpm dev` (or `pnpm dev:firefox`) to start WXT's watch/build loop.
 2. Load the generated `.output/<browser>-mv3` folder as an unpacked extension. WXT will keep rebuilding there and trigger reloads.
 3. Keep your edits inside `src/`; WXT rebundles automatically and surfaces type errors via `pnpm typecheck`.
-4. When selectors break, update the relevant helpers (mostly in `src/entrypoints/content.ts`) and rerun `pnpm build` to verify production output.
+4. When selectors break, update the relevant helpers (mostly in `src/runtime/*` and `src/entrypoints/content.ts`) and rerun `pnpm build` to verify production output.
 5. Run `pnpm test:storage` to exercise the storage-manager harness whenever you change persistence logic.
 
 ## Troubleshooting

@@ -25,9 +25,9 @@
 - Keep DOM class names centralized in `src/lib/ui/classes.ts` and state events typed in `src/lib/state/events.ts` to avoid drift.
 
 ## Content architecture
-- `src/entrypoints/content.ts` only registers the content script and imports CSS. All runtime setup happens in `src/entrypoints/content-runtime.ts` via `bootstrapContent`.
+- `src/entrypoints/content.ts` only registers the content script and imports CSS. All runtime setup happens in `src/runtime/content-runtime.ts` via `bootstrapContent`.
 - `content-runtime` builds a `Context` (state, event emitter, storage manager, queue helpers, platform flags, dispatch helpers, composer root reference, logger), hydrates the conversation snapshot, mounts UI, and installs SPA observers plus a `beforeunload` cleanup that calls each controller’s `dispose`.
-- Controllers live in `src/entrypoints/*-controller.ts` and share types from `src/entrypoints/types.ts`. Each `init*Controller` returns a `dispose()` and only receives dependencies through the `Context`.
+- Controllers live in `src/runtime/*-controller.ts` and share types from `src/runtime/types.ts`. Each `init*Controller` returns a `dispose()` and only receives dependencies through the `Context`.
 - Responsibilities: `composer-controller` handles composer discovery, queueing, attachments, and thinking/model selection; `model-controller` syncs the ChatGPT model switcher and renders the debug popup; `queue-controller` renders queue UI, drag/reorder, pause/collapse, and per-entry controls; `shortcuts` wires keyboard accelerators and integrates with the ChatGPT shortcut helper; `dom-adapters` centralize selectors, visibility checks, and composer lookup.
 - When touching controller boundaries, update the harnesses in `scripts/*-harness.ts` so init/teardown paths keep working.
 

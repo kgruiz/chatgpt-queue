@@ -7,6 +7,7 @@ import {
     type PersistedQueueState,
 } from "../lib/storage-manager";
 import type {
+    QueueEntry,
     QueueModelDefinition,
     ThinkingLevel,
     ThinkingOption,
@@ -238,7 +239,7 @@ class ContentRuntime {
 
     private persistable = (): PersistedQueueState => ({
         running: this.ctx.state.running,
-        queue: this.ctx.state.queue.map((entry) => this.ctx.queueHelpers.cloneEntry(entry)),
+        queue: this.ctx.state.queue.map((entry: QueueEntry) => this.ctx.queueHelpers.cloneEntry(entry)),
         collapsed: this.ctx.state.collapsed,
         paused: this.ctx.state.paused,
         pauseReason: this.ctx.state.pauseReason,
@@ -431,7 +432,7 @@ class ContentRuntime {
     };
 
     private loadPersistedState = (identifier = this.activeConversationIdentifier) =>
-        this.ctx.storageManager.loadSnapshot(identifier).then((snapshot) => {
+        this.ctx.storageManager.loadSnapshot(identifier).then((snapshot: PersistedQueueState | null) => {
             this.applyPersistedState(snapshot);
             return snapshot;
         });

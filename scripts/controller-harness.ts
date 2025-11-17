@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { createInitialState } from "../src/lib/state";
-import { initComposerController } from "../src/entrypoints/composer-controller";
-import { initModelController } from "../src/entrypoints/model-controller";
-import { initQueueController } from "../src/entrypoints/queue-controller";
+import { initComposerController } from "../src/runtime/composer-controller";
+import { initModelController } from "../src/runtime/model-controller";
+import { initQueueController } from "../src/runtime/queue-controller";
 import { buildComposerDom, ensureModelSwitcherButton, sampleGroupMeta, sampleModels, setupHappyDom } from "./harness-env";
 
 const noop = () => {};

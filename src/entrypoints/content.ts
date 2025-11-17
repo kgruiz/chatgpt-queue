@@ -1,6 +1,6 @@
 import "../styles/content.css";
 import { defineContentScript } from "#imports";
-import { bootstrapContent } from "./content-runtime";
+import { bootstrapContent } from "../runtime/content-runtime";
 
 export default defineContentScript({
     matches: [

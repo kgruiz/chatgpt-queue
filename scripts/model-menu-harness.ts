@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { deriveModelMenuLayout } from "../src/lib/models/menu";
 import { createInitialState } from "../src/lib/state";
 import type { QueueModelDefinition, QueueModelGroupMeta } from "../src/lib/types";
-import { initModelController } from "../src/entrypoints/model-controller";
+import { initModelController } from "../src/runtime/model-controller";
 import { ensureModelSwitcherButton, sampleGroupMeta, sampleModels, setupHappyDom } from "./harness-env";
 
 const normalizeModelId = (value: string | null | undefined): string =>
