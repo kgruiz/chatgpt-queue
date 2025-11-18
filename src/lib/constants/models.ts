@@ -1,4 +1,4 @@
-import type { QueueModelDefinition, ThinkingOption } from "../types";
+import type { QueueModelDefinition, ThinkingOption, ThinkingLevel } from "../types";
 
 export const USER_PLANS = ["free", "plus", "go", "team", "pro", "enterprise"] as const;
 export type UserPlan = (typeof USER_PLANS)[number];
@@ -101,3 +101,10 @@ export const MODELS_WITH_THINKING_TIME_SUPPORT: readonly string[] = [
     "gpt-5-1-thinking",
     "gpt-5-thinking",
 ] as const;
+
+export const THINKING_LEVEL_TIERS: Record<ThinkingLevel, readonly string[]> = {
+    light: ["Pro", "Enterprise"],
+    standard: ["Free", "Plus", "Pro", "Team", "Enterprise"],
+    extended: ["Free", "Plus", "Pro", "Team", "Enterprise"],
+    heavy: ["Pro", "Enterprise"],
+} as const;
