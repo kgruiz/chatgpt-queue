@@ -1,6 +1,6 @@
 # chatgpt-queue
 
-Queue prompts for ChatGPT and let them auto-send as soon as the previous reply finishes. The extension keeps long follow-up chains moving without babysitting the UI.
+Queue prompts for ChatGPT and let them auto-send as soon as the previous reply finishes. The extension keeps long follow-up chains moving without babysitting the UI and works on both `chatgpt.com` and `chat.openai.com`.
 
 ## Visual Preview
 
@@ -27,7 +27,7 @@ Queue prompts for ChatGPT and let them auto-send as soon as the previous reply f
 3. Open `chrome://extensions` (Arc/Brave/Edge redirect automatically), enable **Developer mode**, then click **Load unpacked** and point at `.output/chrome-mv3`.
 4. Keep Developer mode enabled so the unpacked extension stays active. When you're ready to package, run `pnpm build` (or `pnpm zip`) and load the freshly built `.output/chrome-mv3` bundle.
 
-> Note: Chrome 133+ and its siblings now disable unpacked extensions unless Developer Mode remains on. Google announced the policy change in the [December 20, 2024 Chromium Extensions PSA](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/cTdMVtxxooY), so make sure that toggle stays enabled while you develop or run chatgpt-queue.
+> Note: Chrome 134 and later disable unpacked extensions whenever Developer Mode is off. Google announced the change in the [December 20, 2024 Chromium Extensions PSA](https://groups.google.com/a/chromium.org/g/chromium-extensions/c/cTdMVtxxooY) and began enforcing it with the Chrome 134 rollout, so keep Developer Mode on while you develop or use chatgpt-queue.
 
 ### Firefox (temporary add-on)
 
@@ -117,7 +117,7 @@ Workflow:
 2. Load the generated `.output/<browser>-mv3` folder as an unpacked extension. WXT will keep rebuilding there and trigger reloads.
 3. Keep your edits inside `src/`; WXT rebundles automatically and surfaces type errors via `pnpm typecheck`.
 4. When selectors break, update the relevant helpers (mostly in `src/runtime/*` and `src/entrypoints/content.ts`) and rerun `pnpm build` to verify production output.
-5. Run `pnpm test:storage` to exercise the storage-manager harness whenever you change persistence logic.
+5. Run `pnpm check` for lint plus type checks. `pnpm test` runs the type check and the storage, model-menu, attachment, and controller harnesses; use the individual `pnpm test:*` scripts when iterating on one area.
 
 ## Troubleshooting
 

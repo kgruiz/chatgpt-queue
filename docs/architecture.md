@@ -32,3 +32,13 @@ Queue state + event emitter (src/lib/state)
 - Only `content-runtime` talks to storage and platform detection; controllers act on the `Context` they receive.
 - State mutations broadcast through the queue event emitter, and the UI refresh logic in controllers subscribes rather than pulling globals.
 - UI affordances use the typed DOM helpers so selectors and focus/visibility checks stay consistent across controllers.
+
+## Background & messaging
+
+- `background.ts` relays Chrome commands to the active ChatGPT tab; `queue-from-shortcut` queues the current composer input, and the action icon sends `toggle-ui` so the panel re-expands when it has been collapsed.
+- The content runtime listens for those messages via `chrome.runtime.onMessage`, expands the queue when `toggle-ui`/`show-ui` arrives, and defers to the composer controller for queuing work.
+
+## Composer bridge
+
+- `bridge.ts` ships as an unlisted script that listens for `CQ_SET_PROMPT` window messages from the content runtime.
+- When a message arrives it writes the text into the ProseMirror editor through the page’s `editorView` when present, falls back to an HTML rewrite when it is not, and replies with `CQ_SET_PROMPT_DONE` so the dispatcher knows the write completed.

@@ -12,12 +12,12 @@
 ## Expectations
 - Follow the spacing, naming, and commenting rules in `AGENTS.md` (blank lines around control flow, PascalCase functions, camelCase variables, etc.).
 - Keep TypeScript strict; avoid `ts-ignore` unless documented. Prefer typed helpers in `src/lib` over inline DOM lookups.
-- Use the provided utilities: state lives in `src/lib/state`, queue helpers in `src/lib/state/queue`, storage in `src/lib/storage-manager`, and UI pieces under `src/lib/ui`.
+- Use the provided utilities: state lives in `src/lib/state`, queue mutations in `src/lib/state/queue.ts`, normalization/cloning helpers in `src/lib/queue.ts`, storage in `src/lib/storage-manager.ts`, and UI pieces under `src/lib/ui`.
 
 ## Linting, formatting, and tests
 - Run `pnpm lint` and `pnpm typecheck` (or `pnpm check`) before committing.
 - Format with `pnpm format`; Prettier is configured via `.prettierrc.json` and `.prettierignore` to stay within the project’s conventions.
-- `pnpm test` currently runs type checks plus harness scripts for storage, model menus, and attachments. Extend these harnesses when adding features.
+- `pnpm test` currently runs type checks plus harness scripts for storage, model menus, attachments, and controller flows. Extend these harnesses when adding features.
 
 ## Adding entrypoints or modules
 - Place new extension entrypoints in `src/entrypoints/` using WXT helpers like `defineContentScript` or `defineBackground`. WXT will include them automatically; adjust `wxt.config.ts` if custom manifest fields are needed.
