@@ -19,7 +19,7 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
-import { SEL, composer, findEditor, findSendButton, isGenerating, q } from "./dom-adapters";
+import { SEL, composer, findEditor, findSendButton, isGenerating, isVisible, q } from "./dom-adapters";
 import type { ComposerElements, Emit } from "./types";
 
 export interface ComposerControllerContext {
@@ -274,11 +274,33 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
 
     const findThinkingChipButton = (): HTMLButtonElement | null => {
         const selector = "button.__composer-pill";
-        for (const button of document.querySelectorAll<HTMLButtonElement>(selector)) {
-            if (!(button instanceof HTMLElement)) continue;
-            const text = button.textContent || "";
-            if (normalizeThinkingText(text).includes("thinking")) return button;
+        const scopes: Array<Document | Element> = [];
+        const root = composer();
+
+        if (root) scopes.push(root);
+        scopes.push(document);
+
+        for (const scope of scopes) {
+            const buttons = scope.querySelectorAll<HTMLButtonElement>(selector);
+            for (const button of buttons) {
+                if (!(button instanceof HTMLElement)) continue;
+
+                const labelText =
+                    button.getAttribute("aria-label") ||
+                    button.getAttribute("title") ||
+                    button.textContent ||
+                    "";
+
+                if (!normalizeThinkingText(labelText).includes("thinking")) {
+                    continue;
+                }
+
+                if (!isVisible(button)) continue;
+
+                return button;
+            }
         }
+
         return null;
     };
 
