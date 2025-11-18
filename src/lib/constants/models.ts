@@ -16,7 +16,7 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "Instant",
         description: "Answers right away",
         section: "GPT-5.1",
-        tiers: ["Plus", "Pro", "Team", "Enterprise"],
+        tiers: ["Free", "Plus", "Pro", "Team", "Enterprise"],
     },
     {
         id: "gpt-5-1-thinking",
