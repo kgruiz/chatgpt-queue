@@ -159,32 +159,40 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         return rect.width > 0 && rect.height > 0;
     };
 
-    const isThinkingResetButton = (node: Element | null): boolean => {
+    const isThinkingRelatedElement = (node: Element | null): boolean => {
         if (!(node instanceof Element)) return false;
 
-        const button = node.closest("button");
-
-        if (!(button instanceof HTMLElement)) return false;
-
-        const labelParts = [
-            button.getAttribute("aria-label"),
-            button.title,
-            button.textContent,
+        const candidates: Array<string | null | undefined> = [
+            node.getAttribute("aria-label"),
+            node.getAttribute("data-testid"),
+            node.getAttribute("title"),
+            node.textContent,
         ];
 
-        const combined = labelParts
+        const normalized = candidates
             .map((value) => (value || "").trim().toLowerCase())
             .filter(Boolean)
             .join(" ");
 
-        if (!combined) return false;
+        if (normalized.includes("thinking")) return true;
 
-        return (
-            combined.includes("thinking") &&
-            (combined.includes("remove") ||
-                combined.includes("clear") ||
-                combined.includes("reset"))
-        );
+        const role = node.getAttribute("role");
+        if (role === "menuitemradio" || role === "menuitem") {
+            if (normalized.includes("think")) return true;
+        }
+
+        return false;
+    };
+
+    const isThinkingInteraction = (node: Element | null): boolean => {
+        let cursor: Element | null = node;
+
+        for (let depth = 0; cursor && depth < 6; depth += 1) {
+            if (isThinkingRelatedElement(cursor)) return true;
+            cursor = cursor.parentElement;
+        }
+
+        return false;
     };
 
     const queryModelSwitcherButtons = (): HTMLButtonElement[] =>
@@ -1035,11 +1043,12 @@ const readCurrentModelLabelFromHeader = () => {
 
             if (!(target instanceof Element)) return;
 
-            if (!isThinkingResetButton(target)) return;
+            if (!isThinkingInteraction(target)) return;
 
             scheduleHeaderModelSync(0);
 
-            window.setTimeout(() => scheduleHeaderModelSync(200), 200);
+            window.setTimeout(() => scheduleHeaderModelSync(180), 180);
+            window.setTimeout(() => scheduleHeaderModelSync(500), 500);
         };
 
         document.addEventListener("click", modelChangeClickListener, true);
