@@ -80,6 +80,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
     let lastLoggedMarkModelLabel = "";
     let lastLoggedCurrentModelId: string | null = "__unset__";
     let lastLoggedCurrentModelLabel = "__unset__";
+    let modelChangeClickListener: ((event: Event) => void) | null = null;
 
     const MODEL_ID_ALIASES: Record<string, string> = {
         auto: "gpt-5-1",
@@ -144,13 +145,46 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
 
     const isElementVisible = (element: Element | null): element is HTMLElement => {
         if (!(element instanceof HTMLElement)) return false;
+
         const style = window.getComputedStyle(element);
+
         if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
             return false;
         }
+
         if (style.pointerEvents === "none") return false;
+
         const rect = element.getBoundingClientRect();
+
         return rect.width > 0 && rect.height > 0;
+    };
+
+    const isThinkingResetButton = (node: Element | null): boolean => {
+        if (!(node instanceof Element)) return false;
+
+        const button = node.closest("button");
+
+        if (!(button instanceof HTMLElement)) return false;
+
+        const labelParts = [
+            button.getAttribute("aria-label"),
+            button.title,
+            button.textContent,
+        ];
+
+        const combined = labelParts
+            .map((value) => (value || "").trim().toLowerCase())
+            .filter(Boolean)
+            .join(" ");
+
+        if (!combined) return false;
+
+        return (
+            combined.includes("thinking") &&
+            (combined.includes("remove") ||
+                combined.includes("clear") ||
+                combined.includes("reset"))
+        );
     };
 
     const queryModelSwitcherButtons = (): HTMLButtonElement[] =>
@@ -993,6 +1027,24 @@ const readCurrentModelLabelFromHeader = () => {
         }, delay);
     };
 
+    const ensureNativeModelResetListener = () => {
+        if (modelChangeClickListener) return;
+
+        modelChangeClickListener = (event: Event) => {
+            const target = event.target;
+
+            if (!(target instanceof Element)) return;
+
+            if (!isThinkingResetButton(target)) return;
+
+            scheduleHeaderModelSync(0);
+
+            window.setTimeout(() => scheduleHeaderModelSync(200), 200);
+        };
+
+        document.addEventListener("click", modelChangeClickListener, true);
+    };
+
     const syncCurrentModelFromHeader = async () => {
         if (headerModelSyncInFlight) return;
         const label = applyHeaderLabelAliases(readCurrentModelLabelFromHeader());
@@ -1467,6 +1519,8 @@ const readCurrentModelLabelFromHeader = () => {
         closeBtn.focus({ preventScroll: true });
     };
 
+    ensureNativeModelResetListener();
+
     window.cqShowModelDebugPopup = showModelDebugPopup;
 
     const getCurrentModelId = () => currentModelId;
@@ -1486,6 +1540,12 @@ const readCurrentModelLabelFromHeader = () => {
             window.clearTimeout(headerModelSyncTimer);
             headerModelSyncTimer = 0;
         }
+
+        if (modelChangeClickListener) {
+            document.removeEventListener("click", modelChangeClickListener, true);
+            modelChangeClickListener = null;
+        }
+
         disconnectModelSwitcherObserver();
         modelMenuController.close();
         closeModelDebugPopup();
