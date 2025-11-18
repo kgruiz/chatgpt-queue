@@ -52,7 +52,7 @@ export interface ModelController {
     getCurrentModelId: () => string | null;
     getCurrentModelLabel: () => string;
     showModelDebugPopup: (models: QueueModelDefinition[]) => void;
-    detectUserPlan: () => "plus" | "pro" | "team" | "free";
+    detectUserPlan: () => "plus" | "pro" | "team" | "go" | "free";
     dispose: () => void;
 }
 
@@ -1558,7 +1558,7 @@ const readCurrentModelLabelFromHeader = () => {
         },
     ) => openModelDropdownForAnchor(anchor, options || {});
 
-    const detectUserPlan = (): "plus" | "pro" | "team" | "free" => {
+    const detectUserPlan = (): "plus" | "pro" | "team" | "go" | "free" => {
         const userMenu = document.querySelector('[data-testid="user-menu"]');
         if (!userMenu) return "free";
 
@@ -1567,6 +1567,7 @@ const readCurrentModelLabelFromHeader = () => {
         if (text.includes("Pro")) return "pro";
         if (text.includes("Plus")) return "plus";
         if (text.includes("Team")) return "team";
+        if (text.includes("Go")) return "go";
 
         return "free";
     };
