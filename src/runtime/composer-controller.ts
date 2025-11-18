@@ -645,7 +645,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         const icon = document.createElement("div");
         icon.className = "__composer-pill-icon";
         const iconId: ThinkingLevel =
-            (entry.thinking || getCurrentThinkingOption() || "extended") as ThinkingLevel;
+            (entry.thinking || "extended") as ThinkingLevel;
         icon.innerHTML =
             THINKING_OPTION_ICONS[iconId] || THINKING_OPTION_ICONS.extended;
         const labelSpan = document.createElement("span");

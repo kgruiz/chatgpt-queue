@@ -1,7 +1,7 @@
 import { createQueueHelpers } from "../lib/queue";
 import { createInitialState } from "../lib/state";
 import { createQueueStateEmitter, type QueueStateChangeReason } from "../lib/state/events";
-import { LEGACY_STORAGE_KEY, resolveConversationIdentifier } from "../lib/storage";
+import { LEGACY_STORAGE_KEY, resolveConversationIdentifier, hostToken } from "../lib/storage";
 import {
     createStorageManager,
     type PersistedQueueState,
@@ -487,6 +487,23 @@ class ContentRuntime {
         const nextIdentifier = resolveConversationIdentifier();
 
         if (nextIdentifier === this.activeConversationIdentifier) return;
+
+        const host = hostToken();
+        const isRootPath = (id: string | null | undefined) =>
+            typeof id === "string" && id.startsWith(`${host}::path::%2F`);
+        const isChatPath = (id: string | null | undefined) =>
+            typeof id === "string" && id.startsWith(`${host}::chat::`);
+
+        const upgradingToFirstConversation =
+            isRootPath(this.activeConversationIdentifier) &&
+            isChatPath(nextIdentifier) &&
+            this.ctx.state.queue.length > 0;
+
+        if (upgradingToFirstConversation) {
+            this.activeConversationIdentifier = nextIdentifier;
+            this.saveState(nextIdentifier);
+            return;
+        }
 
         this.persistActiveConversationState();
         this.activeConversationIdentifier = nextIdentifier;
