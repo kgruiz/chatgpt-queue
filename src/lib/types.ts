@@ -33,6 +33,7 @@ export interface QueueModelDefinition {
   order?: number;
   selected?: boolean;
   modelLabel?: string;
+  tiers?: string[];
 }
 
 export interface QueueModelGroupMeta {

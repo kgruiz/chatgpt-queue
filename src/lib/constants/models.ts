@@ -9,6 +9,7 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "Auto",
         description: "Decides how long to think",
         section: "GPT-5.1",
+        tiers: ["Free"],
     },
     {
         id: "gpt-5-1-instant",
@@ -27,12 +28,14 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "Pro",
         description: "Research-grade intelligence",
         section: "GPT-5",
+        tiers: ["Pro"],
     },
     {
         id: "gpt-5-instant",
         label: "GPT-5 Instant",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Plus", "Pro", "Team"],
     },
     {
         id: "gpt-5-t-mini",
@@ -45,18 +48,21 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "GPT-5 Thinking",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Plus", "Pro", "Team"],
     },
     {
         id: "gpt-4o",
         label: "GPT-4o",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Free", "Plus", "Team"],
     },
     {
         id: "gpt-4-1",
         label: "GPT-4.1",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Plus", "Pro"],
     },
     {
         id: "gpt-4-5",
@@ -69,12 +75,14 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "o3",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Plus", "Pro", "Team"],
     },
     {
         id: "o4-mini",
         label: "o4-mini",
         group: "legacy",
         groupLabel: "Legacy models",
+        tiers: ["Team"],
     },
 ];
 
