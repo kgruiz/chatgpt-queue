@@ -223,11 +223,14 @@ class ContentRuntime {
 
     private conversationChangeInterval = 0;
 
+    private bridgeInjected = false;
+
     constructor(ctx: Context) {
         this.ctx = ctx;
     }
 
     start() {
+        this.injectBridgeScript();
         this.initControllers();
         this.attachEventSubscriptions();
         this.initShortcuts();
@@ -259,6 +262,38 @@ class ContentRuntime {
             this.saveTimer = null;
             this.saveState();
         }, 150);
+    };
+
+    private injectBridgeScript = () => {
+        if (this.bridgeInjected) return;
+
+        const existing = document.getElementById("cq-bridge-script");
+
+        if (existing) {
+            this.bridgeInjected = true;
+            return;
+        }
+
+        const url = chrome.runtime?.getURL?.("bridge.js") || "";
+
+        if (!url) return;
+
+        try {
+            const script = document.createElement("script");
+            script.id = "cq-bridge-script";
+            script.src = url;
+            script.type = "module";
+            script.async = false;
+            script.onload = () => {
+                this.bridgeInjected = true;
+            };
+            script.onerror = () => {
+                console.warn("[cq] failed to load bridge.js");
+            };
+            document.documentElement?.appendChild(script);
+        } catch (_) {
+            /* noop */
+        }
     };
 
     private initControllers() {
