@@ -1,6 +1,6 @@
 import type { QueueModelDefinition, ThinkingOption } from "../types";
 
-export const USER_PLANS = ["free", "plus", "go", "team", "pro"] as const;
+export const USER_PLANS = ["free", "plus", "go", "team", "pro", "enterprise"] as const;
 export type UserPlan = (typeof USER_PLANS)[number];
 
 export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
