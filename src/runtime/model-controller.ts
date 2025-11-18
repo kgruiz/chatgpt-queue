@@ -899,29 +899,61 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         return Array.from(map.values());
     };
 
-    const resolveModelOrder = (model: QueueModelDefinition): number =>
-        Number.isFinite(model?.order)
-            ? Number(model.order)
-            : Number.MAX_SAFE_INTEGER;
+const resolveModelOrder = (model: QueueModelDefinition): number =>
+    Number.isFinite(model?.order)
+        ? Number(model.order)
+        : Number.MAX_SAFE_INTEGER;
 
-    const readCurrentModelLabelFromHeader = () => {
-        const button = findPreferredModelSwitcherButton();
-        if (!(button instanceof HTMLElement)) return "";
-        const aria = button.getAttribute("aria-label") || "";
-        const ariaMatch = aria.match(/current model is (.+)$/i);
-        if (ariaMatch && ariaMatch[1]) {
-            return ariaMatch[1].trim();
+const KNOWN_MODEL_DESCRIPTIONS = [
+    "Decides how long to think",
+    "Answers right away",
+    "Thinks longer for better answers",
+    "Research-grade intelligence",
+];
+
+const stripKnownModelDescriptions = (value: string): string => {
+    const text = value || "";
+    const lower = text.toLowerCase();
+
+    for (const description of KNOWN_MODEL_DESCRIPTIONS) {
+        const normalizedDescription = description.toLowerCase();
+        const index = lower.lastIndexOf(normalizedDescription);
+
+        if (index !== -1 && index + normalizedDescription.length === lower.length) {
+            const trimmed = text.slice(0, index).trim();
+
+            if (trimmed) {
+                return trimmed;
+            }
         }
-        const highlight = button.querySelector(
-            ".text-token-text-tertiary, span[class*='text-token-text-tertiary']",
-        );
-        if (highlight && highlight.textContent) {
-            return highlight.textContent.trim();
-        }
-        const text = button.textContent || "";
-        const stripped = text.replace(/chatgpt/i, "").trim();
-        return stripped;
-    };
+    }
+
+    return text;
+};
+
+const readCurrentModelLabelFromHeader = () => {
+    const button = findPreferredModelSwitcherButton();
+    if (!(button instanceof HTMLElement)) return "";
+    const aria = button.getAttribute("aria-label") || "";
+    const ariaMatch = aria.match(/current model is (.+)$/i);
+    if (ariaMatch && ariaMatch[1]) {
+        const trimmed = ariaMatch[1].trim();
+
+        return stripKnownModelDescriptions(trimmed);
+    }
+    const highlight = button.querySelector(
+        ".text-token-text-tertiary, span[class*='text-token-text-tertiary']",
+    );
+    if (highlight && highlight.textContent) {
+        const trimmed = highlight.textContent.trim();
+
+        return stripKnownModelDescriptions(trimmed);
+    }
+    const text = button.textContent || "";
+    const stripped = text.replace(/chatgpt/i, "").trim();
+
+    return stripKnownModelDescriptions(stripped);
+};
 
     const resolveCurrentModelButtonValue = () => {
         const headerLabel = applyHeaderLabelAliases(
