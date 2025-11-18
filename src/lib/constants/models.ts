@@ -9,7 +9,7 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         label: "Auto",
         description: "Decides how long to think",
         section: "GPT-5.1",
-        tiers: ["Free"],
+        tiers: ["Free", "Plus", "Pro", "Team", "Enterprise"],
     },
     {
         id: "gpt-5-1-instant",
