@@ -1,4 +1,8 @@
-import type { QueueModelDefinition, ThinkingOption, ThinkingLevel } from "../types";
+import type {
+    QueueModelDefinition,
+    ThinkingOption,
+    ThinkingLevel,
+} from "../types";
 
 export const USER_PLANS = ["free", "plus", "go", "team", "pro", "enterprise"] as const;
 export type UserPlan = (typeof USER_PLANS)[number];
@@ -115,4 +119,25 @@ export const isThinkingLevelAvailableForPlan = (
 ): boolean => {
     const allowedPlans = THINKING_LEVEL_TIERS[level] || [];
     return allowedPlans.includes(plan);
+};
+
+const normalizePlanLabel = (value: string): UserPlan | null => {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "business") return "team";
+    if (normalized === "team") return "team";
+    if (normalized === "pro") return "pro";
+    if (normalized === "plus") return "plus";
+    if (normalized === "free") return "free";
+    if (normalized === "go") return "go";
+    if (normalized === "enterprise") return "enterprise";
+    return null;
+};
+
+export const isModelAvailableForPlan = (
+    model: QueueModelDefinition | null | undefined,
+    plan: UserPlan,
+): boolean => {
+    if (!model?.tiers || !model.tiers.length) return true;
+    const normalizedPlan = normalizePlanLabel(plan) || plan;
+    return model.tiers.some((tier) => normalizePlanLabel(tier) === normalizedPlan);
 };

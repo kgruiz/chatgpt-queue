@@ -372,6 +372,7 @@ class ContentRuntime {
             isApplePlatform: this.ctx.platform.isApplePlatform,
             modelShortcutOrder: this.ctx.platform.modelShortcutKeyOrder,
             thinkingOptions: thinkingShortcutOptions,
+            userPlan: detectedPlan,
             getQueueRows: () => this.queueController?.getQueueRows() ?? [],
             focusQueueRow: (row) => this.queueController?.focusQueueRow(row) ?? false,
             focusComposerEditor: () => this.queueController?.focusComposerEditor() ?? false,

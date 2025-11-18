@@ -8,12 +8,17 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
+import {
+    isModelAvailableForPlan,
+    type UserPlan,
+} from "../lib/constants/models";
 
 export interface ShortcutContext {
     state: QueueState;
     isApplePlatform: boolean;
     modelShortcutOrder: string[];
     thinkingOptions: ThinkingOption[];
+    userPlan: UserPlan;
     getQueueRows(): HTMLElement[];
     focusQueueRow(row: HTMLElement): boolean;
     focusComposerEditor(): boolean;
@@ -46,8 +51,22 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
     const KEYBOARD_SHORTCUT_SECTION_LABEL = "Queue, models & thinking";
     const SHORTCUT_POPOVER_REFRESH_DELAYS = [0, 160, 360, 640];
 
-    const MODEL_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = ctx.modelShortcutOrder.map((key, index) => {
-        const number = index === ctx.modelShortcutOrder.length - 1 ? 10 : index + 1;
+    const resolveAvailableModels = (): QueueModelDefinition[] =>
+        ctx
+            .dedupeModelsForDisplay([...ctx.state.models])
+            .filter((model) => isModelAvailableForPlan(model, ctx.userPlan))
+            .sort((a, b) => ctx.resolveModelOrder(a) - ctx.resolveModelOrder(b));
+
+    const resolveModelShortcutKeys = (): string[] => {
+        const availableCount = resolveAvailableModels().length;
+        if (availableCount <= 0) return [];
+        return ctx.modelShortcutOrder.slice(0, availableCount);
+    };
+
+    const modelShortcutKeys = resolveModelShortcutKeys();
+
+    const MODEL_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = modelShortcutKeys.map((key, index) => {
+        const number = key === "0" ? 10 : index + 1;
         const label = `Select model ${number}`;
         const macKeys: ShortcutKeyToken[] = ["command", "option", key];
         const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
@@ -390,15 +409,14 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         const usesMetaCombo = ctx.isApplePlatform ? event.metaKey : event.ctrlKey;
         const usesAltCombo = ctx.isApplePlatform ? event.altKey : event.altKey;
         if (!usesMetaCombo || !usesAltCombo) return null;
-        const index = ctx.modelShortcutOrder.indexOf(normalized);
+        const allowedKeys = resolveModelShortcutKeys();
+        const index = allowedKeys.indexOf(normalized);
         return index >= 0 ? index : null;
     };
 
     const handleModelShortcut = async (index: number) => {
-        const orderedModels = ctx
-            .dedupeModelsForDisplay([...ctx.state.models])
-            .sort((a, b) => ctx.resolveModelOrder(a) - ctx.resolveModelOrder(b));
-        const target = orderedModels[index];
+        const availableModels = resolveAvailableModels();
+        const target = availableModels[index];
         if (!target) return;
         await ctx.handleComposerModelSelection(target);
     };
@@ -442,7 +460,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         }
 
         const modelShortcutIndex = resolveModelShortcutIndex(event);
-        if (modelShortcutIndex) {
+        if (modelShortcutIndex !== null) {
             event.preventDefault();
             void handleModelShortcut(modelShortcutIndex);
             return;
