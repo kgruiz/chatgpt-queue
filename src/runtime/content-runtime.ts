@@ -333,6 +333,7 @@ class ContentRuntime {
             setEntryThinkingOption: this.queueController.setEntryThinkingOption,
             resolveQueueEntryThinkingLabel: this.queueController.resolveQueueEntryThinkingLabel,
             addAttachmentsToEntry: this.queueController.addAttachmentsToEntry,
+            getUserPlan: this.modelController.detectUserPlan,
         });
 
         this.queueController.attachComposerController(this.composerController);

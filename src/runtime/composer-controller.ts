@@ -19,7 +19,11 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
-import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
+import {
+    THINKING_TIME_OPTIONS,
+    isThinkingLevelAvailableForPlan,
+    type UserPlan,
+} from "../lib/constants/models";
 import { SEL, composer, findEditor, findSendButton, isGenerating, isVisible, q } from "./dom-adapters";
 import type { ComposerElements, Emit } from "./types";
 
@@ -57,6 +61,7 @@ export interface ComposerControllerContext {
     ) => void;
     resolveQueueEntryThinkingLabel: (entry: QueueEntry) => string;
     addAttachmentsToEntry: (index: number, attachments: Attachment[]) => void;
+    getUserPlan: () => UserPlan;
 }
 
 export interface ComposerController {
@@ -212,7 +217,12 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         setEntryThinkingOption,
         resolveQueueEntryThinkingLabel,
         addAttachmentsToEntry,
+        getUserPlan,
     } = ctx;
+
+    const resolveCurrentUserPlan = (): UserPlan => getUserPlan();
+    const planAllowsThinkingLevel = (level: ThinkingLevel): boolean =>
+        isThinkingLevelAvailableForPlan(resolveCurrentUserPlan(), level);
 
     let composerControlGroup: HTMLElement | null = null;
     let composerQueueButton: HTMLButtonElement | null = null;
@@ -304,13 +314,22 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         if (!(button instanceof HTMLElement)) return null;
         const aria = button.getAttribute("aria-label") || "";
         let match = resolveThinkingOptionFromText(aria);
-        if (match) return normalizeThinkingOptionId(match);
+        if (match) {
+            const normalized = normalizeThinkingOptionId(match);
+            if (normalized && planAllowsThinkingLevel(normalized)) return normalized;
+        }
         const title = button.getAttribute("title") || "";
         match = resolveThinkingOptionFromText(title);
-        if (match) return normalizeThinkingOptionId(match);
+        if (match) {
+            const normalized = normalizeThinkingOptionId(match);
+            if (normalized && planAllowsThinkingLevel(normalized)) return normalized;
+        }
         const text = button.textContent || "";
         match = resolveThinkingOptionFromText(text);
-        if (match) return normalizeThinkingOptionId(match);
+        if (match) {
+            const normalized = normalizeThinkingOptionId(match);
+            if (normalized && planAllowsThinkingLevel(normalized)) return normalized;
+        }
         return null;
     };
 
@@ -388,6 +407,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
 
     const selectThinkingTimeOption = async (optionId: ThinkingLevel): Promise<boolean> => {
         if (!THINKING_OPTION_LABEL_MAP[optionId]) return false;
+        if (!planAllowsThinkingLevel(optionId)) return false;
         const result = await useThinkingMenu(async (menu) => {
             const item = findThinkingMenuItem(menu, optionId);
             if (!item) return false;
@@ -567,10 +587,20 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         heading.className = "__menu-label";
         heading.textContent = "Thinking time";
         group.appendChild(heading);
-        const normalizedSelected =
+        let normalizedSelected =
             normalizeThinkingOptionId(selectedId) ||
             normalizeThinkingOptionId(getCurrentThinkingOption());
-        const options = THINKING_TIME_OPTIONS.map((option) => ({
+        const allowedOptions = THINKING_TIME_OPTIONS.filter((option) =>
+            planAllowsThinkingLevel(option.id),
+        );
+        const optionsSource = allowedOptions.length ? allowedOptions : THINKING_TIME_OPTIONS;
+        if (
+            normalizedSelected &&
+            !optionsSource.some((option) => option.id === normalizedSelected)
+        ) {
+            normalizedSelected = null;
+        }
+        const options = optionsSource.map((option) => ({
             id: option.id,
             label: option.label,
             icon: THINKING_OPTION_ICONS[option.id],

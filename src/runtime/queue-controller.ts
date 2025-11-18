@@ -18,7 +18,10 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
-import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
+import {
+    THINKING_TIME_OPTIONS,
+    isThinkingLevelAvailableForPlan,
+} from "../lib/constants/models";
 import { composer, CQ_SELECTORS, findEditor, isGenerating } from "./dom-adapters";
 import type { ComposerController } from "./composer-controller";
 import type { ModelController } from "./model-controller";
@@ -620,7 +623,12 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
             return;
         }
         const normalized = normalizeThinkingOptionId(value);
-        const nextValue = normalized || null;
+        const plan = modelController.detectUserPlan();
+        const allowedValue =
+            normalized && isThinkingLevelAvailableForPlan(plan, normalized)
+                ? normalized
+                : null;
+        const nextValue = allowedValue || null;
         if (entry.thinking === nextValue) return;
         entry.thinking = nextValue;
         scheduleSave();

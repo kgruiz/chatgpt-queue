@@ -110,7 +110,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
 
     const supportsThinkingForModel = (
         modelId: string | null | undefined,
-        label?: string | null,
+        _label?: string | null,
     ): boolean => {
         const canonical = modelId
             ? normalizeModelId(applyModelIdAlias(modelId))
@@ -1485,12 +1485,14 @@ const readCurrentModelLabelFromHeader = () => {
         const userMenu = document.querySelector('[data-testid="user-menu"]');
         if (!userMenu) return "free";
 
-        const text = userMenu.textContent || "";
+        const text = (userMenu.textContent || "").toLowerCase();
 
-        if (text.includes("Pro")) return "pro";
-        if (text.includes("Plus")) return "plus";
-        if (text.includes("Team")) return "team";
-        if (text.includes("Go")) return "go";
+        if (text.includes("enterprise")) return "enterprise";
+        if (text.includes("business")) return "team";
+        if (text.includes("team")) return "team";
+        if (text.includes("pro")) return "pro";
+        if (text.includes("plus")) return "plus";
+        if (text.includes("go")) return "go";
 
         return "free";
     };

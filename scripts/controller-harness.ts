@@ -56,6 +56,7 @@ const composerController = initComposerController({
   setEntryThinkingOption: queueController.setEntryThinkingOption,
   resolveQueueEntryThinkingLabel: queueController.resolveQueueEntryThinkingLabel,
   addAttachmentsToEntry: queueController.addAttachmentsToEntry,
+  getUserPlan: modelController.detectUserPlan,
 });
 
 queueController.attachComposerController(composerController);

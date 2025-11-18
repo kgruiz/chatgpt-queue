@@ -102,9 +102,17 @@ export const MODELS_WITH_THINKING_TIME_SUPPORT: readonly string[] = [
     "gpt-5-thinking",
 ] as const;
 
-export const THINKING_LEVEL_TIERS: Record<ThinkingLevel, readonly string[]> = {
-    light: ["Pro", "Enterprise"],
-    standard: ["Free", "Plus", "Pro", "Team", "Enterprise"],
-    extended: ["Free", "Plus", "Pro", "Team", "Enterprise"],
-    heavy: ["Pro", "Enterprise"],
+export const THINKING_LEVEL_TIERS: Record<ThinkingLevel, readonly UserPlan[]> = {
+    light: ["pro", "enterprise"],
+    standard: ["free", "go", "plus", "team", "pro", "enterprise"],
+    extended: ["free", "go", "plus", "team", "pro", "enterprise"],
+    heavy: ["pro", "enterprise"],
 } as const;
+
+export const isThinkingLevelAvailableForPlan = (
+    plan: UserPlan,
+    level: ThinkingLevel,
+): boolean => {
+    const allowedPlans = THINKING_LEVEL_TIERS[level] || [];
+    return allowedPlans.includes(plan);
+};
