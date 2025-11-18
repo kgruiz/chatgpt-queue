@@ -19,6 +19,7 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
+import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
 import { SEL, composer, findEditor, findSendButton, isGenerating, isVisible, q } from "./dom-adapters";
 import type { ComposerElements, Emit } from "./types";
 
@@ -96,12 +97,6 @@ export interface ComposerController {
 }
 
 const THINKING_DROPDOWN_ID = "cq-thinking-dropdown";
-const THINKING_TIME_OPTIONS: ThinkingOption[] = [
-    { id: "light", label: "Light", digit: "1" },
-    { id: "standard", label: "Standard", digit: "2" },
-    { id: "extended", label: "Extended", digit: "3" },
-    { id: "heavy", label: "Heavy", digit: "4" },
-];
 
 const THINKING_OPTION_ICONS: Record<ThinkingLevel, string> = {
     light: `

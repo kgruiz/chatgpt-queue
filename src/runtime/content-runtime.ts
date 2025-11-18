@@ -12,6 +12,7 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
+import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
 import { composer } from "./dom-adapters";
 import { initComposerController, type ComposerController } from "./composer-controller";
 import { initModelController, type ModelController } from "./model-controller";
@@ -23,16 +24,10 @@ type ShortcutHandles = ReturnType<typeof initShortcuts> | null;
 
 const MODEL_SHORTCUT_KEY_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
-const THINKING_TIME_OPTIONS: ThinkingOption[] = [
-    { id: "light", label: "Light", digit: "1" },
-    { id: "standard", label: "Standard", digit: "2" },
-    { id: "extended", label: "Extended", digit: "3" },
-    { id: "heavy", label: "Heavy", digit: "4" },
-];
-
 const THINKING_OPTION_ID_SET = new Set<ThinkingLevel>(
     THINKING_TIME_OPTIONS.map((option) => option.id),
 );
+
 
 const normalizeThinkingOptionId = (value: unknown): ThinkingLevel | null => {
     if (typeof value !== "string") return null;

@@ -18,6 +18,7 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
+import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
 import { composer, CQ_SELECTORS, findEditor, isGenerating } from "./dom-adapters";
 import type { ComposerController } from "./composer-controller";
 import type { ModelController } from "./model-controller";
@@ -73,13 +74,6 @@ const QUEUE_CONTENT_FADE_DURATION_MS = 300;
 const CAN_USE_WEB_ANIMATIONS =
     typeof Element !== "undefined" &&
     typeof Element.prototype?.animate === "function";
-
-const THINKING_TIME_OPTIONS: ThinkingOption[] = [
-    { id: "light", label: "Light", digit: "1" },
-    { id: "standard", label: "Standard", digit: "2" },
-    { id: "extended", label: "Extended", digit: "3" },
-    { id: "heavy", label: "Heavy", digit: "4" },
-];
 
 const THINKING_OPTION_MAP: Record<ThinkingLevel, ThinkingOption> =
     THINKING_TIME_OPTIONS.reduce<Record<ThinkingLevel, ThinkingOption>>((map, option) => {
