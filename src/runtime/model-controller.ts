@@ -1,5 +1,5 @@
 import { createModelMenuController, MODEL_DROPDOWN_ID } from "../lib/models/menu";
-import { STATIC_MODEL_DEFINITIONS } from "../lib/constants/models";
+import { STATIC_MODEL_DEFINITIONS, type UserPlan } from "../lib/constants/models";
 import type { QueueState } from "../lib/state";
 import type {
     QueueModelDefinition,
@@ -53,7 +53,7 @@ export interface ModelController {
     getCurrentModelId: () => string | null;
     getCurrentModelLabel: () => string;
     showModelDebugPopup: (models: QueueModelDefinition[]) => void;
-    detectUserPlan: () => "plus" | "pro" | "team" | "go" | "free";
+    detectUserPlan: () => UserPlan;
     dispose: () => void;
 }
 
@@ -1484,7 +1484,7 @@ const readCurrentModelLabelFromHeader = () => {
         },
     ) => openModelDropdownForAnchor(anchor, options || {});
 
-    const detectUserPlan = (): "plus" | "pro" | "team" | "go" | "free" => {
+    const detectUserPlan = (): UserPlan => {
         const userMenu = document.querySelector('[data-testid="user-menu"]');
         if (!userMenu) return "free";
 
