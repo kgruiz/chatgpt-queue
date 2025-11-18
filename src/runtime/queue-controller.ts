@@ -194,9 +194,6 @@ export const initQueueController = (ctx: QueueControllerContext): QueueControlle
         hydrated = !!next;
     };
 
-    const getCurrentThinkingOption = () =>
-        composerController?.getCurrentThinkingOption() || null;
-
     const createQueueEntryThinkingPill = (
         entry: QueueEntry | null | undefined,
         index: number,
