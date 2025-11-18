@@ -12,7 +12,10 @@ import type {
     ThinkingLevel,
     ThinkingOption,
 } from "../lib/types";
-import { THINKING_TIME_OPTIONS } from "../lib/constants/models";
+import {
+    THINKING_TIME_OPTIONS,
+    isThinkingLevelAvailableForPlan,
+} from "../lib/constants/models";
 import { composer } from "./dom-adapters";
 import { initComposerController, type ComposerController } from "./composer-controller";
 import { initModelController, type ModelController } from "./model-controller";
@@ -357,11 +360,18 @@ class ContentRuntime {
         const queueFromComposer = async ({ hold = false } = {}) =>
             this.composerController?.queueFromComposer({ hold }) ?? false;
 
+        const detectedPlan = this.modelController.detectUserPlan();
+        const filteredThinkingOptions = THINKING_TIME_OPTIONS.filter((option) =>
+            isThinkingLevelAvailableForPlan(detectedPlan, option.id),
+        );
+        const thinkingShortcutOptions =
+            filteredThinkingOptions.length > 0 ? filteredThinkingOptions : THINKING_TIME_OPTIONS;
+
         this.shortcuts = initShortcuts({
             state: this.ctx.state,
             isApplePlatform: this.ctx.platform.isApplePlatform,
             modelShortcutOrder: this.ctx.platform.modelShortcutKeyOrder,
-            thinkingOptions: THINKING_TIME_OPTIONS,
+            thinkingOptions: thinkingShortcutOptions,
             getQueueRows: () => this.queueController?.getQueueRows() ?? [],
             focusQueueRow: (row) => this.queueController?.focusQueueRow(row) ?? false,
             focusComposerEditor: () => this.queueController?.focusComposerEditor() ?? false,
