@@ -1,3 +1,4 @@
+import { isDebugSendEnabled } from "./env";
 import type { Attachment } from "./types";
 import { makeId, sleep, throttle } from "./utils";
 
@@ -465,7 +466,7 @@ export const applyAttachmentsToComposer = async (
   attachments: Attachment[] | null | undefined,
   options: ApplyAttachmentsOptions = {},
 ): Promise<boolean> => {
-  const debugSend = process.env.CQ_DEBUG_SEND === "1";
+  const debugSend = isDebugSendEnabled();
   if (!root) return false;
   if (!attachments || attachments.length === 0) return true;
   if (typeof DataTransfer === "undefined") {

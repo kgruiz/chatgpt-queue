@@ -7,6 +7,7 @@ import {
     gatherComposerAttachments,
     hasImagesInDataTransfer,
 } from "../lib/attachments";
+import { isDebugSendEnabled } from "../lib/env";
 import { enqueueQueueEntry } from "../lib/state/queue";
 import type { QueueState } from "../lib/state";
 import { sleep } from "../lib/utils";
@@ -160,6 +161,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     let thinkingDropdownAnchor: HTMLElement | null = null;
     let thinkingDropdownCleanup: Array<() => void> = [];
     const editorListenerCleanup: Array<() => void> = [];
+    const debugSendEnabled = isDebugSendEnabled();
 
     const resolveComposerElements = (
         preferredRoot?: HTMLElement | Document | null,
@@ -1199,7 +1201,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     };
 
     const debugSendFailure = (stage: string) => {
-        if (process.env.CQ_DEBUG_SEND === "1") {
+        if (debugSendEnabled) {
             console.warn(`[cq][sendFromQueue] failed at ${stage}`);
         }
     };
