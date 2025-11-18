@@ -195,6 +195,12 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         return false;
     };
 
+    const isComposerFooterInteraction = (node: Element | null): boolean => {
+        if (!(node instanceof Element)) return false;
+
+        return !!node.closest('[data-testid="composer-footer-actions"]');
+    };
+
     const queryModelSwitcherButtons = (): HTMLButtonElement[] =>
         Array.from(
             document.querySelectorAll<HTMLButtonElement>(
@@ -1043,12 +1049,19 @@ const readCurrentModelLabelFromHeader = () => {
 
             if (!(target instanceof Element)) return;
 
-            if (!isThinkingInteraction(target)) return;
+            if (
+                !isThinkingInteraction(target) &&
+                !isComposerFooterInteraction(target)
+            )
+                return;
+
+            void syncCurrentModelFromHeader();
 
             scheduleHeaderModelSync(0);
 
             window.setTimeout(() => scheduleHeaderModelSync(180), 180);
             window.setTimeout(() => scheduleHeaderModelSync(500), 500);
+            window.setTimeout(() => scheduleHeaderModelSync(1100), 1100);
         };
 
         document.addEventListener("click", modelChangeClickListener, true);
