@@ -1,5 +1,5 @@
 import { createModelMenuController, MODEL_DROPDOWN_ID } from "../lib/models/menu";
-import { STATIC_MODEL_DEFINITIONS, type UserPlan } from "../lib/constants/models";
+import { STATIC_MODEL_DEFINITIONS, MODELS_WITH_THINKING_TIME_SUPPORT, type UserPlan } from "../lib/constants/models";
 import type { QueueState } from "../lib/state";
 import type {
     QueueModelDefinition,
@@ -115,10 +115,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         const canonical = modelId
             ? normalizeModelId(applyModelIdAlias(modelId))
             : "";
-        const normalizedLabel = typeof label === "string" ? label : "";
-        const canonicalMatches = canonical.includes("thinking");
-        const labelMatches = normalizedLabel.toLowerCase().includes("thinking");
-        return canonicalMatches || labelMatches;
+        return MODELS_WITH_THINKING_TIME_SUPPORT.includes(canonical);
     };
 
     const isModelDebugEnabled = (): boolean => {

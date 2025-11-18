@@ -96,3 +96,8 @@ export const THINKING_TIME_OPTIONS: ThinkingOption[] = [
     { id: "extended", label: "Extended", digit: "3" },
     { id: "heavy", label: "Heavy", digit: "4" },
 ];
+
+export const MODELS_WITH_THINKING_TIME_SUPPORT: readonly string[] = [
+    "gpt-5-1-thinking",
+    "gpt-5-thinking",
+] as const;
