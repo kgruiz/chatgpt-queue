@@ -1,10 +1,7 @@
 node_modules
 .output
 dist
-build
-coverage
+docs
 .wxt
-.cache
-*.log
+src/.wxt
 pnpm-lock.yaml
-TODO.md
