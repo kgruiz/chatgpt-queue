@@ -1552,6 +1552,7 @@ const readCurrentModelLabelFromHeader = () => {
             if (detected) {
                 cachedUserPlan = detected;
                 logDetectedUserPlan(cachedUserPlan);
+                emitStateChange("plan:detected", { plan: cachedUserPlan });
                 disconnectPlanDetectionObserver();
             }
         };
@@ -1576,6 +1577,7 @@ const readCurrentModelLabelFromHeader = () => {
         if (detected) {
             cachedUserPlan = detected;
             logDetectedUserPlan(cachedUserPlan);
+            emitStateChange("plan:detected", { plan: cachedUserPlan });
             disconnectPlanDetectionObserver();
             return cachedUserPlan;
         }

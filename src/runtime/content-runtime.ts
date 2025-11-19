@@ -342,7 +342,12 @@ class ContentRuntime {
     }
 
     private attachEventSubscriptions() {
-        this.ctx.events.subscribe(() => {
+        this.ctx.events.subscribe((_state, event) => {
+            if (event.reason === "plan:detected") {
+                this.shortcuts?.dispose();
+                this.initShortcuts();
+            }
+
             this.queueController?.refreshAll();
         });
     }
