@@ -1481,11 +1481,42 @@ const readCurrentModelLabelFromHeader = () => {
         },
     ) => openModelDropdownForAnchor(anchor, options || {});
 
-    const detectUserPlan = (): UserPlan => {
-        const userMenu = document.querySelector('[data-testid="user-menu"]');
-        if (!userMenu) return "free";
+    const USER_MENU_SELECTOR_CANDIDATES = [
+        '[data-testid="user-menu"]',
+        '[data-testid="accounts-profile-button"]',
+        '[data-testid="profile-button"]',
+        '[data-testid="settings-profile-button"]',
+    ];
 
-        const text = (userMenu.textContent || "").toLowerCase();
+    const normalizePlanText = (node: Element | null): string => {
+
+        if (!node) return "";
+
+        const textParts: string[] = [];
+
+        const textContent = node.textContent?.trim();
+
+        if (textContent) textParts.push(textContent);
+
+        const ariaLabel = node.getAttribute("aria-label");
+
+        if (ariaLabel) textParts.push(ariaLabel.trim());
+
+        return textParts.join(" ").toLowerCase();
+    };
+
+    const detectUserPlan = (): UserPlan => {
+        const userMenu = USER_MENU_SELECTOR_CANDIDATES.map((selector) =>
+            document.querySelector(selector),
+        ).find((node): node is Element => !!node);
+
+        if (!userMenu) {
+            console.info("[cq][plan] user-menu not found, defaulting to free");
+            return "free";
+        }
+
+        const text = normalizePlanText(userMenu);
+        console.info("[cq][plan] detecting plan from text:", text);
 
         if (text.includes("enterprise")) return "enterprise";
         if (text.includes("business")) return "team";
@@ -1494,6 +1525,7 @@ const readCurrentModelLabelFromHeader = () => {
         if (text.includes("plus")) return "plus";
         if (text.includes("go")) return "go";
 
+        console.info("[cq][plan] no known plan found in text, defaulting to free");
         return "free";
     };
 
