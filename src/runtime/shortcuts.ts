@@ -273,6 +273,8 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         widenShortcutPopover(list);
         const queueColumn = ensureShortcutColumns(list);
         if (!queueColumn) return;
+        const signature = shortcuts.map((s) => s.id).join(",");
+        if (queueColumn.dataset.cqShortcutSignature === signature) return;
         queueColumn.textContent = "";
         const heading = document.createElement("div");
         heading.dataset.cqShortcutOrigin = "queue";
@@ -304,6 +306,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
             grid.appendChild(keys);
         });
         queueColumn.appendChild(grid);
+        queueColumn.dataset.cqShortcutSignature = signature;
     }
 
     function findShortcutListFromHeading(heading: HTMLElement | null): HTMLDListElement | null {
