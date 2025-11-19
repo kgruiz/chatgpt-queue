@@ -12,13 +12,7 @@ import { enqueueQueueEntry } from "../lib/state/queue";
 import type { QueueState } from "../lib/state";
 import { sleep } from "../lib/utils";
 import { UI_CLASS } from "../lib/ui/classes";
-import type {
-    Attachment,
-    QueueEntry,
-    QueueModelDefinition,
-    ThinkingLevel,
-    ThinkingOption,
-} from "../lib/types";
+import type { Attachment, QueueEntry, QueueModelDefinition, ThinkingLevel } from "../lib/types";
 import {
     THINKING_TIME_OPTIONS,
     isThinkingLevelAvailableForPlan,

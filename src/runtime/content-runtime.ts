@@ -6,12 +6,7 @@ import {
     createStorageManager,
     type PersistedQueueState,
 } from "../lib/storage-manager";
-import type {
-    QueueEntry,
-    QueueModelDefinition,
-    ThinkingLevel,
-    ThinkingOption,
-} from "../lib/types";
+import type { QueueEntry, QueueModelDefinition, ThinkingLevel } from "../lib/types";
 import {
     THINKING_TIME_OPTIONS,
     isThinkingLevelAvailableForPlan,

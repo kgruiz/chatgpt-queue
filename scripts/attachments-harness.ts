@@ -266,7 +266,6 @@ const runComposerAttachmentSend = async (attachments: Attachment[]) => {
     resolveQueueEntryThinkingLabel: queueController.resolveQueueEntryThinkingLabel,
     addAttachmentsToEntry: queueController.addAttachmentsToEntry,
   getUserPlan: modelController.detectUserPlan,
-    getUserPlan: modelController.detectUserPlan,
   });
 
   queueController.attachComposerController(composerController);
