@@ -59,16 +59,15 @@ const buildShortcutKeyGroup = (
   isApplePlatform: boolean,
 ): HTMLDivElement => {
   const wrapper = h("div", {
-    className: "inline-flex whitespace-pre *:inline-flex *:font-sans gap-1",
+    className: "cq-keys-group",
   });
   tokens.forEach((token) => {
     const { glyph, aria } = resolveKeyDisplay(token, isApplePlatform);
     const kbd = h("kbd", {
       attrs: { "aria-label": aria },
-      className: "px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs",
+      className: "cq-key",
     });
     const span = h("span", {
-      className: "min-w-[1em]",
       text: glyph,
     });
     kbd.appendChild(span);
@@ -175,27 +174,27 @@ export const createSettingsModal = (
   const modal = createConfirmModal({
     title: "Keyboard Shortcuts",
     body: [],
-    confirmLabel: "Close",
+    confirmLabel: "Done",
     cancelLabel: undefined,
     testId: "settings-modal",
   });
 
   const shortcutsList = h("div", {
-    className: "flex flex-col gap-4",
+    className: "cq-settings-list",
   });
 
   const renderShortcutRow = (entry: KeyboardShortcutEntry) => {
     const row = h("div", {
-      className: "flex items-center justify-between gap-4 py-2 border-b border-gray-200 dark:border-gray-700",
+      className: "cq-settings-row",
     });
 
     const labelCol = h("div", {
-      className: "flex-1",
+      className: "cq-settings-label",
       text: entry.label,
     });
 
     const keysCol = h("div", {
-      className: "flex items-center gap-2",
+      className: "cq-settings-actions",
     });
 
     const customShortcut = ctx.getState().shortcuts[entry.id];
@@ -211,8 +210,8 @@ export const createSettingsModal = (
     keysCol.appendChild(keysDisplay);
 
     const recordButton = h("button", {
-      className: "px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-800",
-      text: "Record",
+      className: "cq-btn cq-btn-record",
+      text: "Edit",
       attrs: { type: "button" },
     });
 
@@ -223,12 +222,12 @@ export const createSettingsModal = (
       recordingState = isRecording;
       if (isRecording) {
         recordButton.textContent = "Press keys...";
+        recordButton.classList.add("is-recording");
         recordButton.disabled = true;
-        recordButton.className = "px-3 py-1 text-xs border border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded";
       } else {
-        recordButton.textContent = "Record";
+        recordButton.textContent = "Edit";
+        recordButton.classList.remove("is-recording");
         recordButton.disabled = false;
-        recordButton.className = "px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-800";
       }
     };
 
@@ -257,7 +256,7 @@ export const createSettingsModal = (
     });
 
     const resetButton = h("button", {
-      className: "px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-800",
+      className: "cq-btn cq-btn-reset",
       text: "Reset",
       attrs: { type: "button" },
     });
@@ -271,12 +270,14 @@ export const createSettingsModal = (
     });
 
     const buttonGroup = h("div", {
-      className: "flex gap-2",
+      className: "cq-btn-group",
     });
-    buttonGroup.appendChild(recordButton);
+    
+    // Only show reset if custom
     if (customShortcut) {
       buttonGroup.appendChild(resetButton);
     }
+    buttonGroup.appendChild(recordButton);
 
     keysCol.appendChild(buttonGroup);
     row.appendChild(labelCol);
@@ -297,7 +298,10 @@ export const createSettingsModal = (
 
   modal.body.appendChild(shortcutsList);
 
+  // Hide the cancel button as it is not needed
   modal.cancelButton.style.display = "none";
+  
+  // Use confirm button as close
   modal.confirmButton.addEventListener("click", () => {
     modal.root.remove();
   });

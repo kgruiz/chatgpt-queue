@@ -1,47 +1,104 @@
+:root {
+  --bg-color: #ffffff;
+  --text-color: #374151;
+  --hover-color: #f3f4f6;
+  --border-color: #e5e7eb;
+  --subtext-color: #6b7280;
+  --danger-color: #ef4444;
+  --primary-color: #10a37f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #202123;
+    --text-color: #ececf1;
+    --hover-color: #2a2b32;
+    --border-color: #4b5563;
+    --subtext-color: #9ca3af;
+  }
+}
+
 body {
   margin: 0;
   padding: 0;
-  width: 200px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  width: 240px;
+  font-family: "Söhne", "Söhne var", "ChatGPT Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
 .popup-container {
   display: flex;
   flex-direction: column;
   padding: 8px;
-  gap: 4px;
 }
 
-.popup-button {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-color);
   cursor: pointer;
+  text-align: left;
   font-size: 14px;
-  text-align: center;
   transition: background-color 0.2s;
+  box-sizing: border-box;
 }
 
-.popup-button:hover:not(:disabled) {
-  background-color: #f5f5f5;
+.menu-item:hover:not(:disabled) {
+  background-color: var(--hover-color);
 }
 
-.popup-button:active:not(:disabled) {
-  background-color: #e0e0e0;
-}
-
-.popup-button:disabled {
-  background-color: #f0f0f0;
-  color: #999;
+.menu-item:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  border-color: #e0e0e0;
+}
+
+.menu-item svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  opacity: 0.8;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 6px 0;
+  opacity: 0.3;
+}
+
+.popup-header {
+  padding: 12px 12px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--subtext-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .popup-message {
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: var(--subtext-color);
+  padding: 16px;
   text-align: center;
-  margin-top: 4px;
-  padding: 4px;
+  line-height: 1.5;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--subtext-color);
+  margin-left: auto;
+}
+
+.status-dot.active {
+  background-color: var(--primary-color);
+  box-shadow: 0 0 8px rgba(16, 163, 127, 0.4);
 }

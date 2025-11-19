@@ -422,11 +422,16 @@ class ContentRuntime {
     }
 
     private attachGlobalObservers() {
-        chrome.runtime?.onMessage.addListener((msg) => {
+        chrome.runtime?.onMessage.addListener((msg, sender, sendResponse) => {
             if (msg?.type === "queue-from-shortcut") void this.composerController?.queueComposerInput();
 
             if (msg?.type === "toggle-ui") {
+                // Legacy support for older popup
                 this.queueController?.setCollapsed(false);
+            }
+
+            if (msg?.type === "toggle-queue") {
+                this.queueController?.togglePaused();
             }
 
             if (msg?.type === "show-ui") {
@@ -435,6 +440,13 @@ class ContentRuntime {
 
             if (msg?.type === "open-settings") {
                 this.openSettings();
+            }
+
+            if (msg?.type === "get-status") {
+                sendResponse({
+                    paused: this.ctx.state.paused,
+                    collapsed: this.ctx.state.collapsed
+                });
             }
         });
 
