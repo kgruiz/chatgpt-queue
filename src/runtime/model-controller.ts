@@ -1504,6 +1504,15 @@ const readCurrentModelLabelFromHeader = () => {
         return textParts.join(" ").toLowerCase();
     };
 
+    const logDetectedUserPlan = (plan: UserPlan, options: { cached?: boolean } = {}) => {
+        try {
+            const suffix = options.cached ? " (cached)" : "";
+            console.info(`[cq][plan] detected plan${suffix}: ${plan}`);
+        } catch (_) {
+            /* ignored */
+        }
+    };
+
     const detectUserPlanFromDom = (): UserPlan | null => {
         const userMenu = USER_MENU_SELECTOR_CANDIDATES.map((selector) =>
             document.querySelector(selector),
@@ -1542,6 +1551,7 @@ const readCurrentModelLabelFromHeader = () => {
             const detected = detectUserPlanFromDom();
             if (detected) {
                 cachedUserPlan = detected;
+                logDetectedUserPlan(cachedUserPlan);
                 disconnectPlanDetectionObserver();
             }
         };
@@ -1558,10 +1568,14 @@ const readCurrentModelLabelFromHeader = () => {
     };
 
     const detectUserPlan = (): UserPlan => {
-        if (cachedUserPlan) return cachedUserPlan;
+        if (cachedUserPlan) {
+            logDetectedUserPlan(cachedUserPlan, { cached: true });
+            return cachedUserPlan;
+        }
         const detected = detectUserPlanFromDom();
         if (detected) {
             cachedUserPlan = detected;
+            logDetectedUserPlan(cachedUserPlan);
             disconnectPlanDetectionObserver();
             return cachedUserPlan;
         }
