@@ -422,7 +422,7 @@ class ContentRuntime {
     }
 
     private attachGlobalObservers() {
-        chrome.runtime?.onMessage.addListener((msg, sender, sendResponse) => {
+        chrome.runtime?.onMessage.addListener((msg, _sender, sendResponse) => {
             if (msg?.type === "queue-from-shortcut") void this.composerController?.queueComposerInput();
 
             if (msg?.type === "toggle-ui") {
