@@ -272,7 +272,7 @@ export const createSettingsModal = (
     const buttonGroup = h("div", {
       className: "cq-btn-group",
     });
-    
+
     // Only show reset if custom
     if (customShortcut) {
       buttonGroup.appendChild(resetButton);
@@ -300,7 +300,7 @@ export const createSettingsModal = (
 
   // Hide the cancel button as it is not needed
   modal.cancelButton.style.display = "none";
-  
+
   // Use confirm button as close
   modal.confirmButton.addEventListener("click", () => {
     modal.root.remove();

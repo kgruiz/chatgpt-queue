@@ -33,7 +33,7 @@ const createMenu = () => {
     <span>Pause Queue</span>
     <div class="status-dot active"></div>
   `;
-  
+
   // Settings Button
   const settingsButton = document.createElement("button");
   settingsButton.className = "menu-item";
@@ -95,10 +95,10 @@ const init = async () => {
 };
 
 function updateToggleState(button: HTMLButtonElement, isPaused: boolean) {
-  const icon = isPaused 
+  const icon = isPaused
     ? "M8 5v14l11-7z" // Play
     : "M6 19h4V5H6v14zm8-14v14h4V5h-4z"; // Pause
-    
+
   button.innerHTML = `
     ${createIcon(icon)}
     <span>${isPaused ? "Resume Queue" : "Pause Queue"}</span>
