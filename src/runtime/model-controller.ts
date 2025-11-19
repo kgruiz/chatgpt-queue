@@ -83,6 +83,8 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
     let lastLoggedCurrentModelId: string | null = "__unset__";
     let lastLoggedCurrentModelLabel = "__unset__";
     let modelChangeClickListener: ((event: Event) => void) | null = null;
+    let cachedUserPlan: UserPlan | null = null;
+    let planDetectionObserver: MutationObserver | null = null;
 
     const MODEL_ID_ALIASES: Record<string, string> = {
         auto: "gpt-5-1",
@@ -1489,50 +1491,85 @@ const readCurrentModelLabelFromHeader = () => {
     ];
 
     const normalizePlanText = (node: Element | null): string => {
-
         if (!node) return "";
-
         const textParts: string[] = [];
-
         const textContent = node.textContent?.trim();
-
         if (textContent) textParts.push(textContent);
-
         const ariaLabel = node.getAttribute("aria-label");
-
         if (ariaLabel) textParts.push(ariaLabel.trim());
-
+        const title = node.getAttribute("title");
+        if (title) textParts.push(title.trim());
+        const tier = node.getAttribute("data-subscription-tier");
+        if (tier) textParts.push(tier.trim());
         return textParts.join(" ").toLowerCase();
     };
 
-    const logDetectedPlan = (plan: UserPlan): UserPlan => {
-        console.info(`[cq][plan] detected plan: ${plan}`);
-        return plan;
-    };
-
-    const detectUserPlan = (): UserPlan => {
+    const detectUserPlanFromDom = (): UserPlan | null => {
         const userMenu = USER_MENU_SELECTOR_CANDIDATES.map((selector) =>
             document.querySelector(selector),
         ).find((node): node is Element => !!node);
 
         if (!userMenu) {
-            console.info("[cq][plan] user-menu not found, defaulting to free");
-            return "free";
+            return null;
         }
 
         const text = normalizePlanText(userMenu);
-        console.info("[cq][plan] detecting plan from text:", text);
 
-        if (text.includes("enterprise")) return logDetectedPlan("enterprise");
-        if (text.includes("business")) return logDetectedPlan("team");
-        if (text.includes("team")) return logDetectedPlan("team");
-        if (text.includes("pro")) return logDetectedPlan("pro");
-        if (text.includes("plus")) return logDetectedPlan("plus");
-        if (text.includes("go")) return logDetectedPlan("go");
+        if (text.includes("enterprise")) return "enterprise";
+        if (text.includes("business")) return "team";
+        if (text.includes("team")) return "team";
+        if (text.includes("pro")) return "pro";
+        if (text.includes("plus")) return "plus";
+        if (text.includes("go")) return "go";
 
-        console.info("[cq][plan] no known plan found in text, defaulting to free");
-        return logDetectedPlan("free");
+        return null;
     };
+
+    const disconnectPlanDetectionObserver = () => {
+        if (planDetectionObserver) {
+            planDetectionObserver.disconnect();
+            planDetectionObserver = null;
+        }
+    };
+
+    const ensurePlanDetectionObserver = () => {
+        if (cachedUserPlan || planDetectionObserver) return;
+        const tryResolvePlan = () => {
+            if (cachedUserPlan) {
+                disconnectPlanDetectionObserver();
+                return;
+            }
+            const detected = detectUserPlanFromDom();
+            if (detected) {
+                cachedUserPlan = detected;
+                disconnectPlanDetectionObserver();
+            }
+        };
+        planDetectionObserver = new MutationObserver(() => {
+            tryResolvePlan();
+        });
+        if (document.body) {
+            planDetectionObserver.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+        }
+        tryResolvePlan();
+    };
+
+    const detectUserPlan = (): UserPlan => {
+        if (cachedUserPlan) return cachedUserPlan;
+        const detected = detectUserPlanFromDom();
+        if (detected) {
+            cachedUserPlan = detected;
+            disconnectPlanDetectionObserver();
+            return cachedUserPlan;
+        }
+        ensurePlanDetectionObserver();
+        return "free";
+    };
+
+    ensurePlanDetectionObserver();
 
     const dispose = () => {
         if (headerModelSyncTimer) {
@@ -1549,6 +1586,7 @@ const readCurrentModelLabelFromHeader = () => {
         modelMenuController.close();
         closeModelDebugPopup();
         window.cqShowModelDebugPopup = undefined;
+        disconnectPlanDetectionObserver();
     };
 
     return {
