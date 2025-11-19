@@ -23,10 +23,25 @@ body {
   transition: background-color 0.2s;
 }
 
-.popup-button:hover {
+.popup-button:hover:not(:disabled) {
   background-color: #f5f5f5;
 }
 
-.popup-button:active {
+.popup-button:active:not(:disabled) {
   background-color: #e0e0e0;
+}
+
+.popup-button:disabled {
+  background-color: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+}
+
+.popup-message {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  margin-top: 4px;
+  padding: 4px;
 }

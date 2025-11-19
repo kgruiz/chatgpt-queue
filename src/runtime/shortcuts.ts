@@ -416,7 +416,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         if (!event.ctrlKey) return false;
         if (event.metaKey || event.altKey) return false;
         const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        return normalized === "?";
+        return normalized === "?" || normalized === "/";
     };
 
     const matchesQueueNavigationShortcut = (event: KeyboardEvent) => {
