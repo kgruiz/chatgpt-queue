@@ -1505,6 +1505,11 @@ const readCurrentModelLabelFromHeader = () => {
         return textParts.join(" ").toLowerCase();
     };
 
+    const logDetectedPlan = (plan: UserPlan): UserPlan => {
+        console.info(`[cq][plan] detected plan: ${plan}`);
+        return plan;
+    };
+
     const detectUserPlan = (): UserPlan => {
         const userMenu = USER_MENU_SELECTOR_CANDIDATES.map((selector) =>
             document.querySelector(selector),
@@ -1518,15 +1523,15 @@ const readCurrentModelLabelFromHeader = () => {
         const text = normalizePlanText(userMenu);
         console.info("[cq][plan] detecting plan from text:", text);
 
-        if (text.includes("enterprise")) return "enterprise";
-        if (text.includes("business")) return "team";
-        if (text.includes("team")) return "team";
-        if (text.includes("pro")) return "pro";
-        if (text.includes("plus")) return "plus";
-        if (text.includes("go")) return "go";
+        if (text.includes("enterprise")) return logDetectedPlan("enterprise");
+        if (text.includes("business")) return logDetectedPlan("team");
+        if (text.includes("team")) return logDetectedPlan("team");
+        if (text.includes("pro")) return logDetectedPlan("pro");
+        if (text.includes("plus")) return logDetectedPlan("plus");
+        if (text.includes("go")) return logDetectedPlan("go");
 
         console.info("[cq][plan] no known plan found in text, defaulting to free");
-        return "free";
+        return logDetectedPlan("free");
     };
 
     const dispose = () => {
