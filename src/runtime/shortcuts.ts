@@ -403,14 +403,27 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         return metaOnly || ctrlOnly;
     };
 
+    const resolveDigitKeyFromEvent = (event: KeyboardEvent | null): string | null => {
+        if (!event) return null;
+        const fromCode =
+            typeof event.code === "string"
+                ? event.code.match(/^(?:Digit|Numpad)([0-9])$/)?.[1] ?? null
+                : null;
+        if (fromCode) return fromCode;
+        if (typeof event.key !== "string" || event.key.length !== 1) return null;
+        const isDigit = /[0-9]/.test(event.key);
+        return isDigit ? event.key.toLowerCase() : null;
+    };
+
     const resolveModelShortcutIndex = (event: KeyboardEvent | null): number | null => {
-        if (!event || typeof event.key !== "string") return null;
-        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (!event) return null;
+        const digitKey = resolveDigitKeyFromEvent(event);
+        if (!digitKey) return null;
         const usesMetaCombo = ctx.isApplePlatform ? event.metaKey : event.ctrlKey;
-        const usesAltCombo = ctx.isApplePlatform ? event.altKey : event.altKey;
+        const usesAltCombo = event.altKey;
         if (!usesMetaCombo || !usesAltCombo) return null;
         const allowedKeys = resolveModelShortcutKeys();
-        const index = allowedKeys.indexOf(normalized);
+        const index = allowedKeys.indexOf(digitKey);
         return index >= 0 ? index : null;
     };
 
@@ -422,13 +435,14 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
     };
 
     const resolveThinkingShortcut = (event: KeyboardEvent | null): ThinkingLevel | null => {
-        if (!event || typeof event.key !== "string") return null;
-        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key.toLowerCase();
+        if (!event) return null;
         const usesCombo = ctx.isApplePlatform
             ? event.metaKey && event.ctrlKey
             : event.ctrlKey && event.altKey;
         if (!usesCombo) return null;
-        const option = ctx.thinkingOptions.find((entry) => entry.digit === normalized);
+        const digitKey = resolveDigitKeyFromEvent(event);
+        if (!digitKey) return null;
+        const option = ctx.thinkingOptions.find((entry) => entry.digit === digitKey);
         return option ? option.id : null;
     };
 
