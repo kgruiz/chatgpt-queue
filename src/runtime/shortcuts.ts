@@ -63,29 +63,31 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         return ctx.modelShortcutOrder.slice(0, availableCount);
     };
 
-    const modelShortcutKeys = resolveModelShortcutKeys();
+    const buildModelShortcutEntries = (): KeyboardShortcutEntry[] => {
+        const modelShortcutKeys = resolveModelShortcutKeys();
+        return modelShortcutKeys.map((key, index) => {
+            const number = key === "0" ? 10 : index + 1;
+            const label = `Select model ${number}`;
+            const macKeys: ShortcutKeyToken[] = ["command", "option", key];
+            const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
+            return {
+                id: `model-select-${number}`,
+                label,
+                macKeys,
+                otherKeys,
+            };
+        });
+    };
 
-    const MODEL_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = modelShortcutKeys.map((key, index) => {
-        const number = key === "0" ? 10 : index + 1;
-        const label = `Select model ${number}`;
-        const macKeys: ShortcutKeyToken[] = ["command", "option", key];
-        const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
-        return {
-            id: `model-select-${number}`,
-            label,
-            macKeys,
-            otherKeys,
-        };
-    });
+    const buildThinkingShortcutEntries = (): KeyboardShortcutEntry[] =>
+        ctx.thinkingOptions.map((option) => ({
+            id: `thinking-${option.id}`,
+            label: `Set thinking time: ${option.label}`,
+            macKeys: ["command", "control", option.digit || ""] as ShortcutKeyToken[],
+            otherKeys: ["control", "alt", option.digit || ""] as ShortcutKeyToken[],
+        }));
 
-    const THINKING_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = ctx.thinkingOptions.map((option) => ({
-        id: `thinking-${option.id}`,
-        label: `Set thinking time: ${option.label}`,
-        macKeys: ["command", "control", option.digit || ""] as ShortcutKeyToken[],
-        otherKeys: ["control", "alt", option.digit || ""] as ShortcutKeyToken[],
-    }));
-
-    const KEYBOARD_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = [
+    const BASE_SHORTCUT_ENTRIES: KeyboardShortcutEntry[] = [
         {
             id: "queue-add",
             label: "Queue current input",
@@ -140,8 +142,12 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
             macKeys: ["option", "shift", "delete"],
             otherKeys: ["alt", "shift", "delete"],
         },
-        ...MODEL_SHORTCUT_ENTRIES,
-        ...THINKING_SHORTCUT_ENTRIES,
+    ];
+
+    const resolveQueueShortcutEntries = (): KeyboardShortcutEntry[] => [
+        ...BASE_SHORTCUT_ENTRIES,
+        ...buildModelShortcutEntries(),
+        ...buildThinkingShortcutEntries(),
     ];
 
     const KEY_DISPLAY_MAP: Record<string, { glyph: string; aria: string }> = {
@@ -258,7 +264,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
 
     function injectQueueShortcutsIntoList(list: HTMLDListElement | null) {
         if (!(list instanceof HTMLDListElement)) return;
-        const shortcuts = KEYBOARD_SHORTCUT_ENTRIES.map((entry) => ({
+        const shortcuts = resolveQueueShortcutEntries().map((entry) => ({
             id: entry.id,
             label: entry.label,
             keys: resolveShortcutKeys(entry),
@@ -267,8 +273,6 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         widenShortcutPopover(list);
         const queueColumn = ensureShortcutColumns(list);
         if (!queueColumn) return;
-        if (queueColumn.dataset.cqShortcutPopulated === "true") return;
-        queueColumn.dataset.cqShortcutPopulated = "true";
         queueColumn.textContent = "";
         const heading = document.createElement("div");
         heading.dataset.cqShortcutOrigin = "queue";
