@@ -65,9 +65,12 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
 
     const buildModelShortcutEntries = (): KeyboardShortcutEntry[] => {
         const modelShortcutKeys = resolveModelShortcutKeys();
+        const availableModels = resolveAvailableModels();
         return modelShortcutKeys.map((key, index) => {
             const number = key === "0" ? 10 : index + 1;
-            const label = `Select model ${number}`;
+            const model = availableModels[index];
+            const modelLabel = model?.label || model?.id || `model ${number}`;
+            const label = `Select model: ${modelLabel}`;
             const macKeys: ShortcutKeyToken[] = ["command", "option", key];
             const otherKeys: ShortcutKeyToken[] = ["control", "alt", key];
             return {
@@ -273,7 +276,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         widenShortcutPopover(list);
         const queueColumn = ensureShortcutColumns(list);
         if (!queueColumn) return;
-        const signature = shortcuts.map((s) => s.id).join(",");
+        const signature = shortcuts.map((s) => `${s.id}:${s.label}`).join(",");
         if (queueColumn.dataset.cqShortcutSignature === signature) return;
         queueColumn.textContent = "";
         const heading = document.createElement("div");

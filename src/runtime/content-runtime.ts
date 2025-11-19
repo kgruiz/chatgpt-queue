@@ -360,7 +360,12 @@ class ContentRuntime {
             isThinkingLevelAvailableForPlan(detectedPlan, option.id),
         );
         const thinkingShortcutOptions =
-            filteredThinkingOptions.length > 0 ? filteredThinkingOptions : THINKING_TIME_OPTIONS;
+            filteredThinkingOptions.length > 0
+                ? filteredThinkingOptions.map((option, index) => ({
+                      ...option,
+                      digit: String(index + 1),
+                  }))
+                : THINKING_TIME_OPTIONS;
 
         this.shortcuts = initShortcuts({
             state: this.ctx.state,
