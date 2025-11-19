@@ -1,4 +1,4 @@
-import type { QueueEntry } from "./types";
+import type { QueueEntry, ShortcutConfig } from "./types";
 import { storageKeyForIdentifier as defaultStorageKeyForIdentifier } from "./storage";
 
 export interface PersistedQueueState {
@@ -8,6 +8,7 @@ export interface PersistedQueueState {
   paused: boolean;
   pauseReason: string;
   pausedAt: number | null;
+  shortcuts?: ShortcutConfig;
 }
 
 export type StorageErrorType = "load" | "save" | "migrate";

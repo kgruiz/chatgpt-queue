@@ -6,9 +6,4 @@ export default defineBackground(() => {
     if (!tab || tab.id == null || !/^https:\/\/(chatgpt\.com|chat\.openai\.com)/.test(tab.url || "")) return;
     chrome.tabs.sendMessage(tab.id, { type: cmd });
   });
-
-  chrome.action?.onClicked.addListener(async (tab) => {
-    if (!tab?.id || !/^https:\/\/(chatgpt\.com|chat\.openai\.com)/.test(tab.url || "")) return;
-    chrome.tabs.sendMessage(tab.id, { type: 'toggle-ui' });
-  });
 });

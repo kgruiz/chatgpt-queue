@@ -64,3 +64,10 @@ export interface KeyboardShortcutEntry {
   macKeys: ShortcutKeyToken[];
   otherKeys: ShortcutKeyToken[];
 }
+
+export interface ShortcutConfig {
+  [actionId: string]: {
+    macKeys: ShortcutKeyToken[];
+    otherKeys: ShortcutKeyToken[];
+  };
+}

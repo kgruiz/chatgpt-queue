@@ -3,6 +3,7 @@ import type {
   QueueModelDefinition,
   QueueModelGroupMeta,
   QueuePhase,
+  ShortcutConfig,
 } from "./types";
 
 export interface QueueState {
@@ -18,6 +19,7 @@ export interface QueueState {
   pausedAt: number | null;
   modelSections: string[];
   modelGroups: Record<string, QueueModelGroupMeta>;
+  shortcuts: ShortcutConfig;
 }
 
 export const createInitialState = (): QueueState => ({
@@ -33,4 +35,5 @@ export const createInitialState = (): QueueState => ({
   pausedAt: null,
   modelSections: [],
   modelGroups: {},
+  shortcuts: {},
 });

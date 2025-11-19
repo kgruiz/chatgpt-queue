@@ -16,6 +16,7 @@ import { initComposerController, type ComposerController } from "./composer-cont
 import { initModelController, type ModelController } from "./model-controller";
 import { initQueueController, type QueueController } from "./queue-controller";
 import { initShortcuts } from "./shortcuts";
+import { createSettingsModal, type SettingsModalElements } from "../lib/ui/settings";
 import type { Context, PlatformFlags } from "./types";
 
 type ShortcutHandles = ReturnType<typeof initShortcuts> | null;
@@ -206,6 +207,8 @@ class ContentRuntime {
 
     private shortcuts: ShortcutHandles = null;
 
+    private settingsModal: SettingsModalElements | null = null;
+
     private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
     private hydrated = false;
@@ -240,6 +243,7 @@ class ContentRuntime {
         paused: this.ctx.state.paused,
         pauseReason: this.ctx.state.pauseReason,
         pausedAt: this.ctx.state.pausedAt,
+        shortcuts: this.ctx.state.shortcuts,
     });
 
     private saveState = (
@@ -389,7 +393,32 @@ class ContentRuntime {
             scheduleControlRefresh: () => this.queueController?.scheduleControlRefresh(),
             queueFromComposer,
             queueComposerInput,
+            openSettings: () => this.openSettings(),
         });
+    }
+
+    private openSettings = () => {
+        if (this.settingsModal) {
+            this.settingsModal.root.remove();
+            this.settingsModal = null;
+        }
+
+        if (!this.shortcuts) return;
+
+        const allShortcuts = this.shortcuts.getAllShortcutEntries();
+        const modal = createSettingsModal({
+            getState: () => this.ctx.state,
+            isApplePlatform: this.ctx.platform.isApplePlatform,
+            allShortcuts,
+            onSave: (shortcuts) => {
+                this.ctx.state.shortcuts = shortcuts;
+                this.scheduleSaveState();
+                this.shortcuts?.refreshPopover();
+            },
+        });
+
+        document.body.appendChild(modal.root);
+        this.settingsModal = modal;
     }
 
     private attachGlobalObservers() {
@@ -402,6 +431,10 @@ class ContentRuntime {
 
             if (msg?.type === "show-ui") {
                 this.queueController?.setCollapsed(false);
+            }
+
+            if (msg?.type === "open-settings") {
+                this.openSettings();
             }
         });
 
@@ -467,6 +500,7 @@ class ContentRuntime {
         this.ctx.state.paused = typeof cq?.paused === "boolean" ? cq.paused : false;
         this.ctx.state.pauseReason = typeof cq?.pauseReason === "string" ? cq.pauseReason : "";
         this.ctx.state.pausedAt = typeof cq?.pausedAt === "number" ? cq.pausedAt : null;
+        this.ctx.state.shortcuts = cq?.shortcuts && typeof cq.shortcuts === "object" ? cq.shortcuts : {};
         this.ctx.emitStateChange("state:hydrate");
         this.hydrated = true;
         this.queueController?.setHydrated(true);

@@ -39,11 +39,13 @@ export interface ShortcutContext {
     scheduleControlRefresh(): void;
     queueFromComposer(options?: { hold?: boolean }): boolean | Promise<boolean>;
     queueComposerInput(): Promise<boolean> | boolean;
+    openSettings(): void;
 }
 
 export interface ShortcutController {
     refreshPopover(): void;
     refreshPopoverBurst(): void;
+    getAllShortcutEntries(): KeyboardShortcutEntry[];
     dispose(): void;
 }
 
@@ -145,6 +147,12 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
             macKeys: ["option", "shift", "delete"],
             otherKeys: ["alt", "shift", "delete"],
         },
+        {
+            id: "open-settings",
+            label: "Open settings",
+            macKeys: ["control", "shift", "?"],
+            otherKeys: ["control", "shift", "?"],
+        },
     ];
 
     const resolveQueueShortcutEntries = (): KeyboardShortcutEntry[] => [
@@ -152,6 +160,8 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         ...buildModelShortcutEntries(),
         ...buildThinkingShortcutEntries(),
     ];
+
+    const getAllShortcutEntries = (): KeyboardShortcutEntry[] => resolveQueueShortcutEntries();
 
     const KEY_DISPLAY_MAP: Record<string, { glyph: string; aria: string }> = {
         option: { glyph: "⌥", aria: "Option" },
@@ -171,6 +181,11 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
     };
 
     const resolveShortcutKeys = (entry: KeyboardShortcutEntry): ShortcutKeyToken[] => {
+        const customShortcut = ctx.state.shortcuts[entry.id];
+        if (customShortcut) {
+            const keys = ctx.isApplePlatform ? customShortcut.macKeys : customShortcut.otherKeys;
+            return Array.isArray(keys) && keys.length ? [...keys] : [];
+        }
         const keys = ctx.isApplePlatform ? entry.macKeys : entry.otherKeys;
         return Array.isArray(keys) && keys.length ? [...keys] : [];
     };
@@ -395,6 +410,15 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
         return event.ctrlKey && !event.metaKey && !event.altKey;
     };
 
+    const matchesSettingsShortcut = (event: KeyboardEvent) => {
+        if (!event || typeof event.key !== "string") return false;
+        if (!event.shiftKey) return false;
+        if (!event.ctrlKey) return false;
+        if (event.metaKey || event.altKey) return false;
+        const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        return normalized === "?";
+    };
+
     const matchesQueueNavigationShortcut = (event: KeyboardEvent) => {
         if (!event || typeof event.key !== "string") return false;
         if (!event.altKey) return false;
@@ -465,6 +489,12 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
     };
 
     const keydownPrimary = (event: KeyboardEvent) => {
+        if (matchesSettingsShortcut(event)) {
+            event.preventDefault();
+            ctx.openSettings();
+            return;
+        }
+
         if (matchesPauseShortcut(event)) {
             event.preventDefault();
             ctx.togglePaused();
@@ -571,6 +601,7 @@ export const initShortcuts = (ctx: ShortcutContext): ShortcutController => {
     return {
         refreshPopover: refreshKeyboardShortcutPopover,
         refreshPopoverBurst: scheduleShortcutPopoverRefreshBurst,
+        getAllShortcutEntries,
         dispose: () => listeners.splice(0).forEach((off) => off()),
     };
 };
