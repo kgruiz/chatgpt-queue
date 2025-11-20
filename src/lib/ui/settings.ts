@@ -180,9 +180,43 @@ export const createSettingsModal = (
     testId: "settings-modal",
   });
 
+  modal.body.classList.add("cq-settings-body");
+
   const shortcutsList = h("div", {
     className: "cq-settings-list",
   });
+
+  const groupShortcuts = (entries: KeyboardShortcutEntry[]) => {
+    const sections: { title: string; entries: KeyboardShortcutEntry[] }[] = [
+      { title: "Queue", entries: [] },
+      { title: "Navigation", entries: [] },
+      { title: "Models", entries: [] },
+      { title: "Thinking", entries: [] },
+      { title: "Other", entries: [] },
+    ];
+
+    entries.forEach((entry) => {
+      if (entry.id.startsWith("queue-focus")) {
+        sections[1].entries.push(entry);
+        return;
+      }
+      if (entry.id.startsWith("queue-")) {
+        sections[0].entries.push(entry);
+        return;
+      }
+      if (entry.id.startsWith("model-select")) {
+        sections[2].entries.push(entry);
+        return;
+      }
+      if (entry.id.startsWith("thinking-")) {
+        sections[3].entries.push(entry);
+        return;
+      }
+      sections[4].entries.push(entry);
+    });
+
+    return sections.filter((section) => section.entries.length > 0);
+  };
 
   const renderShortcutRow = (entry: KeyboardShortcutEntry) => {
     const row = h("div", {
@@ -289,9 +323,20 @@ export const createSettingsModal = (
 
   const renderAllShortcuts = () => {
     shortcutsList.textContent = "";
-    ctx.allShortcuts.forEach((entry) => {
-      const row = renderShortcutRow(entry);
-      shortcutsList.appendChild(row);
+    const sections = groupShortcuts(ctx.allShortcuts);
+    sections.forEach((section) => {
+      const sectionEl = h("div", { className: "cq-settings-section" });
+      const heading = h("div", {
+        className: "cq-settings-section-title",
+        text: section.title,
+      });
+      const list = h("div", { className: "cq-settings-list" });
+      section.entries.forEach((entry) => {
+        const row = renderShortcutRow(entry);
+        list.appendChild(row);
+      });
+      sectionEl.append(heading, list);
+      shortcutsList.appendChild(sectionEl);
     });
   };
 
@@ -303,8 +348,20 @@ export const createSettingsModal = (
   modal.cancelButton.style.display = "none";
 
   // Use confirm button as close
-  modal.confirmButton.addEventListener("click", () => {
+  const closeModal = () => {
     modal.root.remove();
+  };
+  modal.confirmButton.addEventListener("click", closeModal);
+  modal.overlay.addEventListener("click", (event) => {
+    if (event.target === modal.overlay || event.target === modal.container) {
+      closeModal();
+    }
+  });
+  modal.dialog.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal();
+    }
   });
 
   return {

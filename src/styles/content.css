@@ -886,6 +886,32 @@
   gap: 16px;
 }
 
+.cq-settings-body {
+  padding-bottom: 16px;
+}
+
+.cq-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cq-settings-section + .cq-settings-section {
+  margin-top: 12px;
+}
+
+.cq-settings-section:last-child {
+  margin-bottom: 12px;
+}
+
+.cq-settings-section-title {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
 .cq-settings-row {
   display: flex;
   align-items: center;
