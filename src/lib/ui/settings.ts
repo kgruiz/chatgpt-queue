@@ -385,6 +385,7 @@ export const createSettingsModal = (
 
   // Hide the cancel button as it is not needed
   modal.cancelButton.style.display = "none";
+  modal.footer.classList.add("cq-settings-footer");
 
   // Use confirm button as close
   const closeModal = () => {

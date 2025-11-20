@@ -988,6 +988,10 @@
   font-size: 14px;
 }
 
+.cq-settings-footer {
+  padding-top: 12px;
+}
+
 .cq-btn-group {
   display: flex;
   gap: 8px;
