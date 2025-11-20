@@ -13,6 +13,7 @@ export interface ConfirmModalOptions {
   body: TemplateChild | TemplateChild[];
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmVariant?: string;
   testId?: string;
   confirmTestId?: string;
 }
@@ -110,7 +111,7 @@ export const createConfirmModal = (
   });
 
   const confirmButton = h("button", {
-    className: "btn relative btn-danger",
+    className: `btn relative ${options.confirmVariant || "btn-danger"}`,
     attrs: { type: "button" },
     dataset: options.confirmTestId
       ? { testid: options.confirmTestId }

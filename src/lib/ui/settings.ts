@@ -175,6 +175,7 @@ export const createSettingsModal = (
     title: "Keyboard Shortcuts",
     body: [],
     confirmLabel: "Done",
+    confirmVariant: "btn-primary",
     cancelLabel: undefined,
     testId: "settings-modal",
   });

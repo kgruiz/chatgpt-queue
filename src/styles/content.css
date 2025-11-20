@@ -983,11 +983,20 @@
 }
 
 [data-cq-modal="true"] .btn-danger {
-  background-color: #10a37f;
+  background-color: #ef4444;
   color: white;
 }
 
 [data-cq-modal="true"] .btn-danger:hover {
+  background-color: #dc2626;
+}
+
+[data-cq-modal="true"] .btn-primary {
+  background-color: #10a37f;
+  color: white;
+}
+
+[data-cq-modal="true"] .btn-primary:hover {
   background-color: #1a7f64;
 }
 
