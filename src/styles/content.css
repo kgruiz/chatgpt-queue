@@ -928,6 +928,16 @@
   }
 }
 
+.cq-settings-nav-close {
+  padding: 6px 4px;
+}
+
+.cq-settings-nav-close .cq-settings-close {
+  height: 36px;
+  width: 36px;
+  border-radius: 10px;
+}
+
 .cq-settings-nav-btn {
   padding: 8px 10px;
   border-radius: 8px;
@@ -988,17 +998,20 @@
 
 .cq-settings-search {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 8px;
-  background: #111214;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: var(--token-bg-primary, #111214);
+  border: 1px solid var(--token-border-default, rgba(255, 255, 255, 0.18));
   color: #ececf1;
   font-size: 14px;
+  line-height: 1.5;
+  box-shadow: none;
 }
 
 .cq-settings-search:focus {
-  outline: 2px solid #10a37f;
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--token-border-heavy, #10a37f);
+  box-shadow: 0 0 0 1px var(--token-border-heavier, #10a37f);
 }
 
 .cq-settings-grid {
