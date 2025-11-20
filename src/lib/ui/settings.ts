@@ -182,6 +182,7 @@ export const createSettingsModal = (
 
   modal.header.style.display = "none";
   modal.dialog.setAttribute("aria-labelledby", "cq-settings-heading");
+  modal.container.style.gridTemplateRows = "minmax(0, 1fr) auto minmax(0, 1fr)";
 
   modal.body.classList.add("cq-settings-body");
   // Give the settings modal more horizontal room so grids can form columns.
