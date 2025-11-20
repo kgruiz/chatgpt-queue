@@ -207,13 +207,12 @@ export const createSettingsModal = (
     },
   }) as HTMLInputElement;
 
+  const contentColumn = h("div", { className: "cq-settings-content" });
   const heading = h("h2", {
     className: "cq-settings-heading",
     attrs: { id: "cq-settings-heading" },
     text: "Keyboard Shortcuts",
   });
-
-  const contentColumn = h("div", { className: "cq-settings-content" });
 
   const shortcutsList = h("div", {
     className: "cq-settings-list cq-settings-grid",
@@ -461,18 +460,7 @@ export const createSettingsModal = (
   });
   searchWrap.appendChild(searchInput);
 
-  contentColumn.append(heading, searchWrap, shortcutsList);
-  shell.append(nav, contentColumn);
-
-  modal.body.textContent = "";
-  modal.body.appendChild(shell);
-
-  // Hide the cancel button as it is not needed
-  modal.cancelButton.style.display = "none";
-  modal.footer.style.display = "none";
-  modal.confirmButton.style.display = "none";
-
-  // Use confirm button as close
+  // Close helpers
   const closeModal = () => {
     modal.root.remove();
   };
@@ -487,7 +475,21 @@ export const createSettingsModal = (
     </svg>
   `;
   dialogClose.addEventListener("click", closeModal);
-  modal.dialog.appendChild(dialogClose);
+
+  const headerBar = h("div", { className: "cq-settings-header" });
+  headerBar.append(dialogClose, heading);
+
+  contentColumn.append(searchWrap, shortcutsList);
+  shell.append(nav, contentColumn);
+
+  modal.body.textContent = "";
+  modal.body.append(headerBar, shell);
+
+  // Hide the cancel button as it is not needed
+  modal.cancelButton.style.display = "none";
+  modal.footer.style.display = "none";
+  modal.confirmButton.style.display = "none";
+
   modal.confirmButton.addEventListener("click", closeModal);
   modal.overlay.addEventListener("click", (event) => {
     if (event.target === modal.overlay || event.target === modal.container) {

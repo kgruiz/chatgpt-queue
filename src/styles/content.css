@@ -903,6 +903,16 @@
   flex-direction: column;
 }
 
+.cq-settings-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  height: 60px;
+  padding: 12px 12px 0;
+}
+
 .cq-settings-shell {
   display: flex;
   gap: 12px;
@@ -939,10 +949,7 @@
 }
 
 .cq-settings-dialog-close {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 2;
+  position: static;
 }
 
 .cq-settings-nav-close {
