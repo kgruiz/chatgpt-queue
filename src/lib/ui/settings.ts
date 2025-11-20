@@ -185,6 +185,21 @@ export const createSettingsModal = (
   modal.dialog.style.maxWidth = "900px";
   modal.dialog.style.width = "min(900px, calc(100vw - 32px))";
 
+  const closeButton = h("button", {
+    className: "cq-settings-close",
+    attrs: { type: "button", "aria-label": "Close settings" },
+    text: "×",
+  });
+  closeButton.addEventListener("click", () => modal.root.remove());
+  modal.header.appendChild(closeButton);
+
+  const shell = h("div", { className: "cq-settings-shell" });
+
+  const nav = h("nav", {
+    className: "cq-settings-nav",
+    attrs: { role: "tablist", "aria-orientation": "vertical" },
+  });
+
   let searchQuery = "";
 
   const searchInput = h("input", {
@@ -196,8 +211,10 @@ export const createSettingsModal = (
     },
   }) as HTMLInputElement;
 
+  const contentColumn = h("div", { className: "cq-settings-content" });
+
   const shortcutsList = h("div", {
-    className: "cq-settings-list",
+    className: "cq-settings-list cq-settings-grid",
   });
 
   const groupShortcuts = (entries: KeyboardShortcutEntry[]) => {
@@ -346,17 +363,54 @@ export const createSettingsModal = (
 
     const sections = groupShortcuts(filtered);
 
+    nav.textContent = "";
+    const emptyNav = h("div", {
+      className: "cq-settings-empty",
+      text: "No shortcuts",
+    });
+
     if (!sections.length) {
-      const empty = h("div", {
-        className: "cq-settings-empty",
-        text: "No shortcuts match your search.",
-      });
-      shortcutsList.appendChild(empty);
+      shortcutsList.textContent = "";
+      shortcutsList.appendChild(
+        h("div", {
+          className: "cq-settings-empty",
+          text: "No shortcuts match your search.",
+        }),
+      );
+      nav.appendChild(emptyNav);
       return;
     }
 
+    sections.forEach((section, index) => {
+      const sectionId = `shortcut-section-${section.title.toLowerCase().replace(/\s+/g, "-")}`;
+      const navBtn = h("button", {
+        className: `cq-settings-nav-btn${index === 0 ? " is-active" : ""}`,
+        attrs: {
+          type: "button",
+          role: "tab",
+          "aria-controls": sectionId,
+        },
+        text: section.title,
+      });
+      navBtn.addEventListener("click", () => {
+        nav.querySelectorAll<HTMLButtonElement>(".cq-settings-nav-btn").forEach((btn) =>
+          btn.classList.toggle("is-active", btn === navBtn),
+        );
+        const target = shortcutsList.querySelector<HTMLElement>(`#${sectionId}`);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        target?.focus?.({ preventScroll: true });
+      });
+      nav.appendChild(navBtn);
+    });
+
+    shortcutsList.textContent = "";
+
     sections.forEach((section) => {
-      const sectionEl = h("div", { className: "cq-settings-section" });
+      const sectionId = `shortcut-section-${section.title.toLowerCase().replace(/\s+/g, "-")}`;
+      const sectionEl = h("div", {
+        className: "cq-settings-section",
+        attrs: { id: sectionId, tabindex: "-1" },
+      });
       const heading = h("div", {
         className: "cq-settings-section-title",
         text: section.title,
@@ -380,8 +434,11 @@ export const createSettingsModal = (
   });
   searchWrap.appendChild(searchInput);
 
-  modal.body.appendChild(searchWrap);
-  modal.body.appendChild(shortcutsList);
+  contentColumn.append(searchWrap, shortcutsList);
+  shell.append(nav, contentColumn);
+
+  modal.body.textContent = "";
+  modal.body.appendChild(shell);
 
   // Hide the cancel button as it is not needed
   modal.cancelButton.style.display = "none";

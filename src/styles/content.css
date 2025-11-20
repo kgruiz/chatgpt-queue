@@ -893,6 +893,69 @@
   gap: 14px;
 }
 
+.cq-settings-dialog {
+  max-height: 85vh;
+}
+
+.cq-settings-shell {
+  display: flex;
+  gap: 12px;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .cq-settings-shell {
+    flex-direction: row;
+  }
+}
+
+.cq-settings-nav {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+}
+
+@media (min-width: 768px) {
+  .cq-settings-nav {
+    flex-direction: column;
+    min-width: 180px;
+    max-width: 210px;
+    padding: 6px 0;
+  }
+}
+
+.cq-settings-nav-btn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #ececf1;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.cq-settings-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cq-settings-nav-btn.is-active {
+  background: rgba(16, 163, 127, 0.12);
+  border-color: rgba(16, 163, 127, 0.4);
+  color: #10a37f;
+}
+
+.cq-settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .cq-settings-section {
   display: flex;
   flex-direction: column;
@@ -989,7 +1052,9 @@
 }
 
 .cq-settings-footer {
-  padding-top: 12px;
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cq-btn-group {
@@ -1037,6 +1102,31 @@
 }
 
 /* Buttons in modal footer */
+[data-cq-modal="true"] .cq-settings-close {
+  align-self: center;
+  margin-left: auto;
+  margin-right: 4px;
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  background: transparent;
+  color: #ececf1;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+[data-cq-modal="true"] .cq-settings-close:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-cq-modal="true"] .cq-settings-close:focus-visible {
+  outline: 2px solid #10a37f;
+  outline-offset: 2px;
+}
+
 [data-cq-modal="true"] .btn {
   padding: 8px 16px;
   border-radius: 6px;
