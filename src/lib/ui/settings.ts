@@ -197,7 +197,7 @@ export const createSettingsModal = (
   }) as HTMLInputElement;
 
   const shortcutsList = h("div", {
-    className: "cq-settings-list",
+    className: "cq-settings-sections-grid",
   });
 
   const groupShortcuts = (entries: KeyboardShortcutEntry[]) => {
@@ -361,7 +361,7 @@ export const createSettingsModal = (
         className: "cq-settings-section-title",
         text: section.title,
       });
-      const list = h("div", { className: "cq-settings-list cq-settings-grid" });
+      const list = h("div", { className: "cq-settings-section-list" });
       section.entries.forEach((entry) => {
         const row = renderShortcutRow(entry);
         list.appendChild(row);
