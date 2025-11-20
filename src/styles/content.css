@@ -894,7 +894,8 @@
 }
 
 .cq-settings-dialog {
-  max-height: 85vh;
+  height: min(600px, calc(100vh - 80px));
+  max-height: calc(100vh - 80px);
 }
 
 .cq-settings-shell {
@@ -1010,8 +1011,8 @@
 
 .cq-settings-search:focus {
   outline: none;
-  border-color: var(--token-border-heavy, #10a37f);
-  box-shadow: 0 0 0 1px var(--token-border-heavier, #10a37f);
+  border-color: var(--token-border-default, rgba(255, 255, 255, 0.18));
+  box-shadow: none;
 }
 
 .cq-settings-grid {
