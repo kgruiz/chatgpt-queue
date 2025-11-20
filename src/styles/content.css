@@ -915,6 +915,8 @@
   gap: 8px;
   overflow-x: auto;
   padding: 4px 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
 }
 
 @media (min-width: 768px) {
@@ -922,7 +924,7 @@
     flex-direction: column;
     min-width: 180px;
     max-width: 210px;
-    padding: 6px 0;
+    padding: 10px 8px;
   }
 }
 
@@ -943,9 +945,9 @@
 }
 
 .cq-settings-nav-btn.is-active {
-  background: rgba(16, 163, 127, 0.12);
-  border-color: rgba(16, 163, 127, 0.4);
-  color: #10a37f;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ececf1;
 }
 
 .cq-settings-content {

@@ -174,7 +174,7 @@ export const createSettingsModal = (
   const modal = createConfirmModal({
     title: "Keyboard Shortcuts",
     body: [],
-    confirmLabel: "Done",
+    confirmLabel: "",
     confirmVariant: "btn-text",
     cancelLabel: undefined,
     testId: "settings-modal",
@@ -184,6 +184,7 @@ export const createSettingsModal = (
   // Give the settings modal more horizontal room so grids can form columns.
   modal.dialog.style.maxWidth = "900px";
   modal.dialog.style.width = "min(900px, calc(100vw - 32px))";
+  modal.dialog.classList.add("cq-settings-dialog");
 
   const closeButton = h("button", {
     className: "cq-settings-close",
@@ -191,7 +192,7 @@ export const createSettingsModal = (
     text: "×",
   });
   closeButton.addEventListener("click", () => modal.root.remove());
-  modal.header.appendChild(closeButton);
+  modal.header.insertBefore(closeButton, modal.header.firstChild);
 
   const shell = h("div", { className: "cq-settings-shell" });
 
@@ -216,6 +217,8 @@ export const createSettingsModal = (
   const shortcutsList = h("div", {
     className: "cq-settings-list cq-settings-grid",
   });
+
+  let activeSectionId: string | null = null;
 
   const groupShortcuts = (entries: KeyboardShortcutEntry[]) => {
     const sections: { title: string; entries: KeyboardShortcutEntry[] }[] = [
@@ -393,11 +396,16 @@ export const createSettingsModal = (
         text: section.title,
       });
       navBtn.addEventListener("click", () => {
+        activeSectionId = sectionId;
         nav.querySelectorAll<HTMLButtonElement>(".cq-settings-nav-btn").forEach((btn) =>
           btn.classList.toggle("is-active", btn === navBtn),
         );
         const target = shortcutsList.querySelector<HTMLElement>(`#${sectionId}`);
-        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        shortcutsList.querySelectorAll<HTMLElement>(".cq-settings-section").forEach((panel) => {
+          const isActive = panel.id === sectionId;
+          panel.hidden = !isActive;
+          panel.dataset.active = isActive ? "true" : "false";
+        });
         target?.focus?.({ preventScroll: true });
       });
       nav.appendChild(navBtn);
@@ -409,7 +417,7 @@ export const createSettingsModal = (
       const sectionId = `shortcut-section-${section.title.toLowerCase().replace(/\s+/g, "-")}`;
       const sectionEl = h("div", {
         className: "cq-settings-section",
-        attrs: { id: sectionId, tabindex: "-1" },
+        attrs: { id: sectionId, role: "tabpanel", tabindex: "-1" },
       });
       const heading = h("div", {
         className: "cq-settings-section-title",
@@ -421,11 +429,29 @@ export const createSettingsModal = (
         list.appendChild(row);
       });
       sectionEl.append(heading, list);
+      sectionEl.dataset.active = sectionId === activeSectionId ? "true" : "false";
+      sectionEl.hidden = sectionId !== activeSectionId;
       shortcutsList.appendChild(sectionEl);
     });
   };
 
   renderAllShortcuts();
+  // Ensure an initial active section
+  if (!activeSectionId) {
+    const firstSection = shortcutsList.querySelector<HTMLElement>(".cq-settings-section");
+    activeSectionId = firstSection?.id || null;
+    if (activeSectionId) {
+      shortcutsList.querySelectorAll<HTMLElement>(".cq-settings-section").forEach((panel) => {
+        const isActive = panel.id === activeSectionId;
+        panel.hidden = !isActive;
+        panel.dataset.active = isActive ? "true" : "false";
+      });
+      nav.querySelectorAll<HTMLButtonElement>(".cq-settings-nav-btn").forEach((btn) => {
+        const controls = btn.getAttribute("aria-controls");
+        btn.classList.toggle("is-active", controls === activeSectionId);
+      });
+    }
+  }
 
   const searchWrap = h("div", { className: "cq-settings-search-wrap" });
   searchInput.addEventListener("input", () => {
@@ -442,7 +468,8 @@ export const createSettingsModal = (
 
   // Hide the cancel button as it is not needed
   modal.cancelButton.style.display = "none";
-  modal.footer.classList.add("cq-settings-footer");
+  modal.footer.style.display = "none";
+  modal.confirmButton.style.display = "none";
 
   // Use confirm button as close
   const closeModal = () => {
