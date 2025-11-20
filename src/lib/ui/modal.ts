@@ -98,12 +98,9 @@ export const createConfirmModal = (
   }, options.body) as HTMLDivElement;
 
   const footer = h("div", {
-    className:
-      "grow overflow-y-auto p-4 pt-1 flex flex-col justify-end text-sm select-none",
+    className: "flex w-full flex-row items-center justify-end text-sm select-none",
   }) as HTMLDivElement;
-  const footerInner = h("div", {
-    className: "flex w-full flex-row items-center justify-end",
-  });
+  const footerInner = h("div", { className: "flex-0" });
   const buttonRow = h("div", {
     className:
       "flex flex-col gap-3 sm:flex-row-reverse mt-5 sm:mt-4 flex w-full flex-row-reverse",
