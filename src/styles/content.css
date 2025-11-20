@@ -910,21 +910,22 @@
   gap: 12px;
   min-height: 60px;
   height: 60px;
-  padding: 12px 12px 0;
+  padding: 12px 12px 0 0;
 }
 
 .cq-settings-shell {
-  display: flex;
-  gap: 12px;
-  flex-direction: column;
-  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(180px, 210px) 1fr;
+  column-gap: 12px;
+  row-gap: 0;
+  flex: 1;
   min-height: 0;
+  padding: 0 12px 12px 0;
 }
 
 @media (min-width: 768px) {
   .cq-settings-shell {
-    flex-direction: row;
-    align-items: stretch;
+    grid-template-columns: minmax(180px, 210px) 1fr;
   }
 }
 
@@ -935,7 +936,8 @@
   overflow-x: auto;
   padding: 4px 2px;
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 10px;
+  border-radius: 0 0 10px 10px;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
@@ -959,6 +961,7 @@
   display: flex;
   align-items: center;
   padding: 0 8px;
+  width: 100%;
 }
 
 .cq-settings-header-title {
@@ -977,6 +980,16 @@
 
 .cq-settings-nav-close {
   padding: 6px 4px;
+}
+
+.cq-settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 12px;
+  padding-bottom: 12px;
 }
 
 .cq-settings-nav-close .cq-settings-close {
