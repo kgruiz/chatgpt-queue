@@ -175,12 +175,23 @@ export const createSettingsModal = (
     title: "Keyboard Shortcuts",
     body: [],
     confirmLabel: "Done",
-    confirmVariant: "btn-primary",
+    confirmVariant: "btn-text",
     cancelLabel: undefined,
     testId: "settings-modal",
   });
 
   modal.body.classList.add("cq-settings-body");
+
+  let searchQuery = "";
+
+  const searchInput = h("input", {
+    className: "cq-settings-search",
+    attrs: {
+      type: "search",
+      placeholder: "Search shortcuts",
+      spellcheck: "false",
+    },
+  }) as HTMLInputElement;
 
   const shortcutsList = h("div", {
     className: "cq-settings-list",
@@ -323,14 +334,31 @@ export const createSettingsModal = (
 
   const renderAllShortcuts = () => {
     shortcutsList.textContent = "";
-    const sections = groupShortcuts(ctx.allShortcuts);
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = query
+      ? ctx.allShortcuts.filter((entry) =>
+          entry.label.toLowerCase().includes(query),
+        )
+      : ctx.allShortcuts;
+
+    const sections = groupShortcuts(filtered);
+
+    if (!sections.length) {
+      const empty = h("div", {
+        className: "cq-settings-empty",
+        text: "No shortcuts match your search.",
+      });
+      shortcutsList.appendChild(empty);
+      return;
+    }
+
     sections.forEach((section) => {
       const sectionEl = h("div", { className: "cq-settings-section" });
       const heading = h("div", {
         className: "cq-settings-section-title",
         text: section.title,
       });
-      const list = h("div", { className: "cq-settings-list" });
+      const list = h("div", { className: "cq-settings-list cq-settings-grid" });
       section.entries.forEach((entry) => {
         const row = renderShortcutRow(entry);
         list.appendChild(row);
@@ -342,6 +370,14 @@ export const createSettingsModal = (
 
   renderAllShortcuts();
 
+  const searchWrap = h("div", { className: "cq-settings-search-wrap" });
+  searchInput.addEventListener("input", () => {
+    searchQuery = searchInput.value || "";
+    renderAllShortcuts();
+  });
+  searchWrap.appendChild(searchInput);
+
+  modal.body.appendChild(searchWrap);
   modal.body.appendChild(shortcutsList);
 
   // Hide the cancel button as it is not needed

@@ -888,6 +888,9 @@
 
 .cq-settings-body {
   padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .cq-settings-section {
@@ -912,17 +915,42 @@
   font-weight: 600;
 }
 
+.cq-settings-search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.cq-settings-search {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111214;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ececf1;
+  font-size: 14px;
+}
+
+.cq-settings-search:focus {
+  outline: 2px solid #10a37f;
+  outline-offset: 1px;
+}
+
+.cq-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px 18px;
+}
+
 .cq-settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.cq-settings-row:last-child {
-  border-bottom: none;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #1c1d1f;
 }
 
 .cq-settings-label {
@@ -952,6 +980,12 @@
   text-align: center;
   color: #ececf1;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cq-settings-empty {
+  padding: 16px 4px;
+  color: #9ca3af;
+  font-size: 14px;
 }
 
 .cq-btn-group {
@@ -1006,6 +1040,16 @@
   cursor: pointer;
   transition: background-color 0.2s;
   border: none;
+}
+
+[data-cq-modal="true"] .btn-text {
+  background-color: transparent;
+  color: #ececf1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+[data-cq-modal="true"] .btn-text:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 [data-cq-modal="true"] .btn-danger {
