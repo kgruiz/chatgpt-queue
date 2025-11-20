@@ -905,7 +905,7 @@
 
 .cq-settings-header {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(180px, 210px) 1fr;
   align-items: center;
   gap: 12px;
   min-height: 60px;
@@ -950,6 +950,29 @@
 
 .cq-settings-dialog-close {
   position: static;
+}
+
+.cq-settings-header-nav {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px 10px 0 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.cq-settings-header-title {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 4px;
+}
+
+@media (max-width: 767px) {
+  .cq-settings-header {
+    grid-template-columns: auto 1fr;
+    padding: 12px 8px 0;
+  }
 }
 
 .cq-settings-nav-close {

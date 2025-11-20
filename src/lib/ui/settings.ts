@@ -477,7 +477,11 @@ export const createSettingsModal = (
   dialogClose.addEventListener("click", closeModal);
 
   const headerBar = h("div", { className: "cq-settings-header" });
-  headerBar.append(dialogClose, heading);
+  const headerNavSlot = h("div", { className: "cq-settings-header-nav" });
+  headerNavSlot.appendChild(dialogClose);
+  const headerTitleSlot = h("div", { className: "cq-settings-header-title" });
+  headerTitleSlot.appendChild(heading);
+  headerBar.append(headerNavSlot, headerTitleSlot);
 
   contentColumn.append(searchWrap, shortcutsList);
   shell.append(nav, contentColumn);
