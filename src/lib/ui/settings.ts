@@ -181,6 +181,9 @@ export const createSettingsModal = (
   });
 
   modal.body.classList.add("cq-settings-body");
+  // Give the settings modal more horizontal room so grids can form columns.
+  modal.dialog.style.maxWidth = "900px";
+  modal.dialog.style.width = "min(900px, calc(100vw - 32px))";
 
   let searchQuery = "";
 
