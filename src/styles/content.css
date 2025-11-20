@@ -896,18 +896,30 @@
 .cq-settings-dialog {
   height: min(600px, calc(100vh - 80px));
   max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
 }
 
 .cq-settings-shell {
   display: flex;
   gap: 12px;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 @media (min-width: 768px) {
   .cq-settings-shell {
     flex-direction: row;
+    align-items: stretch;
   }
+}
+
+.cq-settings-body {
+  padding: 0;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
 }
 
 .cq-settings-nav {
@@ -925,8 +937,16 @@
     flex-direction: column;
     min-width: 180px;
     max-width: 210px;
-    padding: 10px 8px;
+    height: 100%;
+    padding: 12px 8px;
   }
+}
+
+.cq-settings-dialog-close {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
 }
 
 .cq-settings-nav-close {
