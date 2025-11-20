@@ -381,6 +381,7 @@ export const createSettingsModal = (
     const sections = groupShortcuts(filtered);
 
     nav.textContent = "";
+    nav.appendChild(navClose);
     const emptyNav = h("div", {
       className: "cq-settings-empty",
       text: "No shortcuts",
