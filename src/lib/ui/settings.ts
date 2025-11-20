@@ -172,13 +172,16 @@ export const createSettingsModal = (
   ctx: SettingsModalContext,
 ): SettingsModalElements => {
   const modal = createConfirmModal({
-    title: "Keyboard Shortcuts",
+    title: "",
     body: [],
     confirmLabel: "",
     confirmVariant: "btn-text",
     cancelLabel: undefined,
     testId: "settings-modal",
   });
+
+  modal.header.style.display = "none";
+  modal.dialog.setAttribute("aria-labelledby", "cq-settings-heading");
 
   modal.body.classList.add("cq-settings-body");
   // Give the settings modal more horizontal room so grids can form columns.
@@ -203,6 +206,12 @@ export const createSettingsModal = (
       spellcheck: "false",
     },
   }) as HTMLInputElement;
+
+  const heading = h("h2", {
+    className: "cq-settings-heading",
+    attrs: { id: "cq-settings-heading" },
+    text: "Keyboard Shortcuts",
+  });
 
   const contentColumn = h("div", { className: "cq-settings-content" });
 
@@ -452,7 +461,7 @@ export const createSettingsModal = (
   });
   searchWrap.appendChild(searchInput);
 
-  contentColumn.append(searchWrap, shortcutsList);
+  contentColumn.append(heading, searchWrap, shortcutsList);
   shell.append(nav, contentColumn);
 
   modal.body.textContent = "";
