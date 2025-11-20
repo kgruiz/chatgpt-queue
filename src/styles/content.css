@@ -899,12 +899,6 @@
   gap: 10px;
 }
 
-.cq-settings-sections-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-}
-
 .cq-settings-section + .cq-settings-section {
   margin-top: 12px;
 }
@@ -942,6 +936,12 @@
   outline-offset: 1px;
 }
 
+.cq-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 18px;
+}
+
 .cq-settings-row {
   display: flex;
   align-items: center;
@@ -962,12 +962,6 @@
 .cq-settings-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.cq-settings-section-list {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
 }
 
