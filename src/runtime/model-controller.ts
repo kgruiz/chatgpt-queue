@@ -892,7 +892,9 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
     };
 
     const labelForModel = (id: string | null | undefined, fallback = ""): string => {
-        if (!id) return fallback || "";
+        const fallbackLabel = fallback || "";
+        if (!id) return fallbackLabel;
+        if (fallbackLabel) return fallbackLabel;
         if (
             normalizeModelId(currentModelId) === normalizeModelId(id) &&
             currentModelLabel
@@ -902,7 +904,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         const info = getModelById(id);
         const displayLabel = buildDisplayLabel(info);
         if (displayLabel) return displayLabel;
-        return fallback || id;
+        return fallbackLabel || id;
     };
 
     const resolveModelDropdownHeading = (
