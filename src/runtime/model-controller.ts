@@ -856,7 +856,7 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
                 selected: true,
             });
         }
-        setCurrentModel(canonicalId, labelForModel(canonicalId, label));
+        setCurrentModel(canonicalId, label || canonicalId);
     };
 
     const getModelById = (id: string | null | undefined): QueueModelDefinition | null => {
