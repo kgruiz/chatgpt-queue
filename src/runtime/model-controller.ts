@@ -869,10 +869,33 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
         );
     };
 
+    const buildDisplayLabel = (
+        info: QueueModelDefinition | null | undefined,
+    ): string | null => {
+        if (!info) return null;
+        const baseLabel = info.label || info.id || null;
+        if (!baseLabel) return null;
+
+        const section = String(info.section || "").trim().toLowerCase();
+        const lowerLabel = baseLabel.toLowerCase();
+
+        const needsPrefix =
+            section.startsWith("gpt-5.1") &&
+            !lowerLabel.includes("5.1") &&
+            !lowerLabel.includes("gpt");
+
+        if (needsPrefix) {
+            return `${info.section || "GPT-5.1"} ${baseLabel}`.trim();
+        }
+
+        return baseLabel;
+    };
+
     const labelForModel = (id: string | null | undefined, fallback = ""): string => {
         if (!id) return fallback || "";
         const info = getModelById(id);
-        if (info?.label) return info.label;
+        const displayLabel = buildDisplayLabel(info);
+        if (displayLabel) return displayLabel;
         if (
             normalizeModelId(currentModelId) === normalizeModelId(id) &&
             currentModelLabel
