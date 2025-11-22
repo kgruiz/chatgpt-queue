@@ -30,10 +30,18 @@ export const STATIC_MODEL_DEFINITIONS: QueueModelDefinition[] = [
         tiers: ["Free", "Plus", "Pro", "Team", "Enterprise"],
     },
     {
+        id: "gpt-5-1-pro",
+        label: "Pro",
+        description: "Research-grade intelligence",
+        section: "GPT-5.1",
+        tiers: ["Pro", "Team", "Enterprise"],
+    },
+    {
         id: "gpt-5-pro",
         label: "Pro",
         description: "Research-grade intelligence",
-        section: "GPT-5",
+        group: "legacy",
+        groupLabel: "Legacy models",
         tiers: ["Pro", "Team", "Enterprise"],
     },
     {
