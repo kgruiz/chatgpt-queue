@@ -1143,13 +1143,13 @@ const readCurrentModelLabelFromHeader = () => {
                     matchId: existingMatch.id,
                     matchLabel: existingMatch.label || null,
                 });
+                const nextLabel = label || existingMatch.label || "";
                 if (
                     normalizeModelId(existingMatch.id) !==
                         normalizeModelId(currentModelId) ||
-                    (existingMatch.label &&
-                        existingMatch.label !== currentModelLabel)
+                    (nextLabel && nextLabel !== currentModelLabel)
                 ) {
-                    markModelSelected(existingMatch.id, existingMatch.label || label);
+                    markModelSelected(existingMatch.id, nextLabel);
                     refreshControls();
                 } else {
                     logModelSyncEvent("existing-match-unchanged", {
@@ -1180,18 +1180,18 @@ const readCurrentModelLabelFromHeader = () => {
                     findModelMatchByLabelSignature(signatures, refreshedModels);
             }
             if (selectedMatch) {
+                const nextLabel = label || selectedMatch.label || "";
                 lastSyncedHeaderLabelSignature = signatureKey;
                 logModelSyncEvent("selected-match", {
                     matchId: selectedMatch.id,
-                    matchLabel: selectedMatch.label || null,
+                    matchLabel: nextLabel || null,
                 });
                 if (
                     normalizeModelId(selectedMatch.id) !==
                         normalizeModelId(currentModelId) ||
-                    (selectedMatch.label &&
-                        selectedMatch.label !== currentModelLabel)
+                    (nextLabel && nextLabel !== currentModelLabel)
                 ) {
-                    markModelSelected(selectedMatch.id, selectedMatch.label);
+                    markModelSelected(selectedMatch.id, nextLabel);
                     refreshControls();
                 } else {
                     logModelSyncEvent("selected-match-unchanged", {
