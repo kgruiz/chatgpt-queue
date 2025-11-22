@@ -893,14 +893,15 @@ export const initModelController = (ctx: ModelControllerContext): ModelControlle
 
     const labelForModel = (id: string | null | undefined, fallback = ""): string => {
         if (!id) return fallback || "";
-        const info = getModelById(id);
-        const displayLabel = buildDisplayLabel(info);
-        if (displayLabel) return displayLabel;
         if (
             normalizeModelId(currentModelId) === normalizeModelId(id) &&
             currentModelLabel
-        )
+        ) {
             return currentModelLabel;
+        }
+        const info = getModelById(id);
+        const displayLabel = buildDisplayLabel(info);
+        if (displayLabel) return displayLabel;
         return fallback || id;
     };
 
