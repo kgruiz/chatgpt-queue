@@ -1106,18 +1106,19 @@ const readCurrentModelLabelFromHeader = () => {
         const overrideMatch = findHeaderLabelModelOverride(label);
         if (overrideMatch) {
             lastSyncedHeaderLabelSignature = signatureKey;
+            const nextLabel = label || overrideMatch.label || "";
             logModelSyncEvent("override-match", {
                 overrideId: overrideMatch.id,
-                overrideLabel: overrideMatch.label || null,
+                overrideLabel: nextLabel || null,
                 signatureKey,
             });
             if (
                 normalizeModelId(overrideMatch.id) !==
                     normalizeModelId(currentModelId) ||
-                (overrideMatch.label &&
-                    overrideMatch.label !== currentModelLabel)
+                (nextLabel &&
+                    nextLabel !== currentModelLabel)
             ) {
-                markModelSelected(overrideMatch.id, overrideMatch.label);
+                markModelSelected(overrideMatch.id, nextLabel);
                 refreshControls();
             } else {
                 logModelSyncEvent("override-match-unchanged", {
