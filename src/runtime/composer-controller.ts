@@ -1172,16 +1172,14 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         { promptHasContent, hasQueueItems }: { promptHasContent: boolean; hasQueueItems: boolean },
     ) => {
 
-        const shouldShowControls = promptHasContent || hasQueueItems;
-
         if (composerControlGroup) {
-            composerControlGroup.hidden = !shouldShowControls;
+            composerControlGroup.hidden = false;
         }
         if (composerQueueButton) {
             composerQueueButton.disabled = !promptHasContent;
         }
         if (composerHoldButton) {
-            const showHold = promptHasContent && !hasQueueItems;
+            const showHold = !hasQueueItems;
             composerHoldButton.hidden = !showHold;
             composerHoldButton.disabled = !promptHasContent;
         }
