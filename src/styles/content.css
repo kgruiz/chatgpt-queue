@@ -336,29 +336,6 @@
   letter-spacing: 0.05em;
 }
 
-#cq-ui .cq-composer-queue-btn,
-#cq-ui .cq-composer-hold-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: 12px;
-  min-height: 36px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: none;
-  transition: opacity 0.15s ease;
-}
-
-#cq-ui .cq-composer-queue-btn:hover,
-#cq-ui .cq-composer-hold-btn:hover {
-  opacity: 1;
-}
-
-#cq-ui .cq-composer-queue-btn:disabled,
-#cq-ui .cq-composer-hold-btn:disabled {
-  color: var(--text-tertiary);
-}
-
 .cq-composer-controls {
   display: inline-flex;
   align-items: center;
