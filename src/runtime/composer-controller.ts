@@ -845,32 +845,28 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     };
 
     const deriveQueueButtonClasses = (sendButton: HTMLElement | null) => {
-        const baseTokens = new Set([
-            UI_CLASS.composerQueueButton,
-            "relative",
-            "flex",
-            "items-center",
-            "justify-center",
-            "h-9",
-            "w-9",
-            "rounded-full",
-            "composer-secondary-button-color",
-            "disabled:text-gray-50",
-            "disabled:opacity-30",
-        ]);
+
+        const tokens = new Set<string>();
+
         if (sendButton instanceof HTMLElement) {
-            (sendButton.className || "").split(/\s+/).forEach((token) => {
-                if (!token) return;
-                if (
-                    token.startsWith("dark:") ||
-                    token.startsWith("light:") ||
-                    token.startsWith("focus-visible:")
-                ) {
-                    baseTokens.add(token);
-                }
-            });
+            (sendButton.className || "")
+                .split(/\s+/)
+                .filter(Boolean)
+                .forEach((token) => tokens.add(token));
         }
-        return Array.from(baseTokens).join(" ");
+
+        if (!tokens.size) {
+            [
+                "composer-submit-btn",
+                "composer-submit-button-color",
+                "h-9",
+                "w-9",
+            ].forEach((token) => tokens.add(token));
+        }
+
+        tokens.add(UI_CLASS.composerQueueButton);
+
+        return Array.from(tokens).join(" ");
     };
 
     const refreshComposerModelLabelButton = () => {
