@@ -844,8 +844,9 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
         return true;
     };
 
-    const deriveQueueButtonClasses = (sendButton: HTMLElement | null) => {
-        const baseTokens = new Set([
+    const deriveQueueButtonClasses = (_sendButton: HTMLElement | null) => {
+
+        const baseTokens = new Set<string>([
             UI_CLASS.composerQueueButton,
             "relative",
             "flex",
@@ -858,18 +859,7 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
             "disabled:text-gray-50",
             "disabled:opacity-30",
         ]);
-        if (sendButton instanceof HTMLElement) {
-            (sendButton.className || "").split(/\s+/).forEach((token) => {
-                if (!token) return;
-                if (
-                    token.startsWith("dark:") ||
-                    token.startsWith("light:") ||
-                    token.startsWith("focus-visible:")
-                ) {
-                    baseTokens.add(token);
-                }
-            });
-        }
+
         return Array.from(baseTokens).join(" ");
     };
 
