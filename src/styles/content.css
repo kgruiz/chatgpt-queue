@@ -337,9 +337,7 @@
 }
 
 #cq-ui .cq-composer-queue-btn,
-#cq-ui .cq-composer-hold-btn,
-.cq-composer-queue-btn,
-.cq-composer-hold-btn {
+#cq-ui .cq-composer-hold-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -347,31 +345,18 @@
   min-height: 36px;
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid currentColor;
+  border: none;
   transition: opacity 0.15s ease;
 }
 
 #cq-ui .cq-composer-queue-btn:hover,
-#cq-ui .cq-composer-hold-btn:hover,
-.cq-composer-queue-btn:hover,
-.cq-composer-hold-btn:hover {
+#cq-ui .cq-composer-hold-btn:hover {
   opacity: 1;
 }
 
-#cq-ui .cq-composer-queue-btn:focus-visible,
-#cq-ui .cq-composer-hold-btn:focus-visible,
-.cq-composer-queue-btn:focus-visible,
-.cq-composer-hold-btn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.45);
-  outline-offset: 2px;
-}
-
 #cq-ui .cq-composer-queue-btn:disabled,
-#cq-ui .cq-composer-hold-btn:disabled,
-.cq-composer-queue-btn:disabled,
-.cq-composer-hold-btn:disabled {
+#cq-ui .cq-composer-hold-btn:disabled {
   color: var(--text-tertiary);
-  background: transparent;
 }
 
 .cq-composer-controls {
