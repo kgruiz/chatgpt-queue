@@ -968,6 +968,58 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
 
         promoteSpeechContainerParent();
 
+        const parentIsFlexRow = (element: HTMLElement | null) => {
+
+            if (!(element instanceof HTMLElement)) return false;
+
+            const style = window.getComputedStyle(element);
+
+            return (
+                style.display === "flex" &&
+                style.flexDirection !== "column" &&
+                style.flexDirection !== "column-reverse"
+            );
+
+        };
+
+        const promoteToNearestFlexRowParent = () => {
+
+            if (!(anchor instanceof HTMLElement)) return;
+
+            if (parentIsFlexRow(parent)) return;
+
+            let candidate = anchor.parentElement;
+
+            while (candidate instanceof HTMLElement) {
+
+                if (parentIsFlexRow(candidate)) {
+                    let directChild: HTMLElement | null = anchor;
+
+                    while (
+                        directChild &&
+                        directChild.parentElement instanceof HTMLElement &&
+                        directChild.parentElement !== candidate
+                    ) {
+                        directChild = directChild.parentElement;
+                    }
+
+                    if (directChild && directChild.parentElement === candidate) {
+                        parent = candidate;
+                        anchor = directChild;
+                    }
+
+                    return;
+                }
+
+                if (candidate === root) break;
+
+                candidate = candidate.parentElement;
+            }
+
+        };
+
+        promoteToNearestFlexRowParent();
+
         if (!(parent instanceof HTMLElement)) return;
         if (!composerControlGroup || !composerControlGroup.isConnected) {
             composerControlGroup = document.createElement("div");
