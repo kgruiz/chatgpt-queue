@@ -347,7 +347,7 @@
   min-height: 36px;
   background: transparent;
   color: var(--text-secondary, #8e8e93);
-  border: none;
+  border: 1px solid currentColor;
   transition: opacity 0.15s ease;
 }
 
