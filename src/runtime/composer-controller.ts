@@ -1171,8 +1171,11 @@ export const initComposerController = (ctx: ComposerControllerContext): Composer
     const refreshComposerButtonsState = (
         { promptHasContent, hasQueueItems }: { promptHasContent: boolean; hasQueueItems: boolean },
     ) => {
+
+        const shouldShowControls = promptHasContent || hasQueueItems;
+
         if (composerControlGroup) {
-            composerControlGroup.hidden = false;
+            composerControlGroup.hidden = !shouldShowControls;
         }
         if (composerQueueButton) {
             composerQueueButton.disabled = !promptHasContent;
