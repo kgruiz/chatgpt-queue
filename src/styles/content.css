@@ -362,9 +362,8 @@
 #cq-ui .cq-composer-hold-btn:disabled,
 .cq-composer-queue-btn:disabled,
 .cq-composer-hold-btn:disabled {
-  color: var(--text-tertiary, #6f6f73);
+  color: var(--text-tertiary);
   background: transparent;
-  opacity: 0.45;
 }
 
 .cq-composer-controls {
