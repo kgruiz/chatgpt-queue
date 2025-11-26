@@ -346,7 +346,7 @@
   padding-inline: 12px;
   min-height: 36px;
   background: transparent;
-  color: var(--text-secondary, #8e8e93);
+  color: var(--text-secondary);
   border: 1px solid currentColor;
   transition: opacity 0.15s ease;
 }
@@ -356,6 +356,14 @@
 .cq-composer-queue-btn:hover,
 .cq-composer-hold-btn:hover {
   opacity: 1;
+}
+
+#cq-ui .cq-composer-queue-btn:focus-visible,
+#cq-ui .cq-composer-hold-btn:focus-visible,
+.cq-composer-queue-btn:focus-visible,
+.cq-composer-hold-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
 }
 
 #cq-ui .cq-composer-queue-btn:disabled,
